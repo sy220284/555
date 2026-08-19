@@ -10,7 +10,7 @@
     "build:ts": "tsc -b",
     "build:native": "tsx ./scripts/build.ts",
     "typecheck": "tsc --noEmit && tsc -b --dry",
-    "test": "node ./test/entry.test.js && node ./test/launcher.test.js",
+    "test": "pnpm build:ts && node ./test/entry.test.js && node ./test/launcher.test.js",
     "test:entry": "node ./test/entry.test.js",
     "test:launcher": "node ./test/launcher.test.js",
     "gha:matrix": "node ./scripts/github-matrix.mjs",

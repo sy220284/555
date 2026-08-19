@@ -32,9 +32,33 @@ jobs:
       - name: 完整构建
         run: pnpm run build
 
-      - name: 精简仓库有效产品测试
+      - name: 执行有效产品测试并保留日志
+        shell: bash
         run: |
+          set +e
           pnpm exec vitest run apps packages \
             --exclude apps/cli/tests/memory-mcp-configs.spec.ts \
             --exclude packages/shell/tool-pwsh/tests/loader.spec.ts \
-            --exclude packages/typert/generator/tests/cordis-catalog.spec.ts
+            --exclude packages/typert/generator/tests/cordis-catalog.spec.ts \
+            > effective-test.log 2>&1
+          code=$?
+          echo "$code" > effective-test-exit-code.txt
+          echo '=== 测试失败摘要 ==='
+          grep -E -B 3 -A 12 'FAIL|Error:|Cannot find|ENOENT|AssertionError|Test Files|Tests ' effective-test.log | tail -n 500 || true
+          exit 0
+
+      - name: 上传有效产品测试日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: effective-test-log
+          path: |
+            effective-test.log
+            effective-test-exit-code.txt
+
+      - name: 判定有效产品测试结果
+        shell: bash
+        run: |
+          code=$(cat effective-test-exit-code.txt)
+          echo "有效产品测试退出码: $code"
+          exit "$code"

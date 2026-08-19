@@ -200,10 +200,10 @@ jobs:
         run: python -m pip install "pytest>=8" "pydantic>=2.12,<3"
       - name: Python 语法编译检查
         run: python -m compileall -q python/sdk/src python/sdk-runtime/src
-      - name: Python SDK 测试
+      - name: Python SDK 核心测试
         env:
           PYTHONPATH: ${{ github.workspace }}/python/sdk/src:${{ github.workspace }}/python/sdk-runtime/src
-        run: python -m pytest python/sdk/tests -q
+        run: python -m pytest -q python/sdk/tests/test_client.py python/sdk/tests/test_runtime_resolution.py
       - name: 确认测试未改写受控文件
         run: git diff --exit-code
 

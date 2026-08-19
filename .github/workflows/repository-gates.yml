@@ -283,6 +283,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Landlock TypeScript 边界检查
         run: pnpm --dir native/landlock-run run typecheck
+      - name: 构建 Landlock TypeScript 入口
+        run: pnpm --dir native/landlock-run run build:ts
       - name: 编译 Landlock C11 静态二进制
         run: pnpm --dir native/landlock-run run build:native
       - name: Landlock 启动器测试

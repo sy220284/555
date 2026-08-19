@@ -32,29 +32,51 @@ jobs:
       - name: 完整构建
         run: pnpm run build
 
+      - name: 临时移出裁剪资产依赖测试
+        shell: bash
+        run: |
+          mkdir -p /tmp/trimmed-tests/apps-cli /tmp/trimmed-tests/tool-pwsh /tmp/trimmed-tests/cordis-catalog
+          mv apps/cli/tests/memory-mcp-configs.spec.ts /tmp/trimmed-tests/apps-cli/
+          mv packages/shell/tool-pwsh/tests/loader.spec.ts /tmp/trimmed-tests/tool-pwsh/
+          mv packages/typert/generator/tests/cordis-catalog.spec.ts /tmp/trimmed-tests/cordis-catalog/
+
       - name: 执行有效产品测试并保留日志
         shell: bash
         run: |
           set +e
-          pnpm exec vitest run apps packages \
-            --exclude apps/cli/tests/memory-mcp-configs.spec.ts \
-            --exclude packages/shell/tool-pwsh/tests/loader.spec.ts \
-            --exclude packages/typert/generator/tests/cordis-catalog.spec.ts \
-            > effective-test.log 2>&1
+          pnpm exec vitest run apps packages > effective-test.log 2>&1
           code=$?
           echo "$code" > effective-test-exit-code.txt
-          echo '=== 测试失败摘要 ==='
           grep -E -B 3 -A 12 'FAIL|Error:|Cannot find|ENOENT|AssertionError|Test Files|Tests ' effective-test.log | tail -n 500 || true
           exit 0
 
-      - name: 上传有效产品测试日志
+      - name: 单独复跑进程退出测试
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          : > process-exit-rerun.log
+          final=0
+          for i in 1 2 3; do
+            echo "=== isolated run $i ===" | tee -a process-exit-rerun.log
+            pnpm exec vitest run packages/subprocess/subprocess-local/tests/process-exit.spec.ts >> process-exit-rerun.log 2>&1
+            code=$?
+            echo "exit=$code" | tee -a process-exit-rerun.log
+            if [ "$code" -ne 0 ]; then final=1; fi
+          done
+          echo "$final" > process-exit-rerun-exit-code.txt
+          exit 0
+
+      - name: 上传严格验证日志
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: effective-test-log
+          name: strict-effective-test-log
           path: |
             effective-test.log
             effective-test-exit-code.txt
+            process-exit-rerun.log
+            process-exit-rerun-exit-code.txt
 
       - name: 判定有效产品测试结果
         shell: bash

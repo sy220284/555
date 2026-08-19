@@ -1,0 +1,72 @@
+name: dev-closure-check
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate install build and tests
+        shell: bash
+        run: |
+          set +e
+          corepack enable >/tmp/corepack.log 2>&1
+          corepack prepare pnpm@11.7.0 --activate >>/tmp/corepack.log 2>&1
+          corepack_rc=$?
+
+          install_rc=99
+          build_rc=99
+          test_rc=99
+
+          if [ "$corepack_rc" -eq 0 ]; then
+            pnpm install --frozen-lockfile >/tmp/install.log 2>&1
+            install_rc=$?
+          fi
+          if [ "$install_rc" -eq 0 ]; then
+            pnpm run build >/tmp/build.log 2>&1
+            build_rc=$?
+          fi
+          if [ "$build_rc" -eq 0 ]; then
+            pnpm exec vitest run --reporter=dot >/tmp/test.log 2>&1
+            test_rc=$?
+          fi
+
+          python3 <<PY
+          import json
+          from pathlib import Path
+          def tail(path, n=120):
+              p=Path(path)
+              if not p.exists(): return ''
+              return '\n'.join(p.read_text('utf-8', errors='replace').splitlines()[-n:])
+          data={
+            'corepack': $corepack_rc,
+            'install': $install_rc,
+            'build': $build_rc,
+            'test': $test_rc,
+            'corepack_tail': tail('/tmp/corepack.log', 40),
+            'install_tail': tail('/tmp/install.log'),
+            'build_tail': tail('/tmp/build.log'),
+            'test_tail': tail('/tmp/test.log'),
+          }
+          Path('.dev-closure-check-result.json').write_text(json.dumps(data, ensure_ascii=False, indent=2)+'\n','utf-8')
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .dev-closure-check-result.json
+          git commit -m '临时：记录二次开发闭包验证结果'
+          git push origin HEAD:main
+          exit 0

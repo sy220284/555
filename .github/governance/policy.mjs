@@ -26,6 +26,10 @@ export function validatePolicy(policy) {
   if (policy?.mainVerificationContext !== 'main-verification') throw new Error('main verification context must remain main-verification');
   if (policy?.deliveryStatusContext !== 'delivery-ready') throw new Error('delivery status context must remain delivery-ready');
   if (policy?.synchronizeIntegrationBranches !== true) throw new Error('integration branch synchronization must stay enabled');
+  if (policy?.trustBootstrap?.requiresTrustedMainPolicy !== true) throw new Error('trusted main policy must be required after bootstrap');
+  if (policy?.trustBootstrap?.candidateSelfCertificationAllowed !== false) throw new Error('candidate self-certification must stay disabled');
+  if (policy?.trustBootstrap?.bootstrapBranch !== 'governance') throw new Error('trust bootstrap must be restricted to governance');
+  if (policy?.trustBootstrap?.initialMergeRequiresExplicitUserApproval !== true) throw new Error('initial trust bootstrap merge must require explicit user approval');
   if (policy?.taskControl?.policyPath !== '.github/task-control/policy.json') throw new Error('task-control policy path drifted');
   if (policy?.taskControl?.workStatePath !== '.github/task-control/work.json') throw new Error('work task state path drifted');
   if (policy?.taskControl?.governanceStatePath !== '.github/task-control/governance.json') throw new Error('governance task state path drifted');

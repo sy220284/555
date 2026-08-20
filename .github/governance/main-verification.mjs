@@ -73,6 +73,7 @@ async function verifyExactSourceGate(owner, repo, policy, source, sourceStatus, 
   const expectedSuite = Number.isSafeInteger(requestedSuite) && requestedSuite > 0 ? requestedSuite : trailers.checkSuiteId;
   const trigger = {
     id: runId,
+    run_attempt: exactRun.run_attempt,
     name: policy.sourceGate.workflowName,
     workflow_id: exactRun.workflow_id,
     check_suite_id: expectedSuite ?? exactRun.check_suite_id,

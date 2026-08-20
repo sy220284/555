@@ -31,14 +31,19 @@ const prefixes = {
   ],
 };
 
-const fullRiskRoots = [
+const fullProductRiskRoots = [
   'package.json',
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
   'tsconfig',
-  '.github/',
   'vendor/',
   'patches/',
+];
+
+const governanceRoots = [
+  '.github/',
+  'AGENTS.md',
+  'agent.md',
 ];
 
 const laneTaskStateMetadata = new Set([
@@ -55,8 +60,8 @@ export function classifyImpact(files) {
   const riskFiles = unique.filter((file) => !laneTaskStateMetadata.has(file));
   const result = {
     files: unique,
-    governance: riskFiles.some((file) => file.startsWith('.github/')),
-    full: riskFiles.some((file) => matches(file, fullRiskRoots)),
+    governance: riskFiles.some((file) => matches(file, governanceRoots)),
+    full: riskFiles.some((file) => matches(file, fullProductRiskRoots)),
     web: riskFiles.some((file) => matches(file, prefixes.web)),
     gui: riskFiles.some((file) => matches(file, prefixes.gui)),
     snapshot: riskFiles.some((file) => matches(file, prefixes.snapshot)),
@@ -100,24 +105,41 @@ function selfTest() {
   assert.deepEqual(classifyImpact(['README.md']), {
     files: ['README.md'], governance: false, full: false, web: false, gui: false, snapshot: false, e2e: false,
   });
+
   const taskStateOnly = classifyImpact(['.github/task-control/work.json']);
   assert.equal(taskStateOnly.governance, false);
   assert.equal(taskStateOnly.full, false);
   assert.equal(taskStateOnly.e2e, false);
+
+  const governance = classifyImpact(['.github/workflows/a.yml']);
+  assert.equal(governance.governance, true);
+  assert.equal(governance.full, false);
+  assert.equal(governance.e2e, false);
+  assert.equal(governance.web, false);
+  assert.equal(governance.gui, false);
+  assert.equal(governance.snapshot, false);
+
+  const agentRules = classifyImpact(['AGENTS.md']);
+  assert.equal(agentRules.governance, true);
+  assert.equal(agentRules.full, false);
+
   const web = classifyImpact(['apps/web/src/a.tsx', '.github/task-control/work.json']);
   assert.equal(web.web, true);
   assert.equal(web.gui, true);
   assert.equal(web.snapshot, true);
   assert.equal(web.full, false);
+
   const shell = classifyImpact(['packages/shell/x.ts']);
   assert.equal(shell.e2e, true);
-  const governance = classifyImpact(['.github/workflows/a.yml']);
-  assert.equal(governance.full, true);
-  assert.equal(governance.governance, true);
-  assert.equal(governance.e2e, true);
-  assert.equal(governance.web, true);
-  assert.equal(governance.gui, true);
-  assert.equal(governance.snapshot, true);
+  assert.equal(shell.full, false);
+
+  const dependency = classifyImpact(['pnpm-lock.yaml']);
+  assert.equal(dependency.full, true);
+  assert.equal(dependency.e2e, true);
+  assert.equal(dependency.web, true);
+  assert.equal(dependency.gui, true);
+  assert.equal(dependency.snapshot, true);
+
   console.log('Change impact self-test passed.');
 }
 

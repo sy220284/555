@@ -50,7 +50,26 @@ work/governance 任务状态 IN_PROGRESS
 → repository-state = DELIVERED
 ```
 
-`repository-gates / merge-gate` 聚合仓库范围、变更风险、Node.js 22.19、Node.js 24、扩展产品验证、Windows、macOS、Python SDK 与 Linux Landlock 原生门禁。任何子门禁失败，最终门禁必须失败。
+`repository-gates / merge-gate` 始终聚合仓库策略、Node.js 22.19、Node.js 24、Windows、macOS、Python SDK 与 Linux Landlock 等常驻门禁；任何常驻子门禁失败，最终门禁必须失败。
+
+扩展产品验证采用变更影响分类：
+
+```text
+产品相关源码
+→ 只触发对应端到端 / Web / GUI / 快照等产品专项验证
+
+依赖、工作区、TypeScript 根配置、vendor 或 patches 等全局产品风险
+→ 触发完整产品专项验证
+
+仅 AGENTS、agent.md、.github 治理代码或 Workflow
+→ governance=true，但不等同于 full product risk
+→ 继续执行治理自检与所有常驻门禁，不无条件触发与本次治理变更无关的产品专项验证
+
+仅 .github/task-control/work.json 或 governance.json 状态记账
+→ 不作为产品风险或治理逻辑风险驱动项
+```
+
+风险分类只决定额外产品专项验证范围，不能跳过常驻类型检查、构建、产品基础测试、跨平台和原生门禁；因此它用于消除误触发，不用于隐藏真实失败。
 
 高权限自动化必须从可信 `main` 执行；候选 PR 不得决定自己的合并资格。合并后只有 `main-verification` 成功，才允许同步永久集成分支；只有同步和最终 Branch Hygiene 均成功，才发布 `delivery-ready=success`。
 

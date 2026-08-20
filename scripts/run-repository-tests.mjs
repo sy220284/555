@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const disabledSuffix = '.repository-scope-disabled'
+const gateDisabledSuffix = '.repository-gate-disabled'
 
 // These suites validate examples/docs that repository-policy intentionally keeps
 // out of this product-source repository. Keep the test sources checked in, but
@@ -36,18 +37,24 @@ try {
   for (const relativePath of repositoryScopeExcludes) {
     const source = resolve(workspaceRoot, relativePath)
     const disabled = `${source}${disabledSuffix}`
+    const gateDisabled = `${source}${gateDisabledSuffix}`
     const sourceExists = await exists(source)
     const disabledExists = await exists(disabled)
+    const gateDisabledExists = await exists(gateDisabled)
 
-    if (sourceExists && disabledExists) {
-      throw new Error(`repository test scope conflict: both active and disabled copies exist for ${relativePath}`)
+    if (disabledExists) {
+      throw new Error(`repository test scope stale disabled copy: ${relativePath}${disabledSuffix}`)
     }
-    if (!sourceExists && !disabledExists) {
+    if (sourceExists && gateDisabledExists) {
+      throw new Error(`repository test scope conflict: both active and gate-disabled copies exist for ${relativePath}`)
+    }
+    if (!sourceExists && !gateDisabledExists) {
       throw new Error(`repository test scope inventory drift: missing ${relativePath}`)
     }
 
-    // Existing CI lanes may already have isolated the file before invoking the
-    // shared package script. In that case the outer lane owns restoration.
+    // Existing CI lanes may already have isolated the file with the
+    // .repository-gate-disabled suffix. In that case the outer lane owns
+    // restoration; otherwise this shared runner owns the temporary rename.
     if (sourceExists) {
       await rename(source, disabled)
       ownedRenames.push([disabled, source])

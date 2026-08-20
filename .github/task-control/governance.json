@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "executionBranch": "governance",
   "taskId": "GOV-RC8-WEB-GATE-20260820",
-  "status": "IN_PROGRESS",
-  "phase": "IMPLEMENTING",
+  "status": "IMPLEMENTED",
+  "phase": "IMPLEMENTED",
   "goal": "将 rc.8 Web 扩展验证所需的官方客户端构建配置迁回 governance 通道，使 work 产品 PR 不再修改治理信任根。",
   "verification": [
     "node .github/governance/pr-policy.mjs self-test",

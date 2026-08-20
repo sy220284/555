@@ -21,7 +21,14 @@
     "requiresTrustedMainPolicy": true,
     "candidateSelfCertificationAllowed": false,
     "bootstrapBranch": "governance",
-    "initialMergeRequiresExplicitUserApproval": true
+    "initialMergeRequiresExplicitUserApproval": true,
+    "trustRootPaths": [
+      "AGENTS.md",
+      "agent.md",
+      ".github/workflows/",
+      ".github/governance/",
+      ".github/task-control/policy.json"
+    ]
   },
   "taskControl": {
     "policyPath": ".github/task-control/policy.json",

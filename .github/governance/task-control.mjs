@@ -32,6 +32,7 @@ export function validateTaskPolicy(policy) {
   if (policy?.rules?.singleActiveTaskPerLane !== true) errors.push('singleActiveTaskPerLane must remain enabled');
   if (policy?.rules?.requireGoalForActiveTask !== true) errors.push('requireGoalForActiveTask must remain enabled');
   if (policy?.rules?.requireVerificationPlanForActiveTask !== true) errors.push('requireVerificationPlanForActiveTask must remain enabled');
+  if (policy?.rules?.implementedPrecedesFormalPrGates !== true) errors.push('implementedPrecedesFormalPrGates must remain enabled');
   if (policy?.rules?.implementedIsNotDelivered !== true) errors.push('implementedIsNotDelivered must remain enabled');
   return errors;
 }
@@ -134,6 +135,7 @@ export function taskControlSelfTest() {
       singleActiveTaskPerLane: true,
       requireGoalForActiveTask: true,
       requireVerificationPlanForActiveTask: true,
+      implementedPrecedesFormalPrGates: true,
       implementedIsNotDelivered: true,
     },
   };

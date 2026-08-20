@@ -25,6 +25,7 @@
     "singleActiveTaskPerLane": true,
     "requireGoalForActiveTask": true,
     "requireVerificationPlanForActiveTask": true,
+    "implementedPrecedesFormalPrGates": true,
     "implementedIsNotDelivered": true
   }
 }

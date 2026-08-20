@@ -353,12 +353,12 @@ jobs:
         with:
           version: 0.11.33
           enable-cache: false
-      - run: uv sync --project python/sdk --locked --group test
+      - run: uv sync --project python/sdk --locked --group test --no-install-project --no-install-local
       - run: python -m compileall -q python/sdk/src python/sdk-runtime/src
       - name: Python SDK 核心测试
         env:
           PYTHONPATH: ${{ github.workspace }}/python/sdk/src:${{ github.workspace }}/python/sdk-runtime/src
-        run: uv run --project python/sdk python -m pytest -q python/sdk/tests/test_client.py python/sdk/tests/test_runtime_resolution.py
+        run: uv run --project python/sdk --no-sync python -m pytest -q python/sdk/tests/test_client.py python/sdk/tests/test_runtime_resolution.py
       - run: git diff --exit-code
 
   native-landlock:

@@ -6,4 +6,4 @@
 repository-gates / merge-gate
 ```
 
-`merge-gate` 只在仓库范围、Node.js 22.19、Node.js 24、Windows、Python SDK 与 Linux Landlock 原生门禁全部成功后通过。
+`merge-gate` 只在仓库范围、Node.js 22.19、Node.js 24、Windows、macOS、Python SDK 与 Linux Landlock 原生门禁全部成功后通过。

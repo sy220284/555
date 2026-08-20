@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { resolve } from 'node:path'
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -25,14 +26,37 @@ function bwrapUsable() {
   return result.status === 0
 }
 
+function landlockBinary() {
+  return resolve(
+    import.meta.dirname,
+    '..',
+    'native',
+    'landlock-run',
+    'packages',
+    `linux-${process.arch}`,
+    'bin',
+    'landlock-run',
+  )
+}
+
+function landlockUsable(binary) {
+  const result = spawnSync(binary, ['--probe'], {
+    stdio: 'ignore',
+    timeout: 5_000,
+  })
+  return result.status === 0
+}
+
 if (process.platform === 'linux' && !bwrapUsable()) {
   if (process.env.CI !== 'true') {
-    throw new Error('Web tests require a usable bubblewrap sandbox on Linux. Install bubblewrap, then retry.')
+    throw new Error('Web tests require a usable Linux sandbox backend. Install bubblewrap or build native/landlock-run, then retry.')
   }
 
-  run('sudo', ['apt-get', 'install', '-y', '--no-install-recommends', 'bubblewrap'])
+  run('sudo', ['apt-get', 'install', '-y', '--no-install-recommends', 'musl-tools'])
+  run('pnpm', ['--dir', 'native/landlock-run', 'run', 'build:native'])
 
-  if (!bwrapUsable()) {
-    throw new Error('bubblewrap was installed but failed the sandbox functional probe')
+  const binary = landlockBinary()
+  if (!landlockUsable(binary)) {
+    throw new Error(`Landlock launcher was built but failed its functional probe: ${binary}`)
   }
 }

@@ -20,14 +20,18 @@ export function validateSourceGateRun({ trigger, exactRun, latestRun, requiredJo
   if (trigger?.name !== workflowName) errors.push(`Unexpected workflow: ${trigger?.name ?? '<missing>'}`);
   if (exactRun?.name !== workflowName) errors.push(`Exact run belongs to unexpected workflow: ${exactRun?.name ?? '<missing>'}`);
   if (exactRun?.id !== trigger?.id) errors.push('Exact workflow run ID does not match trigger');
+  if (exactRun?.run_attempt !== trigger?.run_attempt) errors.push('Exact workflow run attempt does not match trigger');
   if (exactRun?.check_suite_id !== trigger?.check_suite_id) errors.push('Exact workflow check suite does not match trigger');
   if (exactRun?.head_sha !== trigger?.head_sha) errors.push('Exact workflow head SHA does not match trigger');
   if (latestRun?.id !== trigger?.id) errors.push(`Workflow run ${trigger?.id ?? '<missing>'} is no longer latest for this head SHA`);
   if (exactRun?.status !== 'completed') errors.push(`Source gate run is not completed: ${exactRun?.status ?? '<missing>'}`);
   if (exactRun?.conclusion !== 'success') errors.push(`Source gate run did not succeed: ${exactRun?.conclusion ?? '<missing>'}`);
+  const exactAttempt = Number(exactRun?.run_attempt);
+  if (!Number.isSafeInteger(exactAttempt) || exactAttempt <= 0) errors.push('Exact workflow run attempt is missing or invalid');
+  const attemptJobs = (jobs ?? []).filter((job) => job.run_attempt === exactAttempt);
   for (const required of requiredJobs ?? []) {
-    const matches = (jobs ?? []).filter((job) => job.name === required);
-    if (matches.length !== 1) errors.push(`Required source job must occur exactly once: ${required}`);
+    const matches = attemptJobs.filter((job) => job.name === required);
+    if (matches.length !== 1) errors.push(`Required source job must occur exactly once in run attempt ${exactAttempt}: ${required}`);
     else if (matches[0].run_id !== trigger?.id || matches[0].conclusion !== 'success') {
       errors.push(`Required source job is not bound and successful: ${required}`);
     }
@@ -207,11 +211,19 @@ async function main() {
 
 function selfTest() {
   const sha = 'a'.repeat(40);
-  const trigger = { id: 42, name: 'repository-gates', workflow_id: 9, check_suite_id: 77, head_sha: sha };
+  const trigger = { id: 42, run_attempt: 1, name: 'repository-gates', workflow_id: 9, check_suite_id: 77, head_sha: sha };
   const exactRun = { ...trigger, status: 'completed', conclusion: 'success' };
   const requiredJobs = ['task-governance', 'quality / quality', 'security', 'performance', 'evidence'];
-  const jobs = requiredJobs.map((name, index) => ({ id: index + 1, run_id: 42, name, conclusion: 'success' }));
+  const jobs = requiredJobs.map((name, index) => ({ id: index + 1, run_id: 42, run_attempt: 1, name, conclusion: 'success' }));
   assert.deepEqual(validateSourceGateRun({ trigger, exactRun, latestRun: exactRun, requiredJobs, jobs, workflowName: 'repository-gates' }), []);
+  const rerunTrigger = { ...trigger, run_attempt: 2 };
+  const rerunExact = { ...exactRun, run_attempt: 2 };
+  const rerunJobs = [
+    ...jobs.map((job) => ({ ...job, conclusion: 'failure' })),
+    ...jobs.map((job, index) => ({ ...job, id: index + 101, run_attempt: 2, conclusion: 'success' })),
+  ];
+  assert.deepEqual(validateSourceGateRun({ trigger: rerunTrigger, exactRun: rerunExact, latestRun: rerunExact, requiredJobs, jobs: rerunJobs, workflowName: 'repository-gates' }), []);
+  assert.ok(validateSourceGateRun({ trigger: rerunTrigger, exactRun: rerunExact, latestRun: rerunExact, requiredJobs, jobs: [...rerunJobs, { ...rerunJobs.at(-1), id: 999 }], workflowName: 'repository-gates' }).length > 0);
   assert.ok(validateSourceGateRun({ trigger, exactRun, latestRun: { ...exactRun, id: 43 }, requiredJobs, jobs, workflowName: 'repository-gates' }).length > 0);
   assert.ok(validateSourceGateRun({ trigger, exactRun, latestRun: exactRun, requiredJobs, jobs: jobs.slice(1), workflowName: 'repository-gates' }).length > 0);
   assert.equal(latestStatusReady([{ context: 'pr-policy', state: 'success', updated_at: '2026-08-20T00:00:00Z' }], ['pr-policy']), true);

@@ -14,6 +14,33 @@ DeepSeek Harness（`dsh`）是一个面向智能体应用的可组合运行框�
 
 ---
 
+## 权威范围与文档导航
+
+仓库级人读权威文档只设两份：
+
+| 权威文档 | 唯一权威范围 |
+| --- | --- |
+| [`AGENTS.md`](AGENTS.md) | 仓库治理、开发规则、授权边界、分支流程、任务状态、测试与交付标准 |
+| [`README.md`](README.md) | 项目定位、功能范围、核心架构、使用与构建入口 |
+
+治理和开发流程问题以 `AGENTS.md` 为准；产品定义、能力边界、架构说明和使用入口以本文件为准。代码或配置与本文件的产品定义不一致时，应记录并修复偏差，不得用现有实现反向改写项目定位。
+
+其余正式文档统一从这里进入。它们承担专项说明、操作指南、模板、法律文本或生成记录，不建立并列的仓库级权威规则：
+
+| 分类 | 文档 |
+| --- | --- |
+| 开发执行 | [`agent.md`](agent.md) · [`AI 自动化开发推进策略`](AUTO_EXECUTION_POLICY.md) · [`贡献指南`](CONTRIBUTING.md) |
+| 治理门禁 | [`仓库门禁与自动闭环`](.github/repository-gates.md) · [`主线必需检查`](.github/required-checks.md) · [`依赖更新`](.github/dependency-updates.md) |
+| 协作模板 | [`合并请求模板`](.github/pull_request_template.md) · [`社区行为准则`](CODE_OF_CONDUCT.md) |
+| 安全与发布 | [`安全策略`](SECURITY.md) · [`发布策略`](RELEASE.md) |
+| 法律与声明 | [`MIT 许可证`](LICENSE) · [`第三方软件声明`](THIRD_PARTY_NOTICES.md) |
+| 内置技能 | [`Cordis 插件开发`](apps/cli/config/agent-presets/cordis/skills/cordis-plugin-development/SKILL.md) · [`Cordis 组合编辑`](apps/cli/config/agent-presets/cordis/skills/editing-cordis-compositions/SKILL.md) |
+| 品牌资源 | [`dsh 徽章使用说明`](packages/skill/skill-badge/assets/dsh-badge.md) |
+
+法律文本和自动生成声明保留各自法定或记录效力，但不承担仓库治理与产品定义职能。
+
+---
+
 ## 项目定位
 
 DeepSeek Harness 并不是单纯的模型聊天客户端。

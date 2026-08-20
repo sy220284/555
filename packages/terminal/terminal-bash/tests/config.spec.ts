@@ -39,11 +39,11 @@ describe('terminal-bash dialect resolution', () => {
     expect(shellArgs).toEqual(['--noprofile', '--norc', '-i'])
   })
 
-  it('defaults pwsh argv to the persistent profile-free form without PSReadLine and resolves the executable', () => {
+  it('defaults pwsh argv to the interactive persistent profile-free form and resolves the executable', () => {
     const resolved = resolveConfig({ backendType: 'shell', shellDialect: 'pwsh', rows: 24, cols: 80 })
     expect(resolved.shellDialect).toBe('pwsh')
     expect(resolved.shellPath.length).toBeGreaterThan(0)
-    expect(resolved.shellArgs).toEqual(['-NoLogo', '-NoProfile', '-NonInteractive'])
+    expect(resolved.shellArgs).toEqual(['-NoLogo', '-NoProfile'])
   })
 
   it('lets an explicit shell specification win over the dialect defaults', () => {

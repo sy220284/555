@@ -959,16 +959,21 @@ describe('createFixtureApi', () => {
         && frame.event.data.chunk.type === 'reasoning-delta'
         && frame.event.data.chunk.text.includes('REASONING_STRESS_COMPLETE')
       )))
-      const marker = hooks.startReasoningChunkStorm('fx-alpha', 3, 2, 16)
+      const marker = hooks.startReasoningChunkStorm('fx-alpha', 5, 2, 16)
       expect(() => hooks.startReasoningChunkStorm('fx-alpha', 1, 1, 16)).toThrow(/already running/)
       expect(hooks.reasoningChunkStormState()).toMatchObject({ emitted: 0, emitting: true, marker })
 
+      // A delayed host callback still emits one bounded interval; it never
+      // repays elapsed wall-clock intervals as one event-loop-blocking burst.
+      vi.setSystemTime(10_000)
       await vi.advanceTimersByTimeAsync(0)
       expect(hooks.reasoningChunkStormState()).toMatchObject({ emitted: 2, emitting: true })
       await vi.advanceTimersByTimeAsync(16)
+      expect(hooks.reasoningChunkStormState()).toMatchObject({ emitted: 4, emitting: true })
+      await vi.advanceTimersByTimeAsync(16)
       expect(hooks.reasoningChunkStormState()).toEqual({
-        sessionId: 'fx-alpha', chunkCount: 3, chunksPerInterval: 2, intervalMs: 16,
-        emitted: 3, marker, emitting: false,
+        sessionId: 'fx-alpha', chunkCount: 5, chunksPerInterval: 2, intervalMs: 16,
+        emitted: 5, marker, emitting: false,
       })
 
       const frames = await streamed
@@ -979,7 +984,7 @@ describe('createFixtureApi', () => {
           ? [frame.event.data.chunk.text]
           : []
       ))
-      expect(deltas).toEqual(['推理', '推理', `\n${marker}`])
+      expect(deltas).toEqual(['推理', '推理', '推理', '推理', `\n${marker}`])
     } finally {
       abort.abort()
       vi.useRealTimers()

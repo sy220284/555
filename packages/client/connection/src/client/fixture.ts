@@ -2106,11 +2106,12 @@ function createFixtureWorld(options: FixtureOptions): FixtureWorld {
         data: { turn, step: 0, chunk: { type: 'block-start', index: 0, blockType: 'reasoning' } },
       })
 
-      const startedAt = Date.now()
       const pump = (): void => {
-        const elapsedIntervals = Math.floor((Date.now() - startedAt) / intervalMs) + 1
-        const due = Math.max(state.emitted + chunksPerInterval, elapsedIntervals * chunksPerInterval)
-        const end = Math.min(due, chunkCount)
+        // Backpressure stretches the producer's wall-clock duration instead of
+        // accumulating delivery debt. Catching up every missed interval in one
+        // callback turns an unrelated pause into an unbounded synchronous burst
+        // and masks the renderer stall the heartbeat is intended to measure.
+        const end = Math.min(state.emitted + chunksPerInterval, chunkCount)
         for (let index = state.emitted; index < end; index++) {
           const chunkText = index === chunkCount - 1
             ? `\n${marker}`

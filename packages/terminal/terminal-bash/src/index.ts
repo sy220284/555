@@ -81,14 +81,15 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 }
 
 /**
- * The default pwsh argv uses `-NonInteractive`, which prevents PSReadLine from
- * loading while retaining the persistent stdin command loop. Unloading
- * PSReadLine from its own prompt callback can strand Unix hosts, so the prompt
- * function only emits the shared OSC `133;D;` + BEL marker. `[char]27`/`[char]7`
- * build the control bytes at runtime because raw ESC characters in the initial
- * submitted input are unreliable. Build the first prompt character separately
- * so an echoed bootstrap command cannot impersonate readiness by containing the
- * complete controlled prompt before the function is installed.
+ * Keep pwsh interactive so its console host owns a persistent stdin command
+ * loop on every supported platform. The wrapper parser already tolerates
+ * PSReadLine echo, and unloading PSReadLine from its own prompt callback can
+ * strand Unix hosts. The prompt therefore only emits the shared OSC `133;D;` +
+ * BEL marker. `[char]27`/`[char]7` build the control bytes at runtime because
+ * raw ESC characters in the initial submitted input are unreliable. Build the
+ * first prompt character separately so an echoed bootstrap command cannot
+ * impersonate readiness by containing the complete controlled prompt before
+ * the function is installed.
  */
 const PWSH_PROMPT_HEAD = CONTROLLED_PROMPT.slice(0, 1)
 const PWSH_PROMPT_TAIL = CONTROLLED_PROMPT.slice(1)

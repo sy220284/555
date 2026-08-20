@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { githubApi, githubRepository, loadPolicy, assertFullSha } from './policy.mjs';
+import { githubApi, githubRepository, loadPolicy, assertFullSha, listAllPages } from './policy.mjs';
 
 export function requiredChecksReady({ checkRuns, statuses, requiredCheckRuns, requiredStatusContexts }) {
   const latestChecks = new Map();
@@ -23,6 +23,14 @@ export function requiredChecksReady({ checkRuns, statuses, requiredCheckRuns, re
     requiredStatusContexts.every((name) => latestStatuses.get(name)?.state === 'success');
 }
 
+function matchesProtectedPath(file, protectedPath) {
+  return protectedPath.endsWith('/') ? file.startsWith(protectedPath) : file === protectedPath;
+}
+
+export function trustRootChanges(files, protectedPaths) {
+  return [...new Set((files ?? []).filter((file) => (protectedPaths ?? []).some((protectedPath) => matchesProtectedPath(file, protectedPath))))].sort();
+}
+
 async function eventPayload() {
   if (!process.env.GITHUB_EVENT_PATH) throw new Error('GITHUB_EVENT_PATH is required');
   return JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, 'utf8'));
@@ -33,6 +41,11 @@ async function associatedOpenPull(owner, repo, sha, lanes) {
   return pulls.find(
     (pull) => pull.state === 'open' && pull.base?.ref === 'main' && lanes.includes(pull.head?.ref),
   );
+}
+
+async function pullFiles(owner, repo, pullNumber) {
+  return listAllPages((page) => `/repos/${owner}/${repo}/pulls/${pullNumber}/files?per_page=100&page=${page}`)
+    .then((items) => items.map((item) => item.filename));
 }
 
 async function updateBranch(owner, repo, pull) {
@@ -77,6 +90,13 @@ async function main() {
   if (pull.head?.repo?.full_name !== process.env.GITHUB_REPOSITORY) throw new Error('Cross-repository integration PR is forbidden');
   if (pull.head.sha !== candidateSha) {
     console.log(`PR #${pull.number} advanced after trigger; merge deferred to the new head.`);
+    return;
+  }
+
+  const changed = await pullFiles(owner, repo, pull.number);
+  const protectedChanges = trustRootChanges(changed, policy.trustBootstrap.trustRootPaths);
+  if (protectedChanges.length > 0) {
+    console.log(`PR #${pull.number} changes trust-root files and requires explicit user-approved merge; automatic merge deferred: ${protectedChanges.join(', ')}`);
     return;
   }
 
@@ -141,6 +161,10 @@ function selfTest() {
     requiredCheckRuns: ['repository-gates / merge-gate'],
     requiredStatusContexts: ['pr-policy'],
   }), false);
+  const protectedPaths = ['AGENTS.md', '.github/workflows/', '.github/governance/', '.github/task-control/policy.json'];
+  assert.deepEqual(trustRootChanges(['packages/core/a.ts'], protectedPaths), []);
+  assert.deepEqual(trustRootChanges(['.github/task-control/work.json'], protectedPaths), []);
+  assert.deepEqual(trustRootChanges(['AGENTS.md', '.github/workflows/a.yml'], protectedPaths), ['.github/workflows/a.yml', 'AGENTS.md']);
   console.log('Controlled merge self-test passed.');
 }
 

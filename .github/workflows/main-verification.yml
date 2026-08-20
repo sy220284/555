@@ -20,7 +20,7 @@ on:
         required: false
         type: string
       source_branch:
-        description: 来源永久 lane
+        description: 来源永久集成分支
         required: false
         type: choice
         options: [work, governance]
@@ -43,6 +43,7 @@ jobs:
       source_pr: ${{ steps.provenance.outputs.source_pr }}
       source_head_sha: ${{ steps.provenance.outputs.source_head_sha }}
       source_branch: ${{ steps.provenance.outputs.source_branch }}
+      task_id: ${{ steps.provenance.outputs.task_id }}
     env:
       EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
       SOURCE_PR: ${{ inputs.source_pr }}
@@ -62,7 +63,7 @@ jobs:
           node-version: 24.18.1
           cache: pnpm
       - id: provenance
-        name: 验证来源、主线和永久门禁事实
+        name: 验证来源、主线、永久门禁与任务状态
         run: node .github/governance/main-verification.mjs verify
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
@@ -150,3 +151,25 @@ jobs:
           path: artifacts/branch-hygiene/
           if-no-files-found: error
           retention-days: 30
+
+  publish-delivery-status:
+    if: always()
+    needs: [verify-main, publish-status, synchronize-integrations, final-hygiene]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+      DELIVERY_RESULT: ${{ needs.verify-main.result == 'success' && needs.publish-status.result == 'success' && needs.synchronize-integrations.result == 'success' && needs.final-hygiene.result == 'success' && 'success' || 'failure' }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version: 24.18.1 }
+      - name: 发布最终交付状态
+        run: node .github/governance/main-verification.mjs publish-delivery-status

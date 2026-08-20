@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { appendFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { githubApi, githubRepository, loadPolicy, assertFullSha } from './policy.mjs';
+import { isLaneMergeReady, loadLaneState, loadTaskPolicy } from './task-control.mjs';
 
 export function verifyProvenance({ mainSha, expectedSha, pull, sourcePr, sourceHeadSha, sourceBranch }) {
   const errors = [];
@@ -13,6 +14,10 @@ export function verifyProvenance({ mainSha, expectedSha, pull, sourcePr, sourceH
   if (pull?.head?.ref !== sourceBranch) errors.push(`Source branch mismatch: ${pull?.head?.ref ?? '<missing>'}`);
   if (pull?.head?.sha !== sourceHeadSha) errors.push('Source head SHA mismatch');
   return errors;
+}
+
+export function resultState(result) {
+  return result === 'success' ? 'success' : 'failure';
 }
 
 async function resolveSource(owner, repo, policy, expectedSha) {
@@ -57,6 +62,12 @@ async function verify() {
   });
   if (errors.length > 0) throw new Error(errors.join('\n'));
 
+  const taskPolicy = await loadTaskPolicy(process.cwd());
+  const laneState = await loadLaneState(process.cwd(), source.sourceBranch, taskPolicy);
+  if (!isLaneMergeReady(laneState, taskPolicy)) {
+    throw new Error(`Merged source lane task is not IMPLEMENTED: ${laneState.taskId ?? '<none>'} ${laneState.status}/${laneState.phase}`);
+  }
+
   const checkRuns = await githubApi(`/repos/${owner}/${repo}/commits/${source.sourceHeadSha}/check-runs?per_page=100`);
   for (const required of policy.requiredCheckRuns) {
     const runs = (checkRuns?.check_runs ?? []).filter((run) => run.name === required);
@@ -77,27 +88,52 @@ async function verify() {
     await appendFile(process.env.GITHUB_OUTPUT, `source_pr=${source.sourcePr}\n`);
     await appendFile(process.env.GITHUB_OUTPUT, `source_head_sha=${source.sourceHeadSha}\n`);
     await appendFile(process.env.GITHUB_OUTPUT, `source_branch=${source.sourceBranch}\n`);
+    await appendFile(process.env.GITHUB_OUTPUT, `task_id=${laneState.taskId}\n`);
   }
-  console.log(`Main provenance verified for ${expectedSha} from PR #${source.sourcePr}.`);
+  console.log(`Main provenance verified for ${expectedSha} from PR #${source.sourcePr}, task ${laneState.taskId}.`);
 }
 
-async function publishStatus() {
-  const policy = await loadPolicy();
-  const expectedSha = assertFullSha(process.env.EXPECTED_SHA || process.env.GITHUB_SHA, 'expected main sha');
-  const state = process.env.VERIFY_RESULT === 'success' ? 'success' : 'failure';
+async function publishCommitStatus({ expectedSha, context, state, successDescription, failureDescription }) {
   const { owner, repo } = githubRepository();
   await githubApi(`/repos/${owner}/${repo}/statuses/${expectedSha}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       state,
-      context: policy.mainVerificationContext,
-      description: state === 'success' ? 'Verified merged main and source provenance' : 'Main verification failed',
+      context,
+      description: state === 'success' ? successDescription : failureDescription,
       target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
     }),
   });
+  console.log(`Published ${context}=${state} for ${expectedSha}.`);
+}
+
+async function publishStatus() {
+  const policy = await loadPolicy();
+  const expectedSha = assertFullSha(process.env.EXPECTED_SHA || process.env.GITHUB_SHA, 'expected main sha');
+  const state = resultState(process.env.VERIFY_RESULT);
+  await publishCommitStatus({
+    expectedSha,
+    context: policy.mainVerificationContext,
+    state,
+    successDescription: 'Verified merged main, source provenance and task state',
+    failureDescription: 'Main verification failed',
+  });
   if (state !== 'success') throw new Error('Published failed main-verification status');
-  console.log(`Published ${policy.mainVerificationContext}=success for ${expectedSha}.`);
+}
+
+async function publishDeliveryStatus() {
+  const policy = await loadPolicy();
+  const expectedSha = assertFullSha(process.env.EXPECTED_SHA || process.env.GITHUB_SHA, 'expected main sha');
+  const state = resultState(process.env.DELIVERY_RESULT);
+  await publishCommitStatus({
+    expectedSha,
+    context: policy.deliveryStatusContext,
+    state,
+    successDescription: 'Main verified, integration lanes synchronized and branch hygiene passed',
+    failureDescription: 'Final delivery closure failed',
+  });
+  if (state !== 'success') throw new Error('Published failed delivery-ready status');
 }
 
 function selfTest() {
@@ -105,6 +141,9 @@ function selfTest() {
   const pull = { number: 7, merged_at: 'x', base: { ref: 'main' }, head: { ref: 'work', sha } };
   assert.deepEqual(verifyProvenance({ mainSha: sha, expectedSha: sha, pull, sourcePr: 7, sourceHeadSha: sha, sourceBranch: 'work' }), []);
   assert.ok(verifyProvenance({ mainSha: 'b'.repeat(40), expectedSha: sha, pull, sourcePr: 7, sourceHeadSha: sha, sourceBranch: 'work' }).length > 0);
+  assert.equal(resultState('success'), 'success');
+  assert.equal(resultState('failure'), 'failure');
+  assert.equal(resultState('skipped'), 'failure');
   console.log('Main verification self-test passed.');
 }
 
@@ -113,5 +152,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (command === 'self-test') selfTest();
   else if (command === 'verify') await verify();
   else if (command === 'publish-status') await publishStatus();
+  else if (command === 'publish-delivery-status') await publishDeliveryStatus();
   else throw new Error(`Unknown command: ${command}`);
 }

@@ -15,7 +15,15 @@
   "mainWriteMode": "serialized",
   "mergeMethod": "squash",
   "mainVerificationContext": "main-verification",
+  "deliveryStatusContext": "delivery-ready",
   "synchronizeIntegrationBranches": true,
+  "taskControl": {
+    "policyPath": ".github/task-control/policy.json",
+    "workStatePath": ".github/task-control/work.json",
+    "governanceStatePath": ".github/task-control/governance.json",
+    "mergeReadyStatus": "IMPLEMENTED",
+    "finalRepositoryState": "DELIVERED"
+  },
   "requiredStatusContexts": [
     "pr-policy"
   ],

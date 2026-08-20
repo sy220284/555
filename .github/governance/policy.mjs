@@ -23,6 +23,14 @@ export function validatePolicy(policy) {
   if (policy?.allowAdditionalBranches !== false) throw new Error('Additional branches must stay disabled');
   if (policy?.mainWriteMode !== 'serialized') throw new Error('main writes must be serialized');
   if (policy?.mergeMethod !== 'squash') throw new Error('merge method must remain squash');
+  if (policy?.mainVerificationContext !== 'main-verification') throw new Error('main verification context must remain main-verification');
+  if (policy?.deliveryStatusContext !== 'delivery-ready') throw new Error('delivery status context must remain delivery-ready');
+  if (policy?.synchronizeIntegrationBranches !== true) throw new Error('integration branch synchronization must stay enabled');
+  if (policy?.taskControl?.policyPath !== '.github/task-control/policy.json') throw new Error('task-control policy path drifted');
+  if (policy?.taskControl?.workStatePath !== '.github/task-control/work.json') throw new Error('work task state path drifted');
+  if (policy?.taskControl?.governanceStatePath !== '.github/task-control/governance.json') throw new Error('governance task state path drifted');
+  if (policy?.taskControl?.mergeReadyStatus !== 'IMPLEMENTED') throw new Error('task-control merge-ready status must remain IMPLEMENTED');
+  if (policy?.taskControl?.finalRepositoryState !== 'DELIVERED') throw new Error('final repository state must remain DELIVERED');
   if (!Array.isArray(policy?.requiredStatusContexts) || policy.requiredStatusContexts.length < 1) {
     throw new Error('requiredStatusContexts must not be empty');
   }

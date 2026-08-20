@@ -81,8 +81,9 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 }
 
 /**
- * The managed pwsh startup installs its prompt before ConsoleHost begins its
- * first read. This avoids submitting bootstrap text into PSReadLine while that
+ * The managed pwsh startup installs its global prompt before ConsoleHost begins
+ * its first read. The explicit global scope survives the temporary `-Command`
+ * pipeline. This avoids submitting bootstrap text into PSReadLine while that
  * module is still taking ownership of the terminal. The prompt emits the
  * shared OSC `133;D;` + BEL marker; `[char]27`/`[char]7` build those control
  * bytes at runtime. Build the printable prompt in two pieces as an additional
@@ -92,7 +93,7 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 const PWSH_PROMPT_HEAD = CONTROLLED_PROMPT.slice(0, 1)
 const PWSH_PROMPT_TAIL = CONTROLLED_PROMPT.slice(1)
 export const PWSH_PROMPT_SETUP =
-  `function prompt { [Console]::Write([string]::Concat([char]27, ']133;D;', [int]$LASTEXITCODE, [char]7)); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
+  `function global:prompt { [Console]::Write([string]::Concat([char]27, ']133;D;', [int]$LASTEXITCODE, [char]7)); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
 
 /**
  * Line-oriented ConsoleHost reader for the automation-owned PTY. Defining the

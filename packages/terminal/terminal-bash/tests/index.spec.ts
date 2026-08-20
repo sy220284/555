@@ -360,7 +360,7 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(spawned?.argv).toEqual([
       'pwsh', '-NoLogo', '-NoProfile', '-NoExit', '-Command', PWSH_STARTUP_COMMAND,
     ])
-    expect(PWSH_PROMPT_SETUP).toMatch(/^function prompt \{ \[Console\]::Write/u)
+    expect(PWSH_PROMPT_SETUP).toMatch(/^function global:prompt \{ \[Console\]::Write/u)
     expect(PWSH_PROMPT_SETUP).not.toContain('PSReadLine')
     expect(PWSH_PROMPT_SETUP).not.toContain('dsh> ')
     expect(PWSH_STARTUP_COMMAND).toContain('[Console]::OutputEncoding')

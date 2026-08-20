@@ -123,7 +123,7 @@ class StubTerminalSession implements TerminalBackendSession {
 
   startSend(request: TerminalSendRequest): TerminalSendOperation {
     this.sends += 1
-    if (request.text.startsWith('function prompt')) {
+    if (request.text.startsWith('function global:prompt')) {
       if (this.mode === 'init-exit') {
         this.statusValue = { kind: 'exited', exitCode: 1, signal: null }
         return this.operation(Promise.resolve(this.result('', 'session_exit')))

@@ -253,12 +253,13 @@ async function respondToSessionExit(
 }
 
 /**
- * The pwsh prompt function that overrides the backend bootstrap value with
- * this tool's own prompt. `[char]27`/`[char]7` build the OSC bytes at runtime
- * because raw ESC characters in submitted terminal input are unreliable.
+ * The global pwsh prompt function that overrides the backend bootstrap value
+ * with this tool's own prompt. `[char]27`/`[char]7` build the OSC bytes at
+ * runtime because raw ESC characters in submitted terminal input are
+ * unreliable.
  */
 const PWSH_PROMPT_SETUP =
-  "function prompt { [Console]::Write([string]::Concat([char]27, ']133;D;', [int]$LASTEXITCODE, [char]7)); '" + SHELL_PROMPT + "' }"
+  "function global:prompt { [Console]::Write([string]::Concat([char]27, ']133;D;', [int]$LASTEXITCODE, [char]7)); '" + SHELL_PROMPT + "' }"
 
 function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShells {
   const pending = new WeakMap<Agent, Promise<TerminalSessionId>>()

@@ -796,6 +796,32 @@ async function stableCount(
   throw new Error(`browser row count did not stabilize; last count ${String(previous)}`)
 }
 
+async function stableTrajectoryRowCount(
+  page: Page,
+  accepts: (count: number) => boolean,
+  timeoutMs = 60_000,
+): Promise<number> {
+  const table = page.locator('[data-trajectory-scroll] table[aria-rowcount]')
+  await table.waitFor({ timeout: timeoutMs })
+  const deadline = performance.now() + timeoutMs
+  let previous = -1
+  let stableReads = 0
+  while (performance.now() < deadline) {
+    const raw = await table.getAttribute('aria-rowcount')
+    const count = raw === null ? Number.NaN : Number(raw)
+    const visibleRows = await table.getByRole('row').count()
+    const valid = Number.isSafeInteger(count)
+      && accepts(count)
+      && visibleRows > 0
+      && visibleRows <= count
+    stableReads = valid && count === previous ? stableReads + 1 : 0
+    if (stableReads >= 4) return count
+    previous = count
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  throw new Error(`trajectory semantic row count did not stabilize; last count ${String(previous)}`)
+}
+
 async function conversationTurns(page: Page): Promise<number> {
   // Loaded-window turn count: one mounted turn-tail footer per settled turn in
   // the window (context keys are `${kind.length}:${kind}${id}`). The stats
@@ -1233,21 +1259,20 @@ describe('manual web performance: complex workspace and history', () => {
       })
       expect(opened.value).toBe(DEFAULT_HISTORY_TURNS)
 
-      const trajectoryRows = page.getByRole('row')
       const coldTrajectory = await measure(cdp, async () => {
         await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
-        return stableCount(trajectoryRows, count => count === EXPECTED_TRAJECTORY_ROWS)
+        return stableTrajectoryRowCount(page, count => count === EXPECTED_TRAJECTORY_ROWS)
       })
       expect(coldTrajectory.value).toBe(EXPECTED_TRAJECTORY_ROWS)
 
       const collapseTurns = await measure(cdp, async () => {
         await page.getByRole('button', { name: 'Collapse turns', exact: true }).click()
-        return stableCount(trajectoryRows, count => count > 0 && count < EXPECTED_TRAJECTORY_ROWS)
+        return stableTrajectoryRowCount(page, count => count > 0 && count < EXPECTED_TRAJECTORY_ROWS)
       })
       expect(collapseTurns.value).toBeLessThan(EXPECTED_TRAJECTORY_ROWS)
       const trajectorySearch = await measure(cdp, async () => {
         await page.getByRole('searchbox', { name: 'Search trajectory', exact: true }).fill('turn 499')
-        return stableCount(trajectoryRows, count => count > 0 && count < 20)
+        return stableTrajectoryRowCount(page, count => count > 0 && count < 20)
       })
       expect(trajectorySearch.value).toBeLessThan(20)
 
@@ -1268,7 +1293,7 @@ describe('manual web performance: complex workspace and history', () => {
 
       const warmTrajectory = await measure(cdp, async () => {
         await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
-        return stableCount(trajectoryRows, count => count === EXPECTED_TRAJECTORY_ROWS)
+        return stableTrajectoryRowCount(page, count => count === EXPECTED_TRAJECTORY_ROWS)
       })
       expect(warmTrajectory.value).toBe(EXPECTED_TRAJECTORY_ROWS)
       const warmConversation = await measure(cdp, async () => {

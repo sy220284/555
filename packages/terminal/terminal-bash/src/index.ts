@@ -86,10 +86,14 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
  * submitted wrappers into PTY scrollback on every host and can evict the real
  * command output before capture. `[char]27`/`[char]7` build the control bytes
  * at runtime because raw ESC characters in the initial submitted input are
- * unreliable while PSReadLine is still active.
+ * unreliable while PSReadLine is still active. Build the first prompt byte
+ * separately so the echoed bootstrap command cannot impersonate readiness by
+ * containing the complete controlled prompt before the function is installed.
  */
+const PWSH_PROMPT_HEAD = CONTROLLED_PROMPT.charCodeAt(0)
+const PWSH_PROMPT_TAIL = CONTROLLED_PROMPT.slice(1)
 export const PWSH_PROMPT_SETUP =
-  "Remove-Module PSReadLine -ErrorAction SilentlyContinue; function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + CONTROLLED_PROMPT + "' }"
+  `Remove-Module PSReadLine -ErrorAction SilentlyContinue; function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); ([string][char]${PWSH_PROMPT_HEAD} + '${PWSH_PROMPT_TAIL}') }`
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
   const argv = [config.shellPath, ...config.shellArgs]

@@ -172,7 +172,10 @@ describe('HMR exact config paths', () => {
     const dir = mkdtempSync(join(tmpdir(), 'dsh-hmr-config-'))
     const filename = join(dir, 'plugins.yml')
     // This case owns observer-failure semantics, not native fs-watch delivery.
-    // Polling removes host-specific event coalescing from the assertion.
+    // Seed the exact path before registration so Chokidar's deterministic
+    // initial add owns the first refresh; polling removes host-specific event
+    // coalescing from the distinct follow-up change assertion.
+    writeFileSync(filename, 'invalid')
     const ctx = await bootHmr(dir, [], true)
     const failure = Promise.withResolvers<{ filename: string; error: Error }>()
     let failureCount = 0
@@ -185,7 +188,6 @@ describe('HMR exact config paths', () => {
         failure.resolve({ filename: failedFilename, error })
       })
       await ctx.hmr.registerConfig(filename, () => { throw 42 })
-      writeFileSync(filename, 'invalid')
 
       const observed = await failure.promise
       expect(observed.filename).toBe(filename)

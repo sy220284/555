@@ -86,14 +86,14 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
  * submitted wrappers into PTY scrollback on every host and can evict the real
  * command output before capture. `[char]27`/`[char]7` build the control bytes
  * at runtime because raw ESC characters in the initial submitted input are
- * unreliable while PSReadLine is still active. Build the first prompt byte
+ * unreliable while PSReadLine is still active. Build the first prompt character
  * separately so the echoed bootstrap command cannot impersonate readiness by
  * containing the complete controlled prompt before the function is installed.
  */
-const PWSH_PROMPT_HEAD = CONTROLLED_PROMPT.charCodeAt(0)
+const PWSH_PROMPT_HEAD = CONTROLLED_PROMPT.slice(0, 1)
 const PWSH_PROMPT_TAIL = CONTROLLED_PROMPT.slice(1)
 export const PWSH_PROMPT_SETUP =
-  `Remove-Module PSReadLine -ErrorAction SilentlyContinue; function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); ([string][char]${PWSH_PROMPT_HEAD} + '${PWSH_PROMPT_TAIL}') }`
+  `Remove-Module PSReadLine -ErrorAction SilentlyContinue; function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
   const argv = [config.shellPath, ...config.shellArgs]
@@ -130,13 +130,15 @@ async function startupSession(
     // prompt is actually visible (in the viewport or the retained scrollback
     // when it landed between sends), bounded by the send deadline.
     let viewport = ''
+    let bootstrapSubmitted = false
     for (;;) {
-      const first = viewport.length === 0
+      const first = !bootstrapSubmitted
       const operation = session.startSend({
         text: first ? ENCODING_PREAMBLE + PWSH_PROMPT_SETUP : '',
         submit: first,
         ...signal !== undefined ? { signal } : {},
       })
+      bootstrapSubmitted = true
       const result = await operation.done
       if (result.waitReason === 'session_exit') throw new Error('PTY shell exited during startup')
       if (result.waitReason === 'timeout') throw new Error('PTY shell did not reach readiness before startup timeout')

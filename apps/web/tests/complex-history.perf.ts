@@ -43,6 +43,8 @@ const TOOLS_PER_TOOL_TURN = 10
 const EXPECTED_TOOL_CALLS = LONG_HISTORY_TURNS / TOOL_TURN_INTERVAL * TOOLS_PER_TOOL_TURN
 const EXPECTED_TRAJECTORY_ROWS = 2_100
 const DEFAULT_HISTORY_TURNS = 24
+// rc.8 opens the tail page: 105 semantic records plus the earlier-history row.
+const DEFAULT_TRAJECTORY_ROWS = 106
 const PERF_REPLAY_CONTEXT_WINDOW = 10_000_000
 const STREAM_PACE_MS = 8
 const STREAM_DELTA_COUNT = 120
@@ -1261,9 +1263,9 @@ describe('manual web performance: complex workspace and history', () => {
 
       const coldTrajectory = await measure(cdp, async () => {
         await page.getByRole('tab', { name: 'Trajectory', exact: true }).click()
-        return stableTrajectoryRowCount(page, count => count === EXPECTED_TRAJECTORY_ROWS)
+        return stableTrajectoryRowCount(page, count => count === DEFAULT_TRAJECTORY_ROWS)
       })
-      expect(coldTrajectory.value).toBe(EXPECTED_TRAJECTORY_ROWS)
+      expect(coldTrajectory.value).toBe(DEFAULT_TRAJECTORY_ROWS)
 
       const collapseTurns = await measure(cdp, async () => {
         await page.getByRole('button', { name: 'Collapse turns', exact: true }).click()
@@ -1308,6 +1310,7 @@ describe('manual web performance: complex workspace and history', () => {
           sidebarSessions: SIDEBAR_SESSION_COUNT,
           totalSessions: SIDEBAR_SESSION_COUNT + 1,
           longHistoryTurns: LONG_HISTORY_TURNS,
+          initialTrajectoryRows: DEFAULT_TRAJECTORY_ROWS,
           toolCalls: EXPECTED_TOOL_CALLS,
           trajectoryRows: EXPECTED_TRAJECTORY_ROWS,
         },

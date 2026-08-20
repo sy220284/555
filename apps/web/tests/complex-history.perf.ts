@@ -905,13 +905,15 @@ async function closePerformanceWorld(world: PerformanceWorld): Promise<void> {
 
 async function openPerformancePage(
   world: PerformanceWorld,
-  expectedSessions: number,
 ): Promise<Locator> {
   await world.page.goto(world.scaffold.baseUrl, { waitUntil: 'load' })
   await world.page.waitForSelector('[class*="frame"]', { timeout: 30_000 })
   const group = world.page.getByRole('treeitem').first()
-  await expect.poll(() => group.textContent(), { timeout: 30_000 })
-    .toContain(`${String(expectedSessions)} ${expectedSessions === 1 ? 'session' : 'sessions'}`)
+  // The rc.8 workspace row deliberately renders only its title; session
+  // cardinality remains structural and is asserted after expansion/search by
+  // each scenario. Wait on the group contract instead of removed count copy.
+  await expect.poll(() => group.getAttribute('aria-expanded'), { timeout: 30_000 })
+    .toBe('false')
   return group
 }
 
@@ -1191,7 +1193,7 @@ describe('manual web performance: complex workspace and history', () => {
     })
     try {
       const bootStarted = performance.now()
-      const group = await openPerformancePage(world, SIDEBAR_SESSION_COUNT + 1)
+      const group = await openPerformancePage(world)
       const bootReadyMs = performance.now() - bootStarted
       const page = world.page
       const cdp = await page.context().newCDPSession(page)
@@ -1310,7 +1312,7 @@ describe('manual web performance: complex workspace and history', () => {
       seedLongHistory: true,
     })
     try {
-      await openPerformancePage(world, 1)
+      await openPerformancePage(world)
       const cdp = await world.page.context().newCDPSession(world.page)
       await cdp.send('Performance.enable')
       const opened = await measure(cdp, () => openLongHistory(world.page))
@@ -1343,7 +1345,7 @@ describe('manual web performance: complex workspace and history', () => {
       seedLongHistory: true,
     })
     try {
-      await openPerformancePage(world, 1)
+      await openPerformancePage(world)
       const cdp = await world.page.context().newCDPSession(world.page)
       await cdp.send('Performance.enable')
       expect(await openLongHistory(world.page)).toBe(DEFAULT_HISTORY_TURNS)

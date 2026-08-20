@@ -1,0 +1,44 @@
+name: Branch Hygiene
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: branch-hygiene
+  cancel-in-progress: false
+
+jobs:
+  branch-hygiene:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: 检出可信主线治理代码
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: false
+      - name: 配置 Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.18.1
+      - name: 自测分支卫生策略
+        run: node .github/governance/branch-hygiene.mjs self-test
+      - name: 安全修复分支库存
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BRANCH_HYGIENE_OUTPUT: artifacts/branch-hygiene
+        run: node .github/governance/branch-hygiene.mjs --repair
+      - name: 上传分支卫生报告
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: branch-hygiene
+          path: artifacts/branch-hygiene/
+          if-no-files-found: error
+          retention-days: 30

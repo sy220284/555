@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "branches": {
+    "main": "main",
+    "product": "work",
+    "governance": "governance"
+  },
+  "integrationBranches": [
+    "work",
+    "governance"
+  ],
+  "allowDirectMainCommits": false,
+  "allowAdditionalBranches": false,
+  "maxOpenPullRequestsPerLane": 1,
+  "mainWriteMode": "serialized",
+  "mergeMethod": "squash",
+  "mainVerificationContext": "main-verification",
+  "deliveryStatusContext": "delivery-ready",
+  "synchronizeIntegrationBranches": true,
+  "trustBootstrap": {
+    "requiresTrustedMainPolicy": true,
+    "candidateSelfCertificationAllowed": false,
+    "bootstrapBranch": "governance",
+    "initialMergeRequiresExplicitUserApproval": true,
+    "trustRootPaths": [
+      "AGENTS.md",
+      "agent.md",
+      ".github/workflows/",
+      ".github/governance/",
+      ".github/task-control/policy.json"
+    ]
+  },
+  "taskControl": {
+    "policyPath": ".github/task-control/policy.json",
+    "workStatePath": ".github/task-control/work.json",
+    "governanceStatePath": ".github/task-control/governance.json",
+    "mergeReadyStatus": "IMPLEMENTED",
+    "finalRepositoryState": "DELIVERED"
+  },
+  "requiredStatusContexts": [
+    "pr-policy"
+  ],
+  "requiredCheckRuns": [
+    "repository-gates / merge-gate"
+  ]
+}

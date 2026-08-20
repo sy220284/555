@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "laneStatePaths": {
+    "work": ".github/task-control/work.json",
+    "governance": ".github/task-control/governance.json"
+  },
+  "statuses": [
+    "IDLE",
+    "IN_PROGRESS",
+    "IMPLEMENTED"
+  ],
+  "phases": [
+    "IDLE",
+    "ANALYZING",
+    "IMPLEMENTING",
+    "VERIFYING",
+    "AUDITING",
+    "FIXING",
+    "IMPLEMENTED"
+  ],
+  "mergeReadyStatus": "IMPLEMENTED",
+  "finalRepositoryState": "DELIVERED",
+  "finalStatusContext": "delivery-ready",
+  "rules": {
+    "singleActiveTaskPerLane": true,
+    "requireGoalForActiveTask": true,
+    "requireVerificationPlanForActiveTask": true,
+    "implementedPrecedesFormalPrGates": true,
+    "implementedIsNotDelivered": true
+  }
+}

@@ -1,0 +1,37 @@
+name: Controlled Merge
+
+on:
+  workflow_run:
+    workflows: [PR Policy, repository-gates]
+    types: [completed]
+
+permissions:
+  checks: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: controlled-main-write
+  cancel-in-progress: false
+
+jobs:
+  controlled-merge:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: 检出可信主线合并器
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          persist-credentials: false
+      - name: 配置 Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.18.1
+      - name: 自测受控合并器
+        run: node .github/governance/controlled-merge.mjs self-test
+      - name: 聚合永久门禁并执行受控合并
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .github/governance/controlled-merge.mjs

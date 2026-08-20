@@ -1,0 +1,62 @@
+name: PR Policy
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-policy:
+    name: pr-policy-evaluator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: 检出可信主线治理代码
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: main
+          path: trusted
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 检出候选代码但不执行候选脚本
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version: 24.18.1 }
+      - name: 自测可信治理策略
+        working-directory: trusted
+        run: |
+          node .github/governance/pr-policy.mjs self-test
+          node .github/governance/change-impact.mjs self-test
+          node .github/governance/controlled-merge.mjs self-test
+          node .github/governance/main-verification.mjs self-test
+          node .github/governance/integration-synchronization.mjs self-test
+          node .github/governance/branch-hygiene.mjs self-test
+          node .github/governance/repository-state.mjs self-test
+      - name: 使用可信主线策略检查候选 PR
+        working-directory: trusted
+        env:
+          CANDIDATE_DIR: ../candidate
+        run: node .github/governance/pr-policy.mjs validate
+      - name: 发布可信 PR 策略状态
+        if: always()
+        working-directory: trusted
+        env:
+          POLICY_RESULT: ${{ job.status }}
+        run: node .github/governance/pr-policy.mjs publish-status

@@ -8,6 +8,8 @@
 .github/workflows/controlled-merge.yml
 .github/workflows/main-verification.yml
 .github/workflows/branch-hygiene.yml
+.github/workflows/dependency-update.yml
+.github/workflows/release.yml
 ```
 
 任务状态机器真源：
@@ -22,7 +24,11 @@
 
 ```text
 pr-policy
-repository-gates / merge-gate
+task-governance
+quality / quality
+security
+performance
+evidence
 ```
 
 候选分支在进入可信 PR Policy 前必须先完成实现、验证和审计，并把对应永久集成分支任务状态标记为：
@@ -50,7 +56,7 @@ work/governance 任务状态 IN_PROGRESS
 → repository-state = DELIVERED
 ```
 
-`repository-gates / merge-gate` 始终聚合仓库策略、Node.js 22.19、Node.js 24、Windows、macOS、Python SDK 与 Linux Landlock 等常驻门禁；任何常驻子门禁失败，最终门禁必须失败。
+`evidence` 始终聚合任务治理、风险分类、质量、安全、性能、Node.js 22.19、Windows、macOS、Python SDK 与 Linux Landlock 等常驻门禁；任何常驻子门禁失败，证据门禁必须失败。受控合并和主线复验都绑定同一精确 workflow run，而不是按检查名称挑选历史记录。
 
 扩展产品验证采用变更影响分类：
 

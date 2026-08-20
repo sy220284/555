@@ -1,0 +1,36 @@
+name: 功能建议
+description: 提议可验证的新能力或行为改进
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 请描述用户场景与当前阻碍，而不只给出方案。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已考虑的替代方案
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 可验收条件
+      description: 用可测试的结果说明何时算完成。
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: 预计影响面
+      options: [CLI, Web, SDK, 运行时, 插件系统, 治理与自动化, 不确定]
+    validations:
+      required: true

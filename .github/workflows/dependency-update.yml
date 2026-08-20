@@ -1,0 +1,68 @@
+name: Dependency Update
+
+on:
+  schedule:
+    - cron: '31 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 仅报告，或生成并验证 governance 通道可应用的锁文件更新补丁
+        required: true
+        default: check
+        type: choice
+        options: [check, update]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-update
+  cancel-in-progress: false
+
+jobs:
+  dependency-update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: 检出永久治理通道
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: governance
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with: { version: 11.7.0 }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.18.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: 生成依赖漂移报告
+        shell: bash
+        run: |
+          mkdir -p artifacts/dependency-update
+          pnpm outdated --recursive --format json > artifacts/dependency-update/outdated.json || true
+      - name: 生成锁文件更新候选
+        if: ${{ inputs.mode == 'update' }}
+        run: pnpm update --recursive --lockfile-only
+      - name: 验证更新候选
+        if: ${{ inputs.mode == 'update' }}
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run typecheck
+          pnpm run build
+          pnpm run test
+      - name: 导出可审计更新补丁
+        if: ${{ inputs.mode == 'update' }}
+        run: git diff --binary --output=artifacts/dependency-update/governance-dependency-update.patch
+      - name: 确认定时检查不修改仓库
+        if: ${{ inputs.mode != 'update' }}
+        run: git diff --exit-code
+      - name: 上传依赖报告与候选补丁
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dependency-update-${{ github.run_id }}
+          path: artifacts/dependency-update/
+          if-no-files-found: error
+          retention-days: 30

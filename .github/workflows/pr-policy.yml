@@ -49,6 +49,8 @@ jobs:
           node .github/governance/integration-synchronization.mjs self-test
           node .github/governance/branch-hygiene.mjs self-test
           node .github/governance/repository-state.mjs self-test
+          node .github/governance/security-gate.mjs self-test
+          node .github/governance/release.mjs self-test
       - name: 使用可信主线策略检查候选 PR
         working-directory: trusted
         env:

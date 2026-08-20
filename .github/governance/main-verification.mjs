@@ -4,6 +4,7 @@ import { appendFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { githubApi, githubRepository, loadPolicy, assertFullSha } from './policy.mjs';
 import { isLaneMergeReady, loadLaneState, loadTaskPolicy } from './task-control.mjs';
+import { validateSourceGateRun } from './controlled-merge.mjs';
 
 export function verifyProvenance({ mainSha, expectedSha, pull, sourcePr, sourceHeadSha, sourceBranch }) {
   const errors = [];
@@ -27,6 +28,66 @@ export function bootstrapStatusException({ policy, required, sourceBranch, baseP
     policy?.trustBootstrap?.initialMergeRequiresExplicitUserApproval === true &&
     sourceBranch === policy?.trustBootstrap?.bootstrapBranch &&
     basePolicyPresent === false;
+}
+
+export function parseSourceGateTrailers(message) {
+  const run = /^Source-Gate-Run:\s*(\d+)\s*$/imu.exec(message ?? '')?.[1];
+  const suite = /^Source-Gate-Suite:\s*(\d+)\s*$/imu.exec(message ?? '')?.[1];
+  return {
+    runId: run ? Number.parseInt(run, 10) : null,
+    checkSuiteId: suite ? Number.parseInt(suite, 10) : null,
+  };
+}
+
+export function runIdFromStatus(status, context) {
+  const latest = (status?.statuses ?? [])
+    .filter((entry) => entry.context === context)
+    .sort((left, right) => new Date(right.updated_at ?? right.created_at ?? 0) - new Date(left.updated_at ?? left.created_at ?? 0))[0];
+  if (latest?.state !== 'success') return null;
+  const match = /\/actions\/runs\/(\d+)(?:$|[/?#])/u.exec(latest.target_url ?? '');
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+async function verifyExactSourceGate(owner, repo, policy, source, sourceStatus, expectedSha) {
+  const requestedRun = Number.parseInt(process.env.SOURCE_GATE_RUN ?? '', 10);
+  const requestedSuite = Number.parseInt(process.env.SOURCE_GATE_SUITE ?? '', 10);
+  const commit = await githubApi(`/repos/${owner}/${repo}/commits/${expectedSha}`);
+  const trailers = parseSourceGateTrailers(commit?.commit?.message);
+  let runId = Number.isSafeInteger(requestedRun) && requestedRun > 0
+    ? requestedRun
+    : trailers.runId ?? runIdFromStatus(sourceStatus, policy.sourceGate.statusContext);
+  if (!Number.isSafeInteger(runId) || runId <= 0) {
+    const bootstrapRuns = await githubApi(`/repos/${owner}/${repo}/actions/workflows/${policy.sourceGate.workflowFile}/runs?head_sha=${source.sourceHeadSha}&per_page=100`);
+    const sorted = bootstrapRuns?.workflow_runs ?? [];
+    sorted.sort((left, right) => Number(right.id) - Number(left.id));
+    runId = sorted[0]?.id;
+    console.log(`Source gate status/trailer is absent during trust-root upgrade; resolved latest exact ${policy.sourceGate.workflowFile} run ${runId ?? '<missing>'}.`);
+  }
+  if (!Number.isSafeInteger(runId) || runId <= 0) throw new Error('Cannot resolve an exact successful source-gate-run workflow run');
+
+  const exactRun = await githubApi(`/repos/${owner}/${repo}/actions/runs/${runId}`);
+  const jobsResponse = await githubApi(`/repos/${owner}/${repo}/actions/runs/${runId}/jobs?filter=all&per_page=100`);
+  const runsResponse = await githubApi(`/repos/${owner}/${repo}/actions/workflows/${exactRun.workflow_id}/runs?head_sha=${source.sourceHeadSha}&per_page=100`);
+  const runs = runsResponse?.workflow_runs ?? [];
+  runs.sort((left, right) => Number(right.id) - Number(left.id));
+  const expectedSuite = Number.isSafeInteger(requestedSuite) && requestedSuite > 0 ? requestedSuite : trailers.checkSuiteId;
+  const trigger = {
+    id: runId,
+    name: policy.sourceGate.workflowName,
+    workflow_id: exactRun.workflow_id,
+    check_suite_id: expectedSuite ?? exactRun.check_suite_id,
+    head_sha: source.sourceHeadSha,
+  };
+  const errors = validateSourceGateRun({
+    trigger,
+    exactRun,
+    latestRun: runs[0],
+    requiredJobs: policy.requiredCheckRuns,
+    jobs: jobsResponse?.jobs ?? [],
+    workflowName: policy.sourceGate.workflowName,
+  });
+  if (errors.length > 0) throw new Error(`Exact source gate validation failed for run ${runId}:\n${errors.join('\n')}`);
+  return { runId, checkSuiteId: exactRun.check_suite_id };
 }
 
 async function resolveSource(owner, repo, policy, expectedSha) {
@@ -77,12 +138,6 @@ async function verify() {
     throw new Error(`Merged source lane task is not IMPLEMENTED: ${laneState.taskId ?? '<none>'} ${laneState.status}/${laneState.phase}`);
   }
 
-  const checkRuns = await githubApi(`/repos/${owner}/${repo}/commits/${source.sourceHeadSha}/check-runs?per_page=100`);
-  for (const required of policy.requiredCheckRuns) {
-    const runs = (checkRuns?.check_runs ?? []).filter((run) => run.name === required);
-    runs.sort((a, b) => new Date(b.completed_at ?? b.started_at ?? 0) - new Date(a.completed_at ?? a.started_at ?? 0));
-    if (runs[0]?.conclusion !== 'success') throw new Error(`Required source check is not successful: ${required}`);
-  }
   const sourceStatus = await githubApi(`/repos/${owner}/${repo}/commits/${source.sourceHeadSha}/status`);
   for (const required of policy.requiredStatusContexts) {
     const entries = (sourceStatus?.statuses ?? []).filter((status) => status.context === required);
@@ -99,13 +154,16 @@ async function verify() {
       console.log('Initial governance trust bootstrap detected: the source base had no trusted policy; one-time pr-policy absence accepted for post-merge verification.');
     }
   }
+  const sourceGate = await verifyExactSourceGate(owner, repo, policy, source, sourceStatus, expectedSha);
   if (process.env.GITHUB_OUTPUT) {
     await appendFile(process.env.GITHUB_OUTPUT, `source_pr=${source.sourcePr}\n`);
     await appendFile(process.env.GITHUB_OUTPUT, `source_head_sha=${source.sourceHeadSha}\n`);
     await appendFile(process.env.GITHUB_OUTPUT, `source_branch=${source.sourceBranch}\n`);
     await appendFile(process.env.GITHUB_OUTPUT, `task_id=${laneState.taskId}\n`);
+    await appendFile(process.env.GITHUB_OUTPUT, `source_gate_run=${sourceGate.runId}\n`);
+    await appendFile(process.env.GITHUB_OUTPUT, `source_gate_suite=${sourceGate.checkSuiteId}\n`);
   }
-  console.log(`Main provenance verified for ${expectedSha} from PR #${source.sourcePr}, task ${laneState.taskId}.`);
+  console.log(`Main provenance verified for ${expectedSha} from PR #${source.sourcePr}, task ${laneState.taskId}, source gate run ${sourceGate.runId}.`);
 }
 
 async function publishCommitStatus({ expectedSha, context, state, successDescription, failureDescription }) {
@@ -159,6 +217,10 @@ function selfTest() {
   assert.equal(resultState('success'), 'success');
   assert.equal(resultState('failure'), 'failure');
   assert.equal(resultState('skipped'), 'failure');
+  assert.deepEqual(parseSourceGateTrailers('x\n\nSource-Gate-Run: 42\nSource-Gate-Suite: 77'), { runId: 42, checkSuiteId: 77 });
+  assert.deepEqual(parseSourceGateTrailers('x'), { runId: null, checkSuiteId: null });
+  assert.equal(runIdFromStatus({ statuses: [{ context: 'source-gate-run', state: 'success', target_url: 'https://github.com/o/r/actions/runs/42', updated_at: '2026-08-20T00:00:00Z' }] }, 'source-gate-run'), 42);
+  assert.equal(runIdFromStatus({ statuses: [{ context: 'source-gate-run', state: 'failure', target_url: 'https://github.com/o/r/actions/runs/42', updated_at: '2026-08-20T00:00:00Z' }] }, 'source-gate-run'), null);
   const bootstrapPolicy = {
     trustBootstrap: {
       requiresTrustedMainPolicy: true,

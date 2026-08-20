@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞私下报告
+    url: https://github.com/sy220284/555/security/advisories/new
+    about: 请不要在公开 Issue 中披露未修复漏洞。

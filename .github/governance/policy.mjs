@@ -12,6 +12,8 @@ const requiredTrustRootPaths = [
   '.github/governance/',
   '.github/task-control/policy.json',
 ];
+const requiredStatusContexts = ['pr-policy'];
+const requiredCheckRuns = ['task-governance', 'quality / quality', 'security', 'performance', 'evidence'];
 
 export async function loadPolicy() {
   const policy = JSON.parse(await readFile(policyPath, 'utf8'));
@@ -32,6 +34,9 @@ export function validatePolicy(policy) {
   if (policy?.mergeMethod !== 'squash') throw new Error('merge method must remain squash');
   if (policy?.mainVerificationContext !== 'main-verification') throw new Error('main verification context must remain main-verification');
   if (policy?.deliveryStatusContext !== 'delivery-ready') throw new Error('delivery status context must remain delivery-ready');
+  if (policy?.sourceGate?.workflowName !== 'repository-gates') throw new Error('source gate workflow must remain repository-gates');
+  if (policy?.sourceGate?.workflowFile !== 'repository-gates.yml') throw new Error('source gate workflow file must remain repository-gates.yml');
+  if (policy?.sourceGate?.statusContext !== 'source-gate-run') throw new Error('source gate status context must remain source-gate-run');
   if (policy?.synchronizeIntegrationBranches !== true) throw new Error('integration branch synchronization must stay enabled');
   if (policy?.trustBootstrap?.requiresTrustedMainPolicy !== true) throw new Error('trusted main policy must be required after bootstrap');
   if (policy?.trustBootstrap?.candidateSelfCertificationAllowed !== false) throw new Error('candidate self-certification must stay disabled');
@@ -46,11 +51,11 @@ export function validatePolicy(policy) {
   if (policy?.taskControl?.governanceStatePath !== '.github/task-control/governance.json') throw new Error('governance task state path drifted');
   if (policy?.taskControl?.mergeReadyStatus !== 'IMPLEMENTED') throw new Error('task-control merge-ready status must remain IMPLEMENTED');
   if (policy?.taskControl?.finalRepositoryState !== 'DELIVERED') throw new Error('final repository state must remain DELIVERED');
-  if (!Array.isArray(policy?.requiredStatusContexts) || policy.requiredStatusContexts.length < 1) {
-    throw new Error('requiredStatusContexts must not be empty');
+  if (JSON.stringify(policy?.requiredStatusContexts) !== JSON.stringify(requiredStatusContexts)) {
+    throw new Error(`requiredStatusContexts must be exactly ${requiredStatusContexts.join(', ')}`);
   }
-  if (!Array.isArray(policy?.requiredCheckRuns) || policy.requiredCheckRuns.length < 1) {
-    throw new Error('requiredCheckRuns must not be empty');
+  if (JSON.stringify(policy?.requiredCheckRuns) !== JSON.stringify(requiredCheckRuns)) {
+    throw new Error(`requiredCheckRuns must be exactly ${requiredCheckRuns.join(', ')}`);
   }
   return policy;
 }

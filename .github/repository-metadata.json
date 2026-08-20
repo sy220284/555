@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "repository": "sy220284/555",
+  "description": "DeepSeek Harness：面向智能体应用的可组合运行框架与完整执行平台。",
+  "homepage": "https://github.com/sy220284/555#readme",
+  "topics": [
+    "ai-agent",
+    "agent-framework",
+    "deepseek",
+    "typescript",
+    "pnpm",
+    "mcp"
+  ],
+  "features": {
+    "issues": true,
+    "wiki": false
+  },
+  "merge": {
+    "squash": true,
+    "mergeCommit": false,
+    "rebase": false,
+    "autoMerge": true,
+    "updateBranch": true,
+    "deleteHeadBranch": false
+  }
+}

@@ -49,15 +49,24 @@ export async function validateCandidateAutomation(candidateDir) {
     'AGENTS.md': ['明确开发任务的默认授权', 'repository-state.mjs assert-delivered', 'DELIVERED'],
     'agent.md': ['repository-state = DELIVERED', 'delivery-ready'],
     '.github/governance/task-control.mjs': ['validateLaneReadyForMerge', 'Task control self-test passed.'],
+    '.github/governance/release.mjs': ['validateReleaseTag', 'overwrite is forbidden'],
     '.github/workflows/pr-policy.yml': ['pull_request_target:', 'statuses: write', 'path: trusted', 'persist-credentials: false'],
-    '.github/workflows/controlled-merge.yml': ['workflow_run:', 'group: controlled-main-write', 'contents: write', 'pull-requests: write', 'persist-credentials: false'],
-    '.github/workflows/main-verification.yml': ['push:', 'branches: [main]', 'main-verification.mjs', 'integration-synchronization.mjs', 'branch-hygiene.mjs', 'publish-delivery-status'],
-    '.github/workflows/repository-gates.yml': ['name: repository-gates', 'repository-gates / merge-gate', 'windows-latest', 'macos-14', 'linux-landlock-native'],
+    '.github/workflows/controlled-merge.yml': ['workflow_run:', 'workflows: [repository-gates]', 'group: controlled-main-write', 'contents: write', 'statuses: write', 'persist-credentials: false'],
+    '.github/workflows/main-verification.yml': ['push:', 'branches: [main]', 'actions: read', 'source_gate_run:', 'main-verification.mjs', 'integration-synchronization.mjs', 'branch-hygiene.mjs', 'publish-delivery-status'],
+    '.github/workflows/repository-gates.yml': ['name: repository-gates', 'name: task-governance', 'name: quality / quality', 'name: security', 'name: performance', 'name: evidence', 'windows-latest', 'macos-14', 'linux-landlock-native'],
     '.github/workflows/branch-hygiene.yml': ['branch-hygiene.mjs --repair', 'persist-credentials: false'],
+    '.github/workflows/dependency-update.yml': ['name: Dependency Update', 'ref: governance', 'governance-dependency-update.patch', 'persist-credentials: false'],
+    '.github/workflows/release.yml': ['name: Release', "github.ref == 'refs/heads/main'", 'repository-state.mjs assert-delivered', 'release.mjs create', 'persist-credentials: false'],
+    '.github/CODEOWNERS': ['* @sy220284', '/.github/ @sy220284'],
+    '.github/pull_request_template.md': ['Task ID', 'quality / quality', 'evidence'],
+    '.github/repository-metadata.json': ['sy220284/555', 'agent-framework', '"wiki": false'],
+    'CONTRIBUTING.md': ['main', 'work', 'governance', 'IMPLEMENTED'],
+    'SECURITY.md': ['security/advisories/new', 'critical', 'security'],
+    'RELEASE.md': ['DELIVERED', 'release.yml'],
   };
   for (const [relative, markers] of Object.entries(requirements)) {
     const content = await readRequiredFile(candidateDir, relative, markers, errors);
-    if (content && relative.startsWith('.github/workflows/') && relative !== '.github/workflows/repository-gates.yml') {
+    if (content && relative.startsWith('.github/workflows/')) {
       for (const match of content.matchAll(/uses:\s*[^\s@]+@([^\s#]+)/gu)) {
         if (!/^[0-9a-f]{40}$/iu.test(match[1])) errors.push(`${relative} contains an unpinned action reference: ${match[0]}`);
       }
@@ -68,6 +77,16 @@ export async function validateCandidateAutomation(candidateDir) {
     validatePolicy(candidatePolicy);
   } catch (error) {
     errors.push(`Candidate repository policy is invalid: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  try {
+    const protection = JSON.parse(await readFile(path.join(candidateDir, '.github/governance/main-protection.json'), 'utf8'));
+    const policy = JSON.parse(await readFile(path.join(candidateDir, '.github/governance/repository-policy.json'), 'utf8'));
+    const expected = [...policy.requiredStatusContexts, ...policy.requiredCheckRuns];
+    if (JSON.stringify(protection.requiredChecks) !== JSON.stringify(expected)) errors.push('main-protection required checks must exactly match repository policy');
+    if (protection.strictRequiredChecks !== true || protection.requireConversationResolution !== true) errors.push('main-protection must require strict checks and conversation resolution');
+    if (protection.requireLinearHistory !== true || protection.blockDeletion !== true || protection.blockForcePush !== true) errors.push('main-protection destructive and history protections drifted');
+  } catch (error) {
+    errors.push(`Candidate main protection metadata is invalid: ${error instanceof Error ? error.message : String(error)}`);
   }
   errors.push(...(await validateTaskControl(candidateDir)));
   return errors;

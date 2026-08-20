@@ -24,9 +24,17 @@ on:
         required: false
         type: choice
         options: [work, governance]
+      source_gate_run:
+        description: 精确来源 repository-gates workflow run ID
+        required: false
+        type: string
+      source_gate_suite:
+        description: 精确来源 check suite ID
+        required: false
+        type: string
 
 permissions:
-  checks: read
+  actions: read
   contents: read
   pull-requests: read
   statuses: write
@@ -44,11 +52,15 @@ jobs:
       source_head_sha: ${{ steps.provenance.outputs.source_head_sha }}
       source_branch: ${{ steps.provenance.outputs.source_branch }}
       task_id: ${{ steps.provenance.outputs.task_id }}
+      source_gate_run: ${{ steps.provenance.outputs.source_gate_run }}
+      source_gate_suite: ${{ steps.provenance.outputs.source_gate_suite }}
     env:
       EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
       SOURCE_PR: ${{ inputs.source_pr }}
       SOURCE_HEAD_SHA: ${{ inputs.source_head_sha }}
       SOURCE_BRANCH: ${{ inputs.source_branch }}
+      SOURCE_GATE_RUN: ${{ inputs.source_gate_run }}
+      SOURCE_GATE_SUITE: ${{ inputs.source_gate_suite }}
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: 检出精确 main 提交

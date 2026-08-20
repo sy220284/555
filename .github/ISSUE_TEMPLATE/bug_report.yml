@@ -1,0 +1,49 @@
+name: 缺陷报告
+description: 报告可复现的功能、兼容性或可靠性问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 感谢反馈。请提供最小、可复现且不含敏感信息的材料。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 实际行为与预期行为分别是什么？
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: "1. …\n2. …\n3. …"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交 SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境
+      description: 操作系统、Node.js、pnpm、Python 及相关运行时版本。
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或最小示例
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已移除凭据、个人信息和其他敏感内容。
+          required: true
+        - label: 这不是未修复安全漏洞；安全问题应使用私下报告入口。
+          required: true

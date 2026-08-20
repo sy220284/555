@@ -1,0 +1,10 @@
+# 默认所有变更由仓库所有者负责。
+* @sy220284
+
+# 治理信任根必须显式路由给同一责任人。
+/AGENTS.md @sy220284
+/agent.md @sy220284
+/.github/ @sy220284
+/AUTO_EXECUTION_POLICY.md @sy220284
+/SECURITY.md @sy220284
+/RELEASE.md @sy220284

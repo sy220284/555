@@ -83,8 +83,8 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 /**
  * The managed pwsh startup installs its global prompt before ConsoleHost begins
  * its first read. The explicit global scope survives the temporary `-Command`
- * pipeline. This avoids submitting bootstrap text into PSReadLine while that
- * module is still taking ownership of the terminal. The prompt emits the
+ * pipeline. PowerShell then retains its native interactive line editor for
+ * every later command. The prompt emits the
  * shared OSC `133;D;` + BEL marker; `[char]27`/`[char]7` build those control
  * bytes at runtime. Build the printable prompt in two pieces as an additional
  * invariant: neither argv nor an echoed command contains a complete readiness
@@ -95,17 +95,8 @@ const PWSH_PROMPT_TAIL = CONTROLLED_PROMPT.slice(1)
 export const PWSH_PROMPT_SETUP =
   `function global:prompt { [Console]::Write([string]::Concat([char]27, ']133;D;', [int]$LASTEXITCODE, [char]7)); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
 
-/**
- * Line-oriented ConsoleHost reader for the automation-owned PTY. Defining the
- * hook before the first interactive read prevents PSReadLine auto-loading and
- * its first-read input flush without unloading a module that already owns a
- * read. `-NoEnumerate` preserves an empty submitted line as one return value.
- */
-const PWSH_READLINE_SETUP =
-  'function global:PSConsoleHostReadLine { Write-Output -NoEnumerate ([Console]::ReadLine()) }; '
-
 /** Complete PowerShell startup command passed as one argv element. */
-export const PWSH_STARTUP_COMMAND = ENCODING_PREAMBLE + PWSH_READLINE_SETUP + PWSH_PROMPT_SETUP
+export const PWSH_STARTUP_COMMAND = ENCODING_PREAMBLE + PWSH_PROMPT_SETUP
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
   const shellArgs = config.shellDialect === 'pwsh'

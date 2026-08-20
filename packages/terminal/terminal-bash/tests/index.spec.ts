@@ -342,7 +342,7 @@ describe('BashTerminalBackend startup rollback', () => {
     await session.close('test complete')
   })
 
-  it('starts pwsh with the managed line reader and prompt before its first interactive read', async () => {
+  it('starts pwsh with the managed prompt before its first interactive read', async () => {
     const ctx = new Context()
     await ctx.plugin(EmptySandbox)
     await ctx.plugin(SandboxPolicyService, { mode: 'danger-full-access', workspaceRoot: '/workspace' })
@@ -364,8 +364,7 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(PWSH_PROMPT_SETUP).not.toContain('PSReadLine')
     expect(PWSH_PROMPT_SETUP).not.toContain('dsh> ')
     expect(PWSH_STARTUP_COMMAND).toContain('[Console]::OutputEncoding')
-    expect(PWSH_STARTUP_COMMAND).toContain('function global:PSConsoleHostReadLine')
-    expect(PWSH_STARTUP_COMMAND).toContain('Write-Output -NoEnumerate ([Console]::ReadLine())')
+    expect(PWSH_STARTUP_COMMAND).not.toContain('PSConsoleHostReadLine')
     expect(PWSH_STARTUP_COMMAND).toContain(PWSH_PROMPT_SETUP)
     expect(PWSH_STARTUP_COMMAND).not.toContain('Remove-Module')
     expect(PWSH_STARTUP_COMMAND).not.toContain('dsh> ')

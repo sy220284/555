@@ -13,6 +13,13 @@ try {
   // No .env — fine, the environment may already carry the variables.
 }
 
+const repositoryScopeExcludes = [
+  'apps/web/tests/bash-abort-row.e2e.ts',
+  'apps/web/tests/schedule-after.e2e.ts',
+  'apps/web/tests/skill-tool-row.e2e.ts',
+  'apps/web/tests/workflow-run.e2e.ts',
+]
+
 export default defineConfig({
   // Same resolution note as vitest.config.ts: the tsconfig.base.json paths
   // facade has no include (match-all), so apps/web/tests resolves bare
@@ -27,6 +34,10 @@ export default defineConfig({
       'apps/web/tests/**/*.e2e.ts',
       'apps/web/tests/**/*.snapshot.ts',
     ],
+    // These suites consume root examples that repository-policy intentionally
+    // excludes from this product-source repository. Keep the test sources but
+    // exclude them from this repository's Web execution scope.
+    exclude: repositoryScopeExcludes,
     // Browser boot + real-model turns are slow; files share one browser, run serial.
     testTimeout: 180_000,
     hookTimeout: 120_000,

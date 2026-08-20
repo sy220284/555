@@ -5,6 +5,13 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const policyPath = path.join(here, 'repository-policy.json');
 const fullShaPattern = /^[0-9a-f]{40}$/iu;
+const requiredTrustRootPaths = [
+  'AGENTS.md',
+  'agent.md',
+  '.github/workflows/',
+  '.github/governance/',
+  '.github/task-control/policy.json',
+];
 
 export async function loadPolicy() {
   const policy = JSON.parse(await readFile(policyPath, 'utf8'));
@@ -30,6 +37,10 @@ export function validatePolicy(policy) {
   if (policy?.trustBootstrap?.candidateSelfCertificationAllowed !== false) throw new Error('candidate self-certification must stay disabled');
   if (policy?.trustBootstrap?.bootstrapBranch !== 'governance') throw new Error('trust bootstrap must be restricted to governance');
   if (policy?.trustBootstrap?.initialMergeRequiresExplicitUserApproval !== true) throw new Error('initial trust bootstrap merge must require explicit user approval');
+  const trustRootPaths = policy?.trustBootstrap?.trustRootPaths;
+  if (!Array.isArray(trustRootPaths) || trustRootPaths.length !== requiredTrustRootPaths.length || !requiredTrustRootPaths.every((entry) => trustRootPaths.includes(entry))) {
+    throw new Error('trustRootPaths must protect AGENTS, workflows, governance scripts and task-control policy');
+  }
   if (policy?.taskControl?.policyPath !== '.github/task-control/policy.json') throw new Error('task-control policy path drifted');
   if (policy?.taskControl?.workStatePath !== '.github/task-control/work.json') throw new Error('work task state path drifted');
   if (policy?.taskControl?.governanceStatePath !== '.github/task-control/governance.json') throw new Error('governance task state path drifted');

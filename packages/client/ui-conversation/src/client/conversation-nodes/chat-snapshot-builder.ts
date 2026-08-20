@@ -201,6 +201,20 @@ class ReferenceLabelProjector {
     upserts: readonly ChatConversationViewNode[],
     store: ChatNodeStore,
   ): readonly ChatConversationViewNode[] {
+    // Assistant streaming dominates this path (one upsert per chunk). Avoid
+    // allocating a Map, Set, and replacement array unless a direct-message or
+    // recall node can actually affect reference labels; the stress lane sends
+    // 100,000 chunks and must not turn unrelated projection work into GC debt.
+    let referenceRelevant = false
+    for (const node of upserts) {
+      const candidate = node as ChatNode
+      if (candidate.kind === 'user' || candidate.kind === 'steering' || candidate.kind === 'context') {
+        referenceRelevant = true
+        break
+      }
+    }
+    if (!referenceRelevant) return upserts
+
     const byKey = new Map(upserts.map(node => [node.key, node]))
     const affected = new Set<number>()
     for (const node of upserts) {

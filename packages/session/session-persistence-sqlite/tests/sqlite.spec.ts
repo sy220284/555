@@ -445,7 +445,11 @@ describe('SessionPersistenceSqlite schema ownership', () => {
         : undefined
     })
 
-    const db = await openDatabase(BusyOnceDatabase, path, 'wal', 100)
+    // The retry budget starts when openDatabase begins, before schema
+    // validation. Use the production default so a loaded Windows runner cannot
+    // consume the synthetic test's entire allowance before the injected busy
+    // transition is reached.
+    const db = await openDatabase(BusyOnceDatabase, path, 'wal', DEFAULT_BUSY_TIMEOUT_MS)
     expect(attempts).toBe(2)
     expect(db.prepare(sql('journal-mode-wal')).get()).toEqual({ journal_mode: 'wal' })
     expect(db.prepare(sql('select-trusted-schema')).get()).toEqual({ trusted_schema: 0 })

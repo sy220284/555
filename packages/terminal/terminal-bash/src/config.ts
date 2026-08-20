@@ -14,7 +14,7 @@ export interface Config {
   shellDialect?: ShellDialect
   /** Interactive shell executable (default per dialect: `/bin/bash`, or the resolved pwsh). */
   shellPath?: string
-  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, pwsh `-NoLogo -NoProfile`). */
+  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, pwsh `-NoLogo -NoProfile -NonInteractive`). */
   shellArgs?: string[]
   /** Terminal rows. */
   rows?: number
@@ -54,8 +54,8 @@ export type ResolvedConfig = Omit<Required<Config>, 'shellDialect' | 'shellPath'
 export const DEFAULT_BASH_SHELL = '/bin/bash'
 /** Bash dialect default arguments (interactive, profile-free). */
 export const DEFAULT_BASH_ARGS = ['--noprofile', '--norc', '-i']
-/** Pwsh dialect default arguments (interactive host, profile-free). */
-export const DEFAULT_PWSH_ARGS = ['-NoLogo', '-NoProfile']
+/** Pwsh dialect default arguments (persistent stdin host, profile-free and without PSReadLine). */
+export const DEFAULT_PWSH_ARGS = ['-NoLogo', '-NoProfile', '-NonInteractive']
 
 /**
  * Resolve the effective per-dialect shell specification. Defaulting is this

@@ -81,20 +81,19 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 }
 
 /**
- * The pwsh prompt disables PSReadLine at the prompt boundary, after the module
- * finished accepting the bootstrap line. Removing it while it owns that read
- * can strand Unix hosts; removing it here still prevents later long wrappers
- * from being redrawn into PTY scrollback. The function then emits the shared
- * OSC `133;D;` + BEL marker. `[char]27`/`[char]7` build the control bytes at
- * runtime because raw ESC characters in the initial submitted input are
- * unreliable while PSReadLine is still active. Build the first prompt character
- * separately so the echoed bootstrap command cannot impersonate readiness by
- * containing the complete controlled prompt before the function is installed.
+ * The default pwsh argv uses `-NonInteractive`, which prevents PSReadLine from
+ * loading while retaining the persistent stdin command loop. Unloading
+ * PSReadLine from its own prompt callback can strand Unix hosts, so the prompt
+ * function only emits the shared OSC `133;D;` + BEL marker. `[char]27`/`[char]7`
+ * build the control bytes at runtime because raw ESC characters in the initial
+ * submitted input are unreliable. Build the first prompt character separately
+ * so an echoed bootstrap command cannot impersonate readiness by containing the
+ * complete controlled prompt before the function is installed.
  */
 const PWSH_PROMPT_HEAD = CONTROLLED_PROMPT.slice(0, 1)
 const PWSH_PROMPT_TAIL = CONTROLLED_PROMPT.slice(1)
 export const PWSH_PROMPT_SETUP =
-  `function prompt { Remove-Module PSReadLine -ErrorAction SilentlyContinue; [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
+  `function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
   const argv = [config.shellPath, ...config.shellArgs]

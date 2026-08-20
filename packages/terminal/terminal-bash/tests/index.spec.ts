@@ -371,7 +371,8 @@ describe('BashTerminalBackend startup rollback', () => {
     )
     expect(await backend.spawn(spec(agent(ctx)))).toBe(session)
     expect(sent).toMatchObject({ text: ENCODING_PREAMBLE + PWSH_PROMPT_SETUP, submit: true })
-    expect(PWSH_PROMPT_SETUP).toMatch(/^function prompt \{ Remove-Module PSReadLine -ErrorAction SilentlyContinue;/u)
+    expect(PWSH_PROMPT_SETUP).toMatch(/^function prompt \{ \[Console\]::Write/u)
+    expect(PWSH_PROMPT_SETUP).not.toContain('PSReadLine')
     expect(PWSH_PROMPT_SETUP).not.toContain('dsh> ')
     expect(session.motd).toBe('setup-echo dsh> ')
     expect(spawned?.env).toMatchObject({

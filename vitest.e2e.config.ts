@@ -15,6 +15,18 @@ try {
 
 const DEFAULT_E2E_MAX_WORKERS = 4
 
+const repositoryScopeExcludes = [
+  'packages/goal/goal/tests/goal.e2e.ts',
+  'packages/context/time-context/tests/time-context.e2e.ts',
+  'packages/subagent/subagent-acp/tests/loader-composition.e2e.ts',
+  'packages/subagent/subagent-codex/tests/loader-composition.e2e.ts',
+  'packages/subagent/subagent-claude-code/tests/loader-composition.e2e.ts',
+  'packages/tool/e2b-tool/tests/composition.e2e.ts',
+  'packages/subagent/subagent-acp/tests/subagent-acp.e2e.ts',
+  'packages/session/session/tests/session.telemetry.e2e.ts',
+  'packages/core/dsh-sdk/tests/dsh-sdk.e2e.ts',
+]
+
 function positiveIntFromEnv(name: string, fallback: number): number {
   const raw = process.env[name]
   if (raw === undefined || raw === '') return fallback
@@ -43,6 +55,10 @@ export default defineConfig({
     // apps/cli only, not apps/*: apps/web/tests/*.e2e.ts needs the built
     // frontend dist and runs under vitest.web.config.ts (the test:web job).
     include: ['packages/*/*/tests/**/*.e2e.ts', 'apps/cli/tests/**/*.e2e.ts', 'examples/*/tests/**/*.e2e.ts'],
+    // These suites consume root examples that repository-policy intentionally
+    // excludes from this product-source repository. Keep the test sources but
+    // exclude them from this repository's E2E execution scope.
+    exclude: repositoryScopeExcludes,
     // Real model calls: generous timeouts, and retries for transient flakes
     // (the shared internal key hits concurrency quotas). No coverage — the
     // unit suites own the coverage gate.

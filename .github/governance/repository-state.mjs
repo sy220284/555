@@ -12,8 +12,10 @@ export function deriveRepositoryState({ openPulls, mainVerified, deliveryReady, 
   return 'DELIVERED';
 }
 
-function successfulContext(statuses, context) {
-  return (statuses ?? []).find((entry) => entry.context === context)?.state === 'success';
+export function successfulContext(statuses, context) {
+  const matches = (statuses ?? []).filter((entry) => entry.context === context);
+  matches.sort((a, b) => new Date(b.updated_at ?? b.created_at ?? 0) - new Date(a.updated_at ?? a.created_at ?? 0));
+  return matches[0]?.state === 'success';
 }
 
 async function listBranches(owner, repo) {
@@ -75,6 +77,14 @@ function selfTest() {
   assert.equal(deriveRepositoryState({ ...base, lanesSynchronized: false }), 'SYNC_PENDING');
   assert.equal(deriveRepositoryState({ ...base, deliveryReady: false }), 'DELIVERY_VERIFYING');
   assert.equal(deriveRepositoryState({ ...base, invalidBranches: 1 }), 'BRANCH_HYGIENE_BLOCKED');
+  assert.equal(successfulContext([
+    { context: 'delivery-ready', state: 'success', updated_at: '2026-08-20T00:00:00Z' },
+    { context: 'delivery-ready', state: 'failure', updated_at: '2026-08-20T00:01:00Z' },
+  ], 'delivery-ready'), false);
+  assert.equal(successfulContext([
+    { context: 'delivery-ready', state: 'failure', updated_at: '2026-08-20T00:00:00Z' },
+    { context: 'delivery-ready', state: 'success', updated_at: '2026-08-20T00:01:00Z' },
+  ], 'delivery-ready'), true);
   console.log('Repository state self-test passed.');
 }
 

@@ -14,6 +14,8 @@ export interface SanitizedChunk {
   prompt: boolean
   /** Printable text after the latest owned marker in this chunk. */
   promptTail?: string
+  /** DEC cursor-position status requests removed from this chunk. */
+  cursorPositionRequests?: number
 }
 
 /**
@@ -39,6 +41,7 @@ export class TerminalSanitizer {
     this.pending += this.discardPrefix(chunk)
     let text = ''
     let prompt = false
+    let cursorPositionRequests = 0
     let includePromptTail = this.trackingPromptTail
     let promptTail = ''
     let index = 0
@@ -92,6 +95,7 @@ export class TerminalSanitizer {
           index = escape
           break
         }
+        if (this.pending.slice(escape, end + 1) === '\x1b[6n') cursorPositionRequests += 1
         index = end + 1
         continue
       }
@@ -104,6 +108,7 @@ export class TerminalSanitizer {
       text: this.normalizeText(text),
       prompt,
       ...includePromptTail ? { promptTail } : {},
+      ...cursorPositionRequests > 0 ? { cursorPositionRequests } : {},
     }
   }
 

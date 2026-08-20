@@ -10,6 +10,17 @@ describe('TerminalSanitizer', () => {
     expect(sanitizer.push('D;0\x07dsh> ')).toEqual({ text: 'dsh> ', prompt: true, promptTail: 'dsh> ' })
   })
 
+  it('reports only complete DEC cursor-position requests, including split input', () => {
+    const sanitizer = new TerminalSanitizer(64)
+    expect(sanitizer.push('\x1b[6')).toEqual({ text: '', prompt: false })
+    expect(sanitizer.push('n')).toEqual({ text: '', prompt: false, cursorPositionRequests: 1 })
+    expect(sanitizer.push('\x1b[5n\x1b[?6n\x1b[6n')).toEqual({
+      text: '',
+      prompt: false,
+      cursorPositionRequests: 1,
+    })
+  })
+
   it('drops unrelated OSC, short escapes, BEL, and incomplete trailing escape', () => {
     const sanitizer = new TerminalSanitizer(64)
     expect(sanitizer.push('a\x1b]0;title\x1b\\b\x1b7c\x07')).toEqual({ text: 'abc', prompt: false })

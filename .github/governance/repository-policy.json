@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "branches": {
+    "main": "main",
+    "product": "work",
+    "governance": "governance"
+  },
+  "integrationBranches": [
+    "work",
+    "governance"
+  ],
+  "allowDirectMainCommits": false,
+  "allowAdditionalBranches": false,
+  "maxOpenPullRequestsPerLane": 1,
+  "mainWriteMode": "serialized",
+  "mergeMethod": "squash",
+  "mainVerificationContext": "main-verification",
+  "synchronizeIntegrationBranches": true,
+  "requiredStatusContexts": [
+    "pr-policy"
+  ],
+  "requiredCheckRuns": [
+    "repository-gates / merge-gate"
+  ]
+}

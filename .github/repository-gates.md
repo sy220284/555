@@ -56,7 +56,7 @@ work/governance 任务状态 IN_PROGRESS
 → repository-state = DELIVERED
 ```
 
-`evidence` 始终聚合任务治理、风险分类、质量、安全、性能、Node.js 22.19、Windows、macOS、Python SDK 与 Linux Landlock 等常驻门禁；任何常驻子门禁失败，证据门禁必须失败。受控合并和主线复验都绑定同一精确 workflow run，而不是按检查名称挑选历史记录。
+`evidence` 始终聚合任务治理、风险分类、质量、安全、性能、Node.js 22.19、Windows、macOS、Python SDK 与 Linux Landlock 等常驻门禁；任何常驻子门禁失败，证据门禁必须失败。受控合并和主线复验都绑定同一精确 workflow run 及其最新 run attempt；失败任务重跑后只接受该轮次的精确 job 集合，不得混入旧轮次记录，也不得按检查名称挑选历史结果。
 
 扩展产品验证采用变更影响分类：
 

@@ -1,0 +1,152 @@
+name: Main Verification
+
+run-name: Main Verification ${{ inputs.expected_sha || github.sha }}
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: 受控合并产生的精确 main SHA
+        required: false
+        type: string
+      source_pr:
+        description: 来源 PR 编号；留空时从 main 提交反查
+        required: false
+        type: string
+      source_head_sha:
+        description: 来源 PR 已验证 Head SHA
+        required: false
+        type: string
+      source_branch:
+        description: 来源永久 lane
+        required: false
+        type: choice
+        options: [work, governance]
+
+permissions:
+  checks: read
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: main-verification-${{ inputs.expected_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify-main:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      source_pr: ${{ steps.provenance.outputs.source_pr }}
+      source_head_sha: ${{ steps.provenance.outputs.source_head_sha }}
+      source_branch: ${{ steps.provenance.outputs.source_branch }}
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+      SOURCE_PR: ${{ inputs.source_pr }}
+      SOURCE_HEAD_SHA: ${{ inputs.source_head_sha }}
+      SOURCE_BRANCH: ${{ inputs.source_branch }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: 检出精确 main 提交
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.18.1
+          cache: pnpm
+      - id: provenance
+        name: 验证来源、主线和永久门禁事实
+        run: node .github/governance/main-verification.mjs verify
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm run test
+      - run: git diff --exit-code
+
+  publish-status:
+    if: always()
+    needs: verify-main
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      statuses: write
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+      VERIFY_RESULT: ${{ needs.verify-main.result }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version: 24.18.1 }
+      - run: node .github/governance/main-verification.mjs publish-status
+
+  synchronize-integrations:
+    needs: [verify-main, publish-status]
+    if: ${{ needs.verify-main.result == 'success' && needs.publish-status.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+      statuses: read
+    env:
+      EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+      SOURCE_HEAD_SHA: ${{ needs.verify-main.outputs.source_head_sha }}
+      SOURCE_BRANCH: ${{ needs.verify-main.outputs.source_branch }}
+      GITHUB_TOKEN: ${{ github.token }}
+      SYNCHRONIZATION_OUTPUT: artifacts/integration-synchronization
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version: 24.18.1 }
+      - run: node .github/governance/integration-synchronization.mjs self-test
+      - run: node .github/governance/integration-synchronization.mjs
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: integration-synchronization-${{ inputs.expected_sha || github.sha }}
+          path: artifacts/integration-synchronization/
+          if-no-files-found: error
+          retention-days: 30
+
+  final-hygiene:
+    needs: synchronize-integrations
+    if: ${{ needs.synchronize-integrations.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version: 24.18.1 }
+      - name: 最终分支库存审计与安全修复
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BRANCH_HYGIENE_OUTPUT: artifacts/branch-hygiene
+        run: node .github/governance/branch-hygiene.mjs --repair
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: final-branch-hygiene-${{ inputs.expected_sha || github.sha }}
+          path: artifacts/branch-hygiene/
+          if-no-files-found: error
+          retention-days: 30

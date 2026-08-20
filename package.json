@@ -42,7 +42,7 @@
     "test:gui": "vitest run packages/client packages/host",
     "dsh": "node --import tsx/esm apps/cli/src/bin.ts",
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
-    "dev:web": "pnpm --filter @deepseek-ai/dsh-web-frontend run dev"
+    "dev:web": "tsx scripts/dev-web.ts --poll"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "0.25.1",

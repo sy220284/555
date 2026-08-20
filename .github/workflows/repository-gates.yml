@@ -247,6 +247,8 @@ jobs:
         run: pnpm run test:e2e
       - name: Web 测试
         if: ${{ needs.impact.outputs.web == 'true' }}
+        env:
+          DSH_BUILD_CLIENT_PROFILE: official
         run: pnpm run test:web
       - name: 图形界面测试
         if: ${{ needs.impact.outputs.gui == 'true' }}

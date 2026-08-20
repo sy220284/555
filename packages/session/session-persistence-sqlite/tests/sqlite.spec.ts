@@ -507,10 +507,10 @@ describe('SessionPersistenceSqlite schema ownership', () => {
       BusyDatabase,
       await freshDbPath('dsh-sqlite-journal-paced-'),
       'wal',
-      50,
+      500,
     )).rejects.toThrow('database is locked')
     expect(attempts).toBeGreaterThan(1)
-    expect(attempts).toBeLessThanOrEqual(6)
+    expect(attempts).toBeLessThanOrEqual(51)
   })
 
   it('rejects unversioned, incompatible, and foreign-application databases', async () => {

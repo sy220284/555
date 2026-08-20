@@ -81,13 +81,15 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 }
 
 /**
- * The pwsh prompt function that emits the shared OSC `133;D;` + BEL marker
- * before every prompt, mirroring bash's PROMPT_COMMAND. `[char]27`/`[char]7`
- * build the control bytes at runtime because raw ESC characters in submitted
- * input are unreliable under PSReadLine.
+ * The pwsh bootstrap disables PSReadLine before installing the prompt function
+ * that emits the shared OSC `133;D;` + BEL marker. PSReadLine redraws long
+ * submitted wrappers into PTY scrollback on every host and can evict the real
+ * command output before capture. `[char]27`/`[char]7` build the control bytes
+ * at runtime because raw ESC characters in the initial submitted input are
+ * unreliable while PSReadLine is still active.
  */
 export const PWSH_PROMPT_SETUP =
-  "function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + CONTROLLED_PROMPT + "' }"
+  "Remove-Module PSReadLine -ErrorAction SilentlyContinue; function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + CONTROLLED_PROMPT + "' }"
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
   const argv = [config.shellPath, ...config.shellArgs]

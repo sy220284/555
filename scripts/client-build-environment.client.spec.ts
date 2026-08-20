@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import yaml from 'js-yaml'
@@ -20,15 +20,6 @@ const COMMIT_HASH = '0123456789abcdef0123456789abcdef01234567'
 const PROBE_KEY = `process.env.${PROBE_NAME}`
 const originalProbe = process.env[PROBE_NAME]
 const roots: string[] = []
-const dshBuildWorkflows = [
-  'build-exe-for-python-sdk.yml',
-  'ci.yml',
-  'e2b-e2e.yml',
-  'e2e.yml',
-  'release.yml',
-  'sandbox.yml',
-]
-
 afterEach(() => {
   if (originalProbe === undefined) Reflect.deleteProperty(process.env, PROBE_NAME)
   else process.env[PROBE_NAME] = originalProbe
@@ -163,9 +154,15 @@ describe('client build environment', () => {
   })
 
   it('keeps public client values out of workflow-wide environments', () => {
-    for (const name of dshBuildWorkflows) {
+    const workflowDirectory = resolve(root, '.github/workflows')
+    const workflowNames = readdirSync(workflowDirectory)
+      .filter(name => /\.ya?ml$/u.test(name))
+      .sort()
+    expect(workflowNames.length).toBeGreaterThan(0)
+
+    for (const name of workflowNames) {
       const path = `.github/workflows/${name}`
-      const document: unknown = yaml.load(readFileSync(resolve(root, path), 'utf8'))
+      const document: unknown = yaml.load(readFileSync(resolve(workflowDirectory, name), 'utf8'))
       if (typeof document !== 'object' || document === null || Array.isArray(document)) {
         throw new TypeError(`${path} must contain a workflow object`)
       }

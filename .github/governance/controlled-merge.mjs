@@ -14,7 +14,10 @@ export function requiredChecksReady({ checkRuns, statuses, requiredCheckRuns, re
   }
   const latestStatuses = new Map();
   for (const status of statuses ?? []) {
-    if (!latestStatuses.has(status.context)) latestStatuses.set(status.context, status);
+    const previous = latestStatuses.get(status.context);
+    if (!previous || new Date(status.updated_at ?? status.created_at ?? 0) >= new Date(previous.updated_at ?? previous.created_at ?? 0)) {
+      latestStatuses.set(status.context, status);
+    }
   }
   return requiredCheckRuns.every((name) => latestChecks.get(name)?.conclusion === 'success') &&
     requiredStatusContexts.every((name) => latestStatuses.get(name)?.state === 'success');
@@ -115,16 +118,26 @@ async function main() {
 }
 
 function selfTest() {
-  const now = new Date().toISOString();
+  const older = '2026-08-20T00:00:00Z';
+  const newer = '2026-08-20T00:01:00Z';
   assert.equal(requiredChecksReady({
-    checkRuns: [{ name: 'repository-gates / merge-gate', conclusion: 'success', completed_at: now }],
-    statuses: [{ context: 'pr-policy', state: 'success' }],
+    checkRuns: [{ name: 'repository-gates / merge-gate', conclusion: 'success', completed_at: newer }],
+    statuses: [{ context: 'pr-policy', state: 'success', updated_at: newer }],
     requiredCheckRuns: ['repository-gates / merge-gate'],
     requiredStatusContexts: ['pr-policy'],
   }), true);
   assert.equal(requiredChecksReady({
-    checkRuns: [{ name: 'repository-gates / merge-gate', conclusion: 'failure', completed_at: now }],
-    statuses: [{ context: 'pr-policy', state: 'success' }],
+    checkRuns: [{ name: 'repository-gates / merge-gate', conclusion: 'failure', completed_at: newer }],
+    statuses: [{ context: 'pr-policy', state: 'success', updated_at: newer }],
+    requiredCheckRuns: ['repository-gates / merge-gate'],
+    requiredStatusContexts: ['pr-policy'],
+  }), false);
+  assert.equal(requiredChecksReady({
+    checkRuns: [{ name: 'repository-gates / merge-gate', conclusion: 'success', completed_at: newer }],
+    statuses: [
+      { context: 'pr-policy', state: 'success', updated_at: older },
+      { context: 'pr-policy', state: 'failure', updated_at: newer },
+    ],
     requiredCheckRuns: ['repository-gates / merge-gate'],
     requiredStatusContexts: ['pr-policy'],
   }), false);

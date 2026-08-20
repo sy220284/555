@@ -917,9 +917,14 @@ async function openPerformancePage(
   return group
 }
 
+async function sessionSearch(page: Page): Promise<Locator> {
+  const searchButton = page.getByRole('button', { name: 'Search sessions', exact: true })
+  if (await searchButton.getAttribute('aria-expanded') !== 'true') await searchButton.click()
+  return page.getByRole('textbox', { name: 'Search sessions...', exact: true })
+}
+
 async function openLongHistory(page: Page): Promise<number> {
-  await page.getByRole('textbox', { name: 'Search name, keywords...', exact: true })
-    .fill('LONG_PERF_SENTINEL')
+  await (await sessionSearch(page)).fill('LONG_PERF_SENTINEL')
   const results = page.getByRole('tree', { name: 'Search results' }).getByRole('treeitem')
   await expect.poll(() => results.count(), { timeout: 60_000 }).toBe(1)
   await results.first().click()
@@ -1204,6 +1209,7 @@ describe('manual web performance: complex workspace and history', () => {
 
       const sidebar = await measure(cdp, async () => {
         await group.click()
+        await page.getByRole('button', { name: /^Show \d+ more sessions$/ }).click()
         return stableCount(
           page.getByRole('treeitem'),
           count => count === SIDEBAR_SESSION_COUNT + 2,
@@ -1214,8 +1220,7 @@ describe('manual web performance: complex workspace and history', () => {
       await expect.poll(() => page.getByRole('treeitem').count()).toBe(1)
 
       const contentSearch = await measure(cdp, async () => {
-        await page.getByRole('textbox', { name: 'Search name, keywords...', exact: true })
-          .fill('LONG_PERF_SENTINEL')
+        await (await sessionSearch(page)).fill('LONG_PERF_SENTINEL')
         const results = page.getByRole('tree', { name: 'Search results' }).getByRole('treeitem')
         await expect.poll(() => results.count(), { timeout: 60_000 }).toBe(1)
         await results.first().waitFor({ timeout: 60_000 })

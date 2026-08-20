@@ -280,7 +280,7 @@ jobs:
             'packages/typert/generator/tests/cordis-catalog.spec.ts'
           )
           foreach ($file in $files) { Move-Item $file "$file.repository-gate-disabled" }
-      - run: pnpm run test
+      - run: pnpm exec vitest run --maxWorkers 2
       - name: 恢复仓库范围外测试
         if: always()
         shell: pwsh
@@ -321,7 +321,7 @@ jobs:
             packages/typert/generator/tests/cordis-catalog.spec.ts; do
             mv "$file" "$file.repository-gate-disabled"
           done
-      - run: pnpm run test
+      - run: pnpm exec vitest run --maxWorkers 2
       - name: 恢复仓库范围外测试
         if: always()
         shell: bash

@@ -121,7 +121,7 @@ export async function validateLaneReadyForMerge(root, lane) {
   return [];
 }
 
-function selfTest() {
+export function taskControlSelfTest() {
   const policy = {
     schemaVersion: 1,
     laneStatePaths: { work: '.github/task-control/work.json', governance: '.github/task-control/governance.json' },
@@ -165,7 +165,7 @@ function selfTest() {
 
 const command = process.argv[2] ?? 'validate';
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  if (command === 'self-test') selfTest();
+  if (command === 'self-test') taskControlSelfTest();
   else if (command === 'validate') {
     const errors = await validateTaskControl(process.argv[3] ?? '.');
     if (errors.length > 0) throw new Error(errors.join('\n'));

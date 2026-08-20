@@ -41,20 +41,26 @@ const fullRiskRoots = [
   'patches/',
 ];
 
+const laneTaskStateMetadata = new Set([
+  '.github/task-control/work.json',
+  '.github/task-control/governance.json',
+]);
+
 function matches(file, values) {
   return values.some((value) => (value.endsWith('/') ? file.startsWith(value) : file === value || file.startsWith(value)));
 }
 
 export function classifyImpact(files) {
   const unique = [...new Set(files.filter(Boolean))].sort();
+  const riskFiles = unique.filter((file) => !laneTaskStateMetadata.has(file));
   const result = {
     files: unique,
-    governance: unique.some((file) => file.startsWith('.github/')),
-    full: unique.some((file) => matches(file, fullRiskRoots)),
-    web: unique.some((file) => matches(file, prefixes.web)),
-    gui: unique.some((file) => matches(file, prefixes.gui)),
-    snapshot: unique.some((file) => matches(file, prefixes.snapshot)),
-    e2e: unique.some((file) => matches(file, prefixes.e2e)),
+    governance: riskFiles.some((file) => file.startsWith('.github/')),
+    full: riskFiles.some((file) => matches(file, fullRiskRoots)),
+    web: riskFiles.some((file) => matches(file, prefixes.web)),
+    gui: riskFiles.some((file) => matches(file, prefixes.gui)),
+    snapshot: riskFiles.some((file) => matches(file, prefixes.snapshot)),
+    e2e: riskFiles.some((file) => matches(file, prefixes.e2e)),
   };
   if (result.full) {
     result.e2e = true;
@@ -94,10 +100,15 @@ function selfTest() {
   assert.deepEqual(classifyImpact(['README.md']), {
     files: ['README.md'], governance: false, full: false, web: false, gui: false, snapshot: false, e2e: false,
   });
-  const web = classifyImpact(['apps/web/src/a.tsx']);
+  const taskStateOnly = classifyImpact(['.github/task-control/work.json']);
+  assert.equal(taskStateOnly.governance, false);
+  assert.equal(taskStateOnly.full, false);
+  assert.equal(taskStateOnly.e2e, false);
+  const web = classifyImpact(['apps/web/src/a.tsx', '.github/task-control/work.json']);
   assert.equal(web.web, true);
   assert.equal(web.gui, true);
   assert.equal(web.snapshot, true);
+  assert.equal(web.full, false);
   const shell = classifyImpact(['packages/shell/x.ts']);
   assert.equal(shell.e2e, true);
   const governance = classifyImpact(['.github/workflows/a.yml']);

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { githubApi, githubRepository, loadPolicy, listAllPages, validatePolicy } from './policy.mjs';
-import { validateLaneReadyForMerge, validateTaskControl } from './task-control.mjs';
+import { taskControlSelfTest, validateLaneReadyForMerge, validateTaskControl } from './task-control.mjs';
 
 export function validatePullRequestShape({ head, base, sameRepository = true, lanes = ['work', 'governance'] }) {
   const errors = [];
@@ -141,6 +141,7 @@ async function publishStatus() {
 }
 
 async function selfTest() {
+  taskControlSelfTest();
   assert.deepEqual(validatePullRequestShape({ head: 'work', base: 'main' }), []);
   assert.deepEqual(validatePullRequestShape({ head: 'governance', base: 'main' }), []);
   assert.ok(validatePullRequestShape({ head: 'fix/a', base: 'main' }).length > 0);

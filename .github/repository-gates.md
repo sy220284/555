@@ -1,16 +1,34 @@
-# 仓库门禁
+# 仓库门禁与自动闭环
 
-永久工作流：`.github/workflows/repository-gates.yml`
+永久工作流：
 
-最终合并检查：`repository-gates / merge-gate`
+```text
+.github/workflows/pr-policy.yml
+.github/workflows/repository-gates.yml
+.github/workflows/controlled-merge.yml
+.github/workflows/main-verification.yml
+.github/workflows/branch-hygiene.yml
+```
 
-该检查聚合以下门禁：
+最终合并检查：
 
-- `repository-policy`：仓库范围、临时产物、疑似凭据、Node/pnpm 根约束。
-- `node-22-floor`：Node.js 22.19 最低支持版本下的冻结安装、类型检查和完整构建。
-- `node-24-quality`：Node.js 24 主运行线的冻结安装、类型检查、完整构建和逐文件 100% 覆盖率测试。
-- `windows-runtime`：Windows + Node.js 24 的类型检查和产品测试。
-- `python-3.10` / `python-3.13`：Python SDK 最低版本与较新版本的语法和测试验证。
-- `linux-landlock-native`：Linux 下使用 musl-gcc 编译 C11 Landlock 静态二进制并执行启动器测试。
+```text
+pr-policy
+repository-gates / merge-gate
+```
 
-任何子门禁失败，`merge-gate` 必须失败。门禁工作流只负责验证，不生成或改写正式产品源码。
+自动闭环固定为：
+
+```text
+work/governance → main PR
+→ 可信主线 PR Policy
+→ Repository Gates
+→ Controlled Merge
+→ Main Verification
+→ Integration Branch Synchronization
+→ Branch Hygiene
+```
+
+`repository-gates / merge-gate` 聚合仓库范围、变更风险、Node.js 22.19、Node.js 24、扩展产品验证、Windows、macOS、Python SDK 与 Linux Landlock 原生门禁。任何子门禁失败，最终门禁必须失败。
+
+高权限自动化必须从可信 `main` 执行；候选 PR 不得决定自己的合并资格。合并后只有 `main-verification` 成功，才允许同步永久 lane。分支卫生自动化仅删除能够证明已完全包含于 `main` 且没有开放 PR 的额外分支；未知工作一律失败关闭。

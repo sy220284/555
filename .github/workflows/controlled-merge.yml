@@ -2,13 +2,14 @@ name: Controlled Merge
 
 on:
   workflow_run:
-    workflows: [PR Policy, repository-gates]
+    workflows: [repository-gates]
     types: [completed]
 
 permissions:
-  checks: read
+  actions: read
   contents: write
   pull-requests: write
+  statuses: write
 
 concurrency:
   group: controlled-main-write
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   controlled-merge:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -31,7 +32,7 @@ jobs:
           node-version: 24.18.1
       - name: 自测受控合并器
         run: node .github/governance/controlled-merge.mjs self-test
-      - name: 聚合永久门禁并执行受控合并
+      - name: 绑定精确门禁记录并执行受控合并
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node .github/governance/controlled-merge.mjs

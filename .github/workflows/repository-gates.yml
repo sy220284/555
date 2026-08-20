@@ -1,8 +1,12 @@
 name: repository-gates
 
+# Trust-root migration compatibility: `repository-gates / merge-gate` is retired;
+# the independent task-governance, quality, security, performance and evidence jobs replace it.
+
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -11,17 +15,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: repository-gates-${{ github.event.pull_request.number || github.ref }}
+  group: repository-gates-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
-  repository-policy:
-    name: repository-policy
+  task-governance:
+    name: task-governance
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: 检出仓库
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -58,7 +62,13 @@ jobs:
           test -f pnpm-workspace.yaml
           test -f AGENTS.md
           test -f README.md
+          test -f CODE_OF_CONDUCT.md
+          test -f CONTRIBUTING.md
+          test -f SECURITY.md
+          test -f RELEASE.md
+          test -f .github/CODEOWNERS
           test -f .github/governance/repository-policy.json
+          test -f .github/repository-metadata.json
           test -f python/sdk-runtime/src/deepseek_harness_runtime/deepseek-harness-runtime.json
           test -f python/sdk-runtime/src/deepseek_harness_runtime/runtime/cordis.yml
       - name: 自测自动化治理内核
@@ -70,6 +80,8 @@ jobs:
           node .github/governance/integration-synchronization.mjs self-test
           node .github/governance/branch-hygiene.mjs self-test
           node .github/governance/repository-state.mjs self-test
+          node .github/governance/security-gate.mjs self-test
+          node .github/governance/release.mjs self-test
 
   impact:
     name: change-impact
@@ -82,47 +94,29 @@ jobs:
       snapshot: ${{ steps.classify.outputs.snapshot }}
       full: ${{ steps.classify.outputs.full }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
       - id: classify
         name: 计算变更风险
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node .github/governance/change-impact.mjs --base "$BASE_SHA" --head "$HEAD_SHA"
 
-  node-22:
-    name: node-22-floor
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-        with: { persist-credentials: false }
-      - uses: pnpm/action-setup@v6
-        with: { version: 11.7.0 }
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22.19.0
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - run: git diff --exit-code
-
-  node-24:
-    name: node-24-quality
+  quality:
+    name: quality / quality
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { persist-credentials: false }
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
         with: { version: 11.7.0 }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: 24.18.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
@@ -152,24 +146,98 @@ jobs:
           done
       - run: git diff --exit-code
 
+  security:
+    name: security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with: { version: 11.7.0 }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version: 24.18.1 }
+      - name: 固定自动化依赖并扫描仓库策略
+        run: node .github/governance/security-gate.mjs scan-repository
+      - name: 生成生产依赖审计记录
+        shell: bash
+        run: pnpm audit --prod --json > "$RUNNER_TEMP/pnpm-audit.json" || true
+      - name: 阻止新增、升级或 critical 安全债务
+        run: node .github/governance/security-gate.mjs audit "$RUNNER_TEMP/pnpm-audit.json"
+
+  performance:
+    name: performance
+    if: always()
+    needs: impact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { persist-credentials: false }
+      - name: 验证风险分类可用
+        env:
+          IMPACT_RESULT: ${{ needs.impact.result }}
+        run: test "$IMPACT_RESULT" = success
+      - name: 自测性能门禁路由
+        run: node .github/governance/change-impact.mjs self-test
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        if: ${{ needs.impact.outputs.web == 'true' || needs.impact.outputs.full == 'true' }}
+        with: { version: 11.7.0 }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        if: ${{ needs.impact.outputs.web == 'true' || needs.impact.outputs.full == 'true' }}
+        with:
+          node-version: 24.18.1
+          cache: pnpm
+      - name: 冻结安装性能测试依赖
+        if: ${{ needs.impact.outputs.web == 'true' || needs.impact.outputs.full == 'true' }}
+        run: pnpm install --frozen-lockfile
+      - name: Web 性能测试
+        if: ${{ needs.impact.outputs.web == 'true' || needs.impact.outputs.full == 'true' }}
+        run: pnpm run test:web:perf
+      - name: Web 压力测试
+        if: ${{ needs.impact.outputs.full == 'true' }}
+        run: pnpm run test:web:stress
+      - name: 记录性能测试不适用
+        if: ${{ needs.impact.outputs.web != 'true' && needs.impact.outputs.full != 'true' }}
+        run: echo "当前变更不影响性能测试面；路由策略已验证。"
+      - run: git diff --exit-code
+
+  node-22:
+    name: node-22-floor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with: { persist-credentials: false }
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
+        with: { version: 11.7.0 }
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: git diff --exit-code
+
   extended-product:
     name: extended-product-validation
     needs: impact
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { persist-credentials: false }
       - name: 无需扩展产品验证
         if: ${{ needs.impact.outputs.e2e != 'true' && needs.impact.outputs.web != 'true' && needs.impact.outputs.gui != 'true' && needs.impact.outputs.snapshot != 'true' }}
         run: echo "当前变更不触发扩展产品验证。"
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
         if: ${{ needs.impact.outputs.e2e == 'true' || needs.impact.outputs.web == 'true' || needs.impact.outputs.gui == 'true' || needs.impact.outputs.snapshot == 'true' }}
         with: { version: 11.7.0 }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         if: ${{ needs.impact.outputs.e2e == 'true' || needs.impact.outputs.web == 'true' || needs.impact.outputs.gui == 'true' || needs.impact.outputs.snapshot == 'true' }}
         with:
-          node-version: 24
+          node-version: 24.18.1
           cache: pnpm
       - name: 冻结安装依赖
         if: ${{ needs.impact.outputs.e2e == 'true' || needs.impact.outputs.web == 'true' || needs.impact.outputs.gui == 'true' || needs.impact.outputs.snapshot == 'true' }}
@@ -186,12 +254,6 @@ jobs:
       - name: 快照测试
         if: ${{ needs.impact.outputs.snapshot == 'true' }}
         run: pnpm run test:snapshot
-      - name: Web 性能测试
-        if: ${{ needs.impact.outputs.web == 'true' || needs.impact.outputs.full == 'true' }}
-        run: pnpm run test:web:perf
-      - name: Web 压力测试
-        if: ${{ needs.impact.outputs.full == 'true' }}
-        run: pnpm run test:web:stress
       - run: git diff --exit-code
 
   windows:
@@ -199,13 +261,13 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { persist-credentials: false }
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
         with: { version: 11.7.0 }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: 24.18.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
@@ -218,7 +280,7 @@ jobs:
             'packages/typert/generator/tests/cordis-catalog.spec.ts'
           )
           foreach ($file in $files) { Move-Item $file "$file.repository-gate-disabled" }
-      - run: pnpm run test
+      - run: pnpm exec vitest run --maxWorkers 2
       - name: 恢复仓库范围外测试
         if: always()
         shell: pwsh
@@ -239,13 +301,13 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { persist-credentials: false }
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
         with: { version: 11.7.0 }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: 24.18.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
@@ -259,7 +321,7 @@ jobs:
             packages/typert/generator/tests/cordis-catalog.spec.ts; do
             mv "$file" "$file.repository-gate-disabled"
           done
-      - run: pnpm run test
+      - run: pnpm exec vitest run --maxWorkers 2
       - name: 恢复仓库范围外测试
         if: always()
         shell: bash
@@ -282,18 +344,21 @@ jobs:
       matrix:
         python-version: ['3.10', '3.13']
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { persist-credentials: false }
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-      - run: python -m pip install "pytest>=8" "pydantic>=2.12,<3"
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: 0.11.33
+          enable-cache: false
+      - run: uv sync --project python/sdk --locked --group test --no-install-project --no-install-local
       - run: python -m compileall -q python/sdk/src python/sdk-runtime/src
       - name: Python SDK 核心测试
         env:
           PYTHONPATH: ${{ github.workspace }}/python/sdk/src:${{ github.workspace }}/python/sdk-runtime/src
-        run: python -m pytest -q python/sdk/tests/test_client.py python/sdk/tests/test_runtime_resolution.py
+        run: uv run --project python/sdk --no-sync python -m pytest -q python/sdk/tests/test_client.py python/sdk/tests/test_runtime_resolution.py
       - run: git diff --exit-code
 
   native-landlock:
@@ -301,13 +366,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { persist-credentials: false }
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@f520eceda224fe1a4aed5a2a27a194379a409996 # v6
         with: { version: 11.7.0 }
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: 24
+          node-version: 24.18.1
           cache: pnpm
       - name: 安装 musl 原生编译器
         shell: bash
@@ -324,39 +389,61 @@ jobs:
       - run: pnpm --dir native/landlock-run run test
       - run: git diff --exit-code
 
-  merge-gate:
-    name: repository-gates / merge-gate
+  evidence:
+    name: evidence
     if: always()
-    needs: [repository-policy, impact, node-22, node-24, extended-product, windows, macos, python-sdk, native-landlock]
+    needs: [task-governance, impact, quality, security, performance, node-22, extended-product, windows, macos, python-sdk, native-landlock]
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
-      - name: 汇总全部永久门禁
-        shell: bash
+      - name: 生成精确门禁证据
         env:
-          POLICY: ${{ needs.repository-policy.result }}
+          TASK_GOVERNANCE: ${{ needs.task-governance.result }}
           IMPACT: ${{ needs.impact.result }}
+          QUALITY: ${{ needs.quality.result }}
+          SECURITY: ${{ needs.security.result }}
+          PERFORMANCE: ${{ needs.performance.result }}
           NODE22: ${{ needs.node-22.result }}
-          NODE24: ${{ needs.node-24.result }}
           EXTENDED: ${{ needs.extended-product.result }}
           WINDOWS: ${{ needs.windows.result }}
           MACOS: ${{ needs.macos.result }}
           PYTHON: ${{ needs.python-sdk.result }}
           NATIVE: ${{ needs.native-landlock.result }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          set -euo pipefail
-          failed=0
-          for pair in \
-            "repository-policy=$POLICY" \
-            "change-impact=$IMPACT" \
-            "node-22-floor=$NODE22" \
-            "node-24-quality=$NODE24" \
-            "extended-product-validation=$EXTENDED" \
-            "windows-runtime=$WINDOWS" \
-            "macos-runtime=$MACOS" \
-            "python-sdk=$PYTHON" \
-            "linux-landlock-native=$NATIVE"; do
-            echo "$pair"
-            if [[ "${pair#*=}" != "success" ]]; then failed=1; fi
-          done
-          exit "$failed"
+          mkdir -p artifacts/governance-evidence
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs'
+          const results = {
+            'task-governance': process.env.TASK_GOVERNANCE,
+            'change-impact': process.env.IMPACT,
+            'quality / quality': process.env.QUALITY,
+            security: process.env.SECURITY,
+            performance: process.env.PERFORMANCE,
+            'node-22-floor': process.env.NODE22,
+            'extended-product-validation': process.env.EXTENDED,
+            'windows-runtime': process.env.WINDOWS,
+            'macos-runtime': process.env.MACOS,
+            'python-sdk': process.env.PYTHON,
+            'linux-landlock-native': process.env.NATIVE,
+          }
+          const evidence = {
+            schemaVersion: 1,
+            repository: process.env.GITHUB_REPOSITORY,
+            headSha: process.env.HEAD_SHA,
+            workflowRunId: Number(process.env.GITHUB_RUN_ID),
+            runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            results,
+          }
+          writeFileSync('artifacts/governance-evidence/gates.json', `${JSON.stringify(evidence, null, 2)}\n`)
+          const failed = Object.entries(results).filter(([, result]) => result !== 'success')
+          if (failed.length > 0) throw new Error(`Permanent gates failed: ${failed.map(([name, result]) => `${name}=${result}`).join(', ')}`)
+          NODE
+      - name: 上传不可变门禁证据
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: governance-evidence-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}
+          path: artifacts/governance-evidence/
+          if-no-files-found: error
+          retention-days: 90

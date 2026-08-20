@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "scope": "pnpm audit --prod",
+  "recordedAt": "2026-08-20",
+  "policy": "Existing advisories are explicit debt. Critical findings, new advisory IDs, and severity escalation are blocked.",
+  "acceptedAdvisories": [
+    { "id": "GHSA-22jq-vg5j-6vgg", "severity": "moderate", "module": "ip-address" },
+    { "id": "GHSA-28wg-ghj8-5hjv", "severity": "high", "module": "nanoid" },
+    { "id": "GHSA-2v37-7h3g-55p8", "severity": "high", "module": "nanoid" },
+    { "id": "GHSA-3jxr-9vmj-r5cp", "severity": "high", "module": "brace-expansion" },
+    { "id": "GHSA-4cwx-7wf7-3272", "severity": "high", "module": "undici" },
+    { "id": "GHSA-4xrf-jv44-h6hh", "severity": "moderate", "module": "ip-address" },
+    { "id": "GHSA-52cp-r559-cp3m", "severity": "high", "module": "js-yaml" },
+    { "id": "GHSA-54fx-42gc-7vw4", "severity": "moderate", "module": "hono" },
+    { "id": "GHSA-5p4m-2wfm-xmqj", "severity": "high", "module": "js-yaml" },
+    { "id": "GHSA-79qm-7rj5-m7r9", "severity": "low", "module": "hono" },
+    { "id": "GHSA-7p8r-x3mc-p8w7", "severity": "high", "module": "fast-uri" },
+    { "id": "GHSA-8j4g-w8fx-2239", "severity": "moderate", "module": "hono" },
+    { "id": "GHSA-8xcm-r25x-g524", "severity": "moderate", "module": "undici" },
+    { "id": "GHSA-f23p-vx2j-j53r", "severity": "moderate", "module": "hono" },
+    { "id": "GHSA-frvp-7c67-39w9", "severity": "moderate", "module": "@hono/node-server" },
+    { "id": "GHSA-fxqj-rqcc-2cmp", "severity": "moderate", "module": "postcss" },
+    { "id": "GHSA-j3f2-48v5-ccww", "severity": "moderate", "module": "protobufjs" },
+    { "id": "GHSA-jr45-8vmc-qm54", "severity": "moderate", "module": "undici" },
+    { "id": "GHSA-m8rv-5g2x-5cg5", "severity": "moderate", "module": "undici" },
+    { "id": "GHSA-mh99-v99m-4gvg", "severity": "high", "module": "brace-expansion" },
+    { "id": "GHSA-mwp4-54f8-5fhr", "severity": "high", "module": "ip-address" },
+    { "id": "GHSA-r28c-9q8g-f849", "severity": "high", "module": "postcss" },
+    { "id": "GHSA-rgw5-rvv9-x895", "severity": "high", "module": "brace-expansion" },
+    { "id": "GHSA-v2hh-gcrm-f6hx", "severity": "high", "module": "fast-uri" },
+    { "id": "GHSA-v3r7-h72x-cjcm", "severity": "moderate", "module": "undici" }
+  ]
+}

@@ -2,8 +2,18 @@
   "name": "deepseek-harness-main-protection",
   "branch": "main",
   "requirePullRequest": true,
+  "requiredApprovingReviewCount": 0,
+  "requireConversationResolution": true,
+  "strictRequiredChecks": true,
   "requireLinearHistory": true,
   "blockDeletion": true,
   "blockForcePush": true,
-  "requiredChecks": ["pr-policy", "repository-gates / merge-gate"]
+  "requiredChecks": [
+    "pr-policy",
+    "task-governance",
+    "quality / quality",
+    "security",
+    "performance",
+    "evidence"
+  ]
 }

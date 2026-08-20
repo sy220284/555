@@ -16,6 +16,11 @@
   "mergeMethod": "squash",
   "mainVerificationContext": "main-verification",
   "deliveryStatusContext": "delivery-ready",
+  "sourceGate": {
+    "workflowName": "repository-gates",
+    "workflowFile": "repository-gates.yml",
+    "statusContext": "source-gate-run"
+  },
   "synchronizeIntegrationBranches": true,
   "trustBootstrap": {
     "requiresTrustedMainPolicy": true,
@@ -41,6 +46,10 @@
     "pr-policy"
   ],
   "requiredCheckRuns": [
-    "repository-gates / merge-gate"
+    "task-governance",
+    "quality / quality",
+    "security",
+    "performance",
+    "evidence"
   ]
 }

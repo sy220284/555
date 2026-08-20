@@ -582,15 +582,10 @@ pnpm run test:gui
 
 ## 当前仓库验证状态
 
-当前源码基线已经完成实际动态验证：
+[![repository-gates](https://github.com/sy220284/555/actions/workflows/repository-gates.yml/badge.svg?branch=main)](https://github.com/sy220284/555/actions/workflows/repository-gates.yml?query=branch%3Amain)
+[![Main Verification](https://github.com/sy220284/555/actions/workflows/main-verification.yml/badge.svg?branch=main)](https://github.com/sy220284/555/actions/workflows/main-verification.yml?query=branch%3Amain)
 
-```text
-依赖安装        ✓
-完整构建        ✓
-有效产品测试    ✓
-```
-
-因此当前仓库可以作为继续开发和架构改造的基础版本。
+以上实时徽章与其链接的 GitHub Actions 记录是当前源码基线的验证事实来源；README 不手写“全绿”结论。
 
 ---
 

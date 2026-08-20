@@ -20,6 +20,15 @@ export function resultState(result) {
   return result === 'success' ? 'success' : 'failure';
 }
 
+export function bootstrapStatusException({ policy, required, sourceBranch, basePolicyPresent }) {
+  return required === 'pr-policy' &&
+    policy?.trustBootstrap?.requiresTrustedMainPolicy === true &&
+    policy?.trustBootstrap?.candidateSelfCertificationAllowed === false &&
+    policy?.trustBootstrap?.initialMergeRequiresExplicitUserApproval === true &&
+    sourceBranch === policy?.trustBootstrap?.bootstrapBranch &&
+    basePolicyPresent === false;
+}
+
 async function resolveSource(owner, repo, policy, expectedSha) {
   const requestedPr = Number.parseInt(process.env.SOURCE_PR ?? '', 10);
   if (Number.isSafeInteger(requestedPr) && requestedPr > 0) {
@@ -76,12 +85,18 @@ async function verify() {
   }
   const sourceStatus = await githubApi(`/repos/${owner}/${repo}/commits/${source.sourceHeadSha}/status`);
   for (const required of policy.requiredStatusContexts) {
-    const entry = (sourceStatus?.statuses ?? []).find((status) => status.context === required);
-    if (entry?.state !== 'success') {
+    const entries = (sourceStatus?.statuses ?? []).filter((status) => status.context === required);
+    entries.sort((a, b) => new Date(b.updated_at ?? b.created_at ?? 0) - new Date(a.updated_at ?? a.created_at ?? 0));
+    if (entries[0]?.state !== 'success') {
       const basePolicy = await githubApi(`/repos/${owner}/${repo}/contents/.github/governance/repository-policy.json?ref=${source.pull.base.sha}`, {}, [404]);
-      const bootstrap = !basePolicy && required === 'pr-policy';
+      const bootstrap = bootstrapStatusException({
+        policy,
+        required,
+        sourceBranch: source.sourceBranch,
+        basePolicyPresent: Boolean(basePolicy),
+      });
       if (!bootstrap) throw new Error(`Required source status is not successful: ${required}`);
-      console.log('Bootstrap merge detected: trusted pr-policy did not exist on the source base, allowing this one-time transition.');
+      console.log('Initial governance trust bootstrap detected: the source base had no trusted policy; one-time pr-policy absence accepted for post-merge verification.');
     }
   }
   if (process.env.GITHUB_OUTPUT) {
@@ -144,6 +159,17 @@ function selfTest() {
   assert.equal(resultState('success'), 'success');
   assert.equal(resultState('failure'), 'failure');
   assert.equal(resultState('skipped'), 'failure');
+  const bootstrapPolicy = {
+    trustBootstrap: {
+      requiresTrustedMainPolicy: true,
+      candidateSelfCertificationAllowed: false,
+      bootstrapBranch: 'governance',
+      initialMergeRequiresExplicitUserApproval: true,
+    },
+  };
+  assert.equal(bootstrapStatusException({ policy: bootstrapPolicy, required: 'pr-policy', sourceBranch: 'governance', basePolicyPresent: false }), true);
+  assert.equal(bootstrapStatusException({ policy: bootstrapPolicy, required: 'pr-policy', sourceBranch: 'work', basePolicyPresent: false }), false);
+  assert.equal(bootstrapStatusException({ policy: bootstrapPolicy, required: 'pr-policy', sourceBranch: 'governance', basePolicyPresent: true }), false);
   console.log('Main verification self-test passed.');
 }
 

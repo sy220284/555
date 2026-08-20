@@ -1,5 +1,8 @@
 name: repository-gates
 
+# Trust-root migration compatibility: `repository-gates / merge-gate` is retired;
+# the independent task-governance, quality, security, performance and evidence jobs replace it.
+
 on:
   pull_request:
     branches: [main]

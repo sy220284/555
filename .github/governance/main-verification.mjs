@@ -1,0 +1,117 @@
+/* global console, process */
+import assert from 'node:assert/strict';
+import { appendFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { githubApi, githubRepository, loadPolicy, assertFullSha } from './policy.mjs';
+
+export function verifyProvenance({ mainSha, expectedSha, pull, sourcePr, sourceHeadSha, sourceBranch }) {
+  const errors = [];
+  if (mainSha !== expectedSha) errors.push(`Current main ${mainSha} does not equal expected ${expectedSha}`);
+  if (pull?.number !== sourcePr) errors.push(`Source PR mismatch: expected #${sourcePr}, found #${pull?.number ?? '<missing>'}`);
+  if (!pull?.merged_at) errors.push('Source PR is not merged');
+  if (pull?.base?.ref !== 'main') errors.push('Source PR base is not main');
+  if (pull?.head?.ref !== sourceBranch) errors.push(`Source branch mismatch: ${pull?.head?.ref ?? '<missing>'}`);
+  if (pull?.head?.sha !== sourceHeadSha) errors.push('Source head SHA mismatch');
+  return errors;
+}
+
+async function resolveSource(owner, repo, policy, expectedSha) {
+  const requestedPr = Number.parseInt(process.env.SOURCE_PR ?? '', 10);
+  if (Number.isSafeInteger(requestedPr) && requestedPr > 0) {
+    const pull = await githubApi(`/repos/${owner}/${repo}/pulls/${requestedPr}`);
+    return {
+      pull,
+      sourcePr: requestedPr,
+      sourceHeadSha: assertFullSha(process.env.SOURCE_HEAD_SHA, 'source head sha'),
+      sourceBranch: process.env.SOURCE_BRANCH,
+    };
+  }
+  const pulls = await githubApi(`/repos/${owner}/${repo}/commits/${expectedSha}/pulls?per_page=100`);
+  const pull = pulls.find(
+    (item) => item.merged_at && item.base?.ref === 'main' && policy.integrationBranches.includes(item.head?.ref),
+  );
+  if (!pull) throw new Error(`Cannot resolve a merged work/governance PR for main ${expectedSha}`);
+  return {
+    pull,
+    sourcePr: pull.number,
+    sourceHeadSha: assertFullSha(pull.head?.sha, 'resolved source head sha'),
+    sourceBranch: pull.head.ref,
+  };
+}
+
+async function verify() {
+  const policy = await loadPolicy();
+  const expectedSha = assertFullSha(process.env.EXPECTED_SHA || process.env.GITHUB_SHA, 'expected main sha');
+  const { owner, repo } = githubRepository();
+  const mainRef = await githubApi(`/repos/${owner}/${repo}/git/ref/heads/main`);
+  const mainSha = assertFullSha(mainRef?.object?.sha, 'current main sha');
+  const source = await resolveSource(owner, repo, policy, expectedSha);
+  if (!policy.integrationBranches.includes(source.sourceBranch)) throw new Error(`Invalid source branch ${source.sourceBranch}`);
+  const errors = verifyProvenance({
+    mainSha,
+    expectedSha,
+    pull: source.pull,
+    sourcePr: source.sourcePr,
+    sourceHeadSha: source.sourceHeadSha,
+    sourceBranch: source.sourceBranch,
+  });
+  if (errors.length > 0) throw new Error(errors.join('\n'));
+
+  const checkRuns = await githubApi(`/repos/${owner}/${repo}/commits/${source.sourceHeadSha}/check-runs?per_page=100`);
+  for (const required of policy.requiredCheckRuns) {
+    const runs = (checkRuns?.check_runs ?? []).filter((run) => run.name === required);
+    runs.sort((a, b) => new Date(b.completed_at ?? b.started_at ?? 0) - new Date(a.completed_at ?? a.started_at ?? 0));
+    if (runs[0]?.conclusion !== 'success') throw new Error(`Required source check is not successful: ${required}`);
+  }
+  const sourceStatus = await githubApi(`/repos/${owner}/${repo}/commits/${source.sourceHeadSha}/status`);
+  for (const required of policy.requiredStatusContexts) {
+    const entry = (sourceStatus?.statuses ?? []).find((status) => status.context === required);
+    if (entry?.state !== 'success') {
+      const basePolicy = await githubApi(`/repos/${owner}/${repo}/contents/.github/governance/repository-policy.json?ref=${source.pull.base.sha}`, {}, [404]);
+      const bootstrap = !basePolicy && required === 'pr-policy';
+      if (!bootstrap) throw new Error(`Required source status is not successful: ${required}`);
+      console.log('Bootstrap merge detected: trusted pr-policy did not exist on the source base, allowing this one-time transition.');
+    }
+  }
+  if (process.env.GITHUB_OUTPUT) {
+    await appendFile(process.env.GITHUB_OUTPUT, `source_pr=${source.sourcePr}\n`);
+    await appendFile(process.env.GITHUB_OUTPUT, `source_head_sha=${source.sourceHeadSha}\n`);
+    await appendFile(process.env.GITHUB_OUTPUT, `source_branch=${source.sourceBranch}\n`);
+  }
+  console.log(`Main provenance verified for ${expectedSha} from PR #${source.sourcePr}.`);
+}
+
+async function publishStatus() {
+  const policy = await loadPolicy();
+  const expectedSha = assertFullSha(process.env.EXPECTED_SHA || process.env.GITHUB_SHA, 'expected main sha');
+  const state = process.env.VERIFY_RESULT === 'success' ? 'success' : 'failure';
+  const { owner, repo } = githubRepository();
+  await githubApi(`/repos/${owner}/${repo}/statuses/${expectedSha}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      state,
+      context: policy.mainVerificationContext,
+      description: state === 'success' ? 'Verified merged main and source provenance' : 'Main verification failed',
+      target_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+    }),
+  });
+  if (state !== 'success') throw new Error('Published failed main-verification status');
+  console.log(`Published ${policy.mainVerificationContext}=success for ${expectedSha}.`);
+}
+
+function selfTest() {
+  const sha = 'a'.repeat(40);
+  const pull = { number: 7, merged_at: 'x', base: { ref: 'main' }, head: { ref: 'work', sha } };
+  assert.deepEqual(verifyProvenance({ mainSha: sha, expectedSha: sha, pull, sourcePr: 7, sourceHeadSha: sha, sourceBranch: 'work' }), []);
+  assert.ok(verifyProvenance({ mainSha: 'b'.repeat(40), expectedSha: sha, pull, sourcePr: 7, sourceHeadSha: sha, sourceBranch: 'work' }).length > 0);
+  console.log('Main verification self-test passed.');
+}
+
+const command = process.argv[2] ?? 'verify';
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  if (command === 'self-test') selfTest();
+  else if (command === 'verify') await verify();
+  else if (command === 'publish-status') await publishStatus();
+  else throw new Error(`Unknown command: ${command}`);
+}

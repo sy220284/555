@@ -2,14 +2,6 @@
   "name": "@deepseek-ai/dsh-root",
   "version": "0.1.0-rc.7",
   "license": "MIT",
-  "homepage": "https://github.com/sy220284/555#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sy220284/555.git"
-  },
-  "bugs": {
-    "url": "https://github.com/sy220284/555/issues"
-  },
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.7.0",

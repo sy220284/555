@@ -17,6 +17,12 @@
   "mainVerificationContext": "main-verification",
   "deliveryStatusContext": "delivery-ready",
   "synchronizeIntegrationBranches": true,
+  "trustBootstrap": {
+    "requiresTrustedMainPolicy": true,
+    "candidateSelfCertificationAllowed": false,
+    "bootstrapBranch": "governance",
+    "initialMergeRequiresExplicitUserApproval": true
+  },
   "taskControl": {
     "policyPath": ".github/task-control/policy.json",
     "workStatePath": ".github/task-control/work.json",

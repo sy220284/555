@@ -30,7 +30,7 @@
     "test:snapshot": "vitest run --config vitest.snapshot.config.ts",
     "test:snapshot:record": "DSH_SNAPSHOT=record vitest run --config vitest.snapshot.config.ts --update",
     "test:snapshot:refresh": "DSH_SNAPSHOT=refresh vitest run --config vitest.snapshot.config.ts",
-    "test:web:prepare": "pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium",
+    "test:web:prepare": "node scripts/prepare-web-test-host.mjs && pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install chromium",
     "test:web": "npm run test:web:prepare && npm run build && npm run test:web:built",
     "test:web:refresh": "npm run test:web:prepare && npm run build && DSH_SNAPSHOT=refresh vitest run --config vitest.web.config.ts",
     "test:web:built": "vitest run --config vitest.web.config.ts",

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "executionBranch": "governance",
   "taskId": "GOV-PR11-AUTONOMOUS-CLOSURE",
-  "status": "IN_PROGRESS",
-  "phase": "VERIFYING",
+  "status": "IMPLEMENTED",
+  "phase": "IMPLEMENTED",
   "goal": "建立可恢复的自动任务推进、受控合并、主线复验、永久分支同步、分支卫生与最终 DELIVERED 交付判定，并消除 AGENTS 授权冲突。",
   "verification": [
     "node .github/governance/pr-policy.mjs self-test",

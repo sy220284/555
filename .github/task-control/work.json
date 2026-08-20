@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "executionBranch": "work",
   "taskId": "WORK-UPSTREAM-RC8-20260820",
-  "status": "IN_PROGRESS",
-  "phase": "VERIFYING",
+  "status": "IMPLEMENTED",
+  "phase": "IMPLEMENTED",
   "goal": "将产品代码从已核验的官方 99f6f02（0.1.0-rc.7）基线同步到官方 141eb6f（0.1.0-rc.8），保留 555 的精简范围、治理配置和权威文档边界。",
   "verification": [
     "验证官方压缩包树指纹与 141eb6f 完全一致",

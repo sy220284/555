@@ -9,9 +9,7 @@ import SandboxProvider from '@deepseek-ai/dsh-sandbox'
 import type { ConfinedArgv, SandboxPolicy } from '@deepseek-ai/dsh-sandbox'
 import SandboxPolicyService, { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
 import TerminalSessionService, { TerminalBackendCleanupError, TerminalSessionId } from '@deepseek-ai/dsh-terminal'
-import type { TerminalSendRequest, TerminalWaitReason } from '@deepseek-ai/dsh-terminal'
-import { BashTerminalBackend, PWSH_PROMPT_SETUP } from '@deepseek-ai/dsh-terminal-bash'
-import { ENCODING_PREAMBLE } from '@deepseek-ai/dsh-pwsh-local'
+import { BashTerminalBackend, PWSH_PROMPT_SETUP, PWSH_STARTUP_COMMAND } from '@deepseek-ai/dsh-terminal-bash'
 import * as ptyLocal from '@deepseek-ai/dsh-terminal-bash'
 import type { ResolvedConfig } from '@deepseek-ai/dsh-terminal-bash/src/config.ts'
 import type { LocalPtySession } from '@deepseek-ai/dsh-terminal-bash/src/session.ts'
@@ -89,7 +87,9 @@ function spec(owner: Agent, signal?: AbortSignal) {
   }
 }
 
-function stubLocalSession(initialize: () => Promise<void> = () => Promise.resolve()): LocalPtySession {
+function stubLocalSession(
+  initialize: (signal?: AbortSignal) => Promise<void> = () => Promise.resolve(),
+): LocalPtySession {
   return {
     motd: '',
     initialize,
@@ -342,39 +342,33 @@ describe('BashTerminalBackend startup rollback', () => {
     await session.close('test complete')
   })
 
-  it('bootstraps a pwsh dialect through the prompt function and scrubs bash-only env', async () => {
+  it('starts pwsh with the managed line reader and prompt before its first interactive read', async () => {
     const ctx = new Context()
     await ctx.plugin(EmptySandbox)
     await ctx.plugin(SandboxPolicyService, { mode: 'danger-full-access', workspaceRoot: '/workspace' })
     let spawned: SubprocessTerminalSpawnSpec | undefined
-    let sent: TerminalSendRequest | undefined
-    const session = {
-      motd: '',
-      startSend: (request: TerminalSendRequest) => {
-        sent = request
-        return {
-          done: Promise.resolve({
-            viewport: 'setup-echo dsh> ', waitReason: 'stdin_read' as const,
-            sessionStatus: { kind: 'running' as const }, truncated: false,
-          }),
-          readOutput: () => ({ delta: '', truncated: false }),
-          cancel: () => false,
-        }
-      },
-      read: () => ({ text: '', totalLines: 0, lineBegin: 0, lineEnd: 0, truncated: false }),
-    } as unknown as LocalPtySession
+    const initialized = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+    const session = stubLocalSession(initialized)
     const backend = new BashTerminalBackend(
       ctx,
-      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
+      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh', shellArgs: ['-NoLogo', '-NoProfile'] },
       async (spec) => { spawned = spec; return terminalHandle() },
       () => session,
     )
     expect(await backend.spawn(spec(agent(ctx)))).toBe(session)
-    expect(sent).toMatchObject({ text: ENCODING_PREAMBLE + PWSH_PROMPT_SETUP, submit: true })
+    expect(initialized).toHaveBeenCalledWith(undefined)
+    expect(spawned?.argv).toEqual([
+      'pwsh', '-NoLogo', '-NoProfile', '-NoExit', '-Command', PWSH_STARTUP_COMMAND,
+    ])
     expect(PWSH_PROMPT_SETUP).toMatch(/^function prompt \{ \[Console\]::Write/u)
     expect(PWSH_PROMPT_SETUP).not.toContain('PSReadLine')
     expect(PWSH_PROMPT_SETUP).not.toContain('dsh> ')
-    expect(session.motd).toBe('setup-echo dsh> ')
+    expect(PWSH_STARTUP_COMMAND).toContain('[Console]::OutputEncoding')
+    expect(PWSH_STARTUP_COMMAND).toContain('function global:PSConsoleHostReadLine')
+    expect(PWSH_STARTUP_COMMAND).toContain('Write-Output -NoEnumerate ([Console]::ReadLine())')
+    expect(PWSH_STARTUP_COMMAND).toContain(PWSH_PROMPT_SETUP)
+    expect(PWSH_STARTUP_COMMAND).not.toContain('Remove-Module')
+    expect(PWSH_STARTUP_COMMAND).not.toContain('dsh> ')
     expect(spawned?.env).toMatchObject({
       TERM: 'dumb', NO_COLOR: '1', DSH_SHELL: '1', DSH_SESSION_ID: 'agent', DSH_PTY_SESSION_ID: 'pty-1',
     })
@@ -382,93 +376,41 @@ describe('BashTerminalBackend startup rollback', () => {
     expect(spawned?.env?.PROMPT_COMMAND).toBeUndefined()
   })
 
-  it('keeps waiting for the marker prompt when the first send settles on silence', async () => {
+  it('wraps the complete managed pwsh argv under confined policy', async () => {
     const ctx = new Context()
-    await ctx.plugin(EmptySandbox)
-    await ctx.plugin(SandboxPolicyService, { mode: 'danger-full-access', workspaceRoot: '/workspace' })
-    const sends: TerminalSendRequest[] = []
-    const session = {
-      motd: '',
-      startSend: (request: TerminalSendRequest) => {
-        sends.push(request)
-        const second = sends.length > 1
-        return {
-          done: Promise.resolve({
-            viewport: second ? 'dsh> ' : '',
-            waitReason: 'inferred_idle' as const,
-            sessionStatus: { kind: 'running' as const }, truncated: false,
-          }),
-          readOutput: () => ({ delta: '', truncated: false }),
-          cancel: () => false,
-        }
-      },
-      read: () => ({ text: '', totalLines: 0, lineBegin: 0, lineEnd: 0, truncated: false }),
-    } as unknown as LocalPtySession
+    await ctx.plugin(RecordingSandbox)
+    await ctx.plugin(SandboxPolicyService, { mode: 'workspace-write', workspaceRoot: '/workspace' })
+    const session = stubLocalSession()
     const backend = new BashTerminalBackend(
       ctx,
-      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
+      { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh', shellArgs: ['-NoProfile'] },
       async () => terminalHandle(),
       () => session,
     )
     await backend.spawn(spec(agent(ctx)))
-    expect(sends).toHaveLength(2)
-    expect(sends[1]).toMatchObject({ text: '', submit: false })
-    expect(session.motd).toBe('dsh> ')
+    expect((ctx.sandbox as RecordingSandbox).calls).toEqual([{
+      argv: ['pwsh', '-NoProfile', '-NoExit', '-Command', PWSH_STARTUP_COMMAND],
+      policy: { mode: 'workspace-write', sessionId: 'agent', workspaceRoot: resolve('/workspace') },
+    }])
   })
 
-  it('rejects a pwsh bootstrap whose shell exits or times out', async () => {
+  it('forwards the spawn signal into pwsh initialization', async () => {
     const ctx = new Context()
     await ctx.plugin(EmptySandbox)
     await ctx.plugin(SandboxPolicyService, { mode: 'danger-full-access', workspaceRoot: '/workspace' })
-    const sessionFor = (waitReason: TerminalWaitReason): LocalPtySession => ({
-      startSend: () => ({
-        done: Promise.resolve({
-          viewport: 'no-prompt', waitReason,
-          sessionStatus: { kind: 'running' as const }, truncated: false,
-        }),
-        readOutput: () => ({ delta: '', truncated: false }),
-        cancel: () => false,
-      }),
-      read: () => ({ text: '', totalLines: 0, lineBegin: 0, lineEnd: 0, truncated: false }),
-      close: () => Promise.resolve(),
-    }) as unknown as LocalPtySession
-    const exited = new BashTerminalBackend(ctx, { ...config(), shellDialect: 'pwsh' }, async () => terminalHandle(), () => sessionFor('session_exit'))
-    await expect(exited.spawn(spec(agent(ctx)))).rejects.toThrow('PTY shell exited during startup')
-    const timedOut = new BashTerminalBackend(ctx, { ...config(), shellDialect: 'pwsh' }, async () => terminalHandle(), () => sessionFor('timeout'))
-    await expect(timedOut.spawn(spec(agent(ctx)))).rejects.toThrow('did not reach readiness before startup timeout')
-  })
-
-  it('forwards the spawn signal into the pwsh bootstrap sends', async () => {
-    const ctx = new Context()
-    await ctx.plugin(EmptySandbox)
-    await ctx.plugin(SandboxPolicyService, { mode: 'danger-full-access', workspaceRoot: '/workspace' })
-    const sends: TerminalSendRequest[] = []
-    const session = {
-      motd: '',
-      startSend: (request: TerminalSendRequest) => {
-        sends.push(request)
-        return {
-          done: Promise.resolve({
-            viewport: 'dsh> ', waitReason: 'stdin_read' as const,
-            sessionStatus: { kind: 'running' as const }, truncated: false,
-          }),
-          readOutput: () => ({ delta: '', truncated: false }),
-          cancel: () => false,
-        }
-      },
-      read: () => ({ text: '', totalLines: 0, lineBegin: 0, lineEnd: 0, truncated: false }),
-    } as unknown as LocalPtySession
+    let seenSignal: AbortSignal | undefined
+    const initialized = vi.fn(async (signal?: AbortSignal) => { seenSignal = signal })
+    const session = stubLocalSession(initialized)
     const backend = new BashTerminalBackend(
       ctx,
       { ...config(), shellDialect: 'pwsh', shellPath: 'pwsh' },
       async () => terminalHandle(),
       () => session,
     )
-    const signal = new AbortController().signal
-    const spawned = await backend.spawn({ ...spec(agent(ctx)), signal })
-    expect(spawned.motd).toBe('dsh> ')
-    expect(sends).toHaveLength(1)
-    expect(sends[0]?.signal).toBe(signal)
+    const controller = new AbortController()
+    await backend.spawn({ ...spec(agent(ctx)), signal: controller.signal })
+    expect(seenSignal).toBe(controller.signal)
+    expect(initialized).toHaveBeenCalledWith(controller.signal)
   })
 })
 

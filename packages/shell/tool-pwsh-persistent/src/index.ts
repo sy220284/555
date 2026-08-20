@@ -74,7 +74,7 @@ function markers(): CommandMarkers {
  * Backtick escapes keep every character literal: backtick first so the
  * escapes this function inserts are never re-escaped, `$` so no expansion
  * happens at wrapper construction, and `\r\n`/ESC so multi-line commands and
- * raw control bytes ride one physical input line without PSReadLine mangling.
+ * raw control bytes ride one physical terminal input line.
  * @param value - the model's PowerShell command text.
  * @returns the escaped double-quoted-string body.
  */
@@ -89,7 +89,7 @@ function quoteForPwsh(value: string): string {
 }
 
 function wrapCommand(command: string, marker: CommandMarkers): string {
-  // Keep the wrapper on one physical line: PSReadLine renders the echoed
+  // Keep the wrapper on one physical line: the terminal may echo submitted
   // input, and a wrapped line would split the echo the extraction strips.
   // The echoed END nonce can never fabricate completion because the status
   // regex needs digits immediately after it and the echo continues with
@@ -118,7 +118,7 @@ function commandOutput(
   const startMarker = text.lastIndexOf(marker.start, end)
   const start = startMarker < 0 ? 0 : startMarker + marker.start.length
   let captured = text.slice(start, end)
-  // The PSReadLine echo carries the wrapper source (including both marker
+  // The terminal echo carries the wrapper source (including both marker
   // nonces) before the real markers; anchor on the real markers excludes it,
   // and stripping the wrapper covers the rare case where the real START
   // scrolled out and extraction fell back to the echoed copy.
@@ -255,11 +255,10 @@ async function respondToSessionExit(
 /**
  * The pwsh prompt function that overrides the backend bootstrap value with
  * this tool's own prompt. `[char]27`/`[char]7` build the OSC bytes at runtime
- * because raw ESC characters in submitted input are unreliable under
- * PSReadLine.
+ * because raw ESC characters in submitted terminal input are unreliable.
  */
 const PWSH_PROMPT_SETUP =
-  "function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); '" + SHELL_PROMPT + "' }"
+  "function prompt { [Console]::Write([string]::Concat([char]27, ']133;D;', [int]$LASTEXITCODE, [char]7)); '" + SHELL_PROMPT + "' }"
 
 function persistentShells(ctx: Context, config: ResolvedConfig): PersistentShells {
   const pending = new WeakMap<Agent, Promise<TerminalSessionId>>()

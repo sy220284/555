@@ -81,23 +81,36 @@ function childEnvironment(spec: TerminalBackendSpawnSpec, dialect: ShellDialect)
 }
 
 /**
- * Keep pwsh interactive so its console host owns a persistent stdin command
- * loop on every supported platform. The wrapper parser already tolerates
- * PSReadLine echo, and unloading PSReadLine from its own prompt callback can
- * strand Unix hosts. The prompt therefore only emits the shared OSC `133;D;` +
- * BEL marker. `[char]27`/`[char]7` build the control bytes at runtime because
- * raw ESC characters in the initial submitted input are unreliable. Build the
- * first prompt character separately so an echoed bootstrap command cannot
- * impersonate readiness by containing the complete controlled prompt before
- * the function is installed.
+ * The managed pwsh startup installs its prompt before ConsoleHost begins its
+ * first read. This avoids submitting bootstrap text into PSReadLine while that
+ * module is still taking ownership of the terminal. The prompt emits the
+ * shared OSC `133;D;` + BEL marker; `[char]27`/`[char]7` build those control
+ * bytes at runtime. Build the printable prompt in two pieces as an additional
+ * invariant: neither argv nor an echoed command contains a complete readiness
+ * token that could impersonate the installed prompt.
  */
 const PWSH_PROMPT_HEAD = CONTROLLED_PROMPT.slice(0, 1)
 const PWSH_PROMPT_TAIL = CONTROLLED_PROMPT.slice(1)
 export const PWSH_PROMPT_SETUP =
-  `function prompt { [Console]::Write([char]27 + ']133;D;' + [int]$LASTEXITCODE + [char]7); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
+  `function prompt { [Console]::Write([string]::Concat([char]27, ']133;D;', [int]$LASTEXITCODE, [char]7)); ('${PWSH_PROMPT_HEAD}' + '${PWSH_PROMPT_TAIL}') }`
+
+/**
+ * Line-oriented ConsoleHost reader for the automation-owned PTY. Defining the
+ * hook before the first interactive read prevents PSReadLine auto-loading and
+ * its first-read input flush without unloading a module that already owns a
+ * read. `-NoEnumerate` preserves an empty submitted line as one return value.
+ */
+const PWSH_READLINE_SETUP =
+  'function global:PSConsoleHostReadLine { Write-Output -NoEnumerate ([Console]::ReadLine()) }; '
+
+/** Complete PowerShell startup command passed as one argv element. */
+export const PWSH_STARTUP_COMMAND = ENCODING_PREAMBLE + PWSH_READLINE_SETUP + PWSH_PROMPT_SETUP
 
 function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutionPolicy): string[] {
-  const argv = [config.shellPath, ...config.shellArgs]
+  const shellArgs = config.shellDialect === 'pwsh'
+    ? [...config.shellArgs, '-NoExit', '-Command', PWSH_STARTUP_COMMAND]
+    : config.shellArgs
+  const argv = [config.shellPath, ...shellArgs]
   if (policy.mode === 'danger-full-access') return argv
   const sandbox = ctx.get('sandbox')
   if (sandbox === undefined) {
@@ -112,43 +125,9 @@ function spawnArgv(ctx: Context, config: ResolvedConfig, policy: SandboxExecutio
 // session already owns the send lifecycle the race protects.
 async function startupSession(
   session: LocalPtySession,
-  dialect: ShellDialect,
   signal?: AbortSignal,
 ): Promise<void> {
-  const start = async (): Promise<void> => {
-    if (dialect === 'bash') {
-      await session.initialize(signal)
-      return
-    }
-    // pwsh cannot install its prompt from the environment: write the prompt
-    // function through the session and wait for the first marker prompt,
-    // which is also the readiness contract of the bash initialize path. The
-    // first send also pins UTF-8 output (the shared pwsh-local preamble)
-    // before anything runs: the session decode path treats PTY bytes as
-    // UTF-8, and an un-pinned console writes its host code page for
-    // non-ASCII output. The banner-to-prompt gap can outlast the silence
-    // bound, so the wait loops over follow-up sends until the controlled
-    // prompt is actually visible (in the viewport or the retained scrollback
-    // when it landed between sends), bounded by the send deadline.
-    let viewport = ''
-    let bootstrapSubmitted = false
-    for (;;) {
-      const first = !bootstrapSubmitted
-      const operation = session.startSend({
-        text: first ? ENCODING_PREAMBLE + PWSH_PROMPT_SETUP : '',
-        submit: first,
-        ...signal !== undefined ? { signal } : {},
-      })
-      bootstrapSubmitted = true
-      const result = await operation.done
-      if (result.waitReason === 'session_exit') throw new Error('PTY shell exited during startup')
-      if (result.waitReason === 'timeout') throw new Error('PTY shell did not reach readiness before startup timeout')
-      viewport = result.viewport
-      const scrollback = session.read({ offset: 0, count: 20 }).text
-      if (viewport.includes(CONTROLLED_PROMPT) || scrollback.includes(CONTROLLED_PROMPT)) break
-    }
-    session.motd = viewport
-  }
+  const start = async (): Promise<void> => { await session.initialize(signal) }
   if (signal === undefined) {
     await start()
     return
@@ -199,7 +178,7 @@ export class BashTerminalBackend implements TerminalBackend {
     })
     const session = this.createSession(terminal, this.config)
     try {
-      await startupSession(session, this.config.shellDialect, spec.signal)
+      await startupSession(session, spec.signal)
       return session
     } catch (error) {
       try {

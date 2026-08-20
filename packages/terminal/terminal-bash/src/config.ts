@@ -14,7 +14,7 @@ export interface Config {
   shellDialect?: ShellDialect
   /** Interactive shell executable (default per dialect: `/bin/bash`, or the resolved pwsh). */
   shellPath?: string
-  /** Shell arguments (default per dialect: bash `--noprofile --norc -i`, pwsh `-NoLogo -NoProfile`). */
+  /** Shell arguments before the managed startup (default: bash `--noprofile --norc -i`, pwsh `-NoLogo -NoProfile`). */
   shellArgs?: string[]
   /** Terminal rows. */
   rows?: number
@@ -54,8 +54,10 @@ export type ResolvedConfig = Omit<Required<Config>, 'shellDialect' | 'shellPath'
 export const DEFAULT_BASH_SHELL = '/bin/bash'
 /** Bash dialect default arguments (interactive, profile-free). */
 export const DEFAULT_BASH_ARGS = ['--noprofile', '--norc', '-i']
-/** Pwsh dialect default arguments (interactive persistent host, profile-free). */
+/** Pwsh dialect default arguments before the managed persistent startup command. */
 export const DEFAULT_PWSH_ARGS = ['-NoLogo', '-NoProfile']
+
+const PWSH_LIFECYCLE_ARGUMENT = /^-(?:command|encodedcommand|file|noexit|noninteractive)$/iu
 
 /**
  * Resolve the effective per-dialect shell specification. Defaulting is this
@@ -118,5 +120,11 @@ export function validateConfig(config: Config): asserts config is ResolvedConfig
   }
   if (resolved.handoffGraceMs < resolved.pollIntervalMs) {
     throw new Error('terminal-bash: handoffGraceMs must be at least pollIntervalMs so one readiness poll runs inside the grace window')
+  }
+  if (resolved.shellDialect === 'pwsh') {
+    const lifecycleArgument = resolved.shellArgs.find(argument => PWSH_LIFECYCLE_ARGUMENT.test(argument))
+    if (lifecycleArgument !== undefined) {
+      throw new Error(`terminal-bash: pwsh shellArgs must not take over the managed persistent lifecycle (${lifecycleArgument})`)
+    }
   }
 }

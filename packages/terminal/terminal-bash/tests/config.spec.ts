@@ -54,6 +54,13 @@ describe('terminal-bash dialect resolution', () => {
     expect(resolved.shellArgs).toEqual(['-NoProfile'])
   })
 
+  it('rejects pwsh arguments that take over the managed persistent lifecycle', () => {
+    for (const argument of ['-Command', '-EncodedCommand', '-File', '-NoExit', '-NonInteractive']) {
+      expect(() => { validateConfig(config({ shellDialect: 'pwsh', shellArgs: [argument] })) })
+        .toThrow('must not take over the managed persistent lifecycle')
+    }
+  })
+
   it('treats empty shell values as unset so Schemastery materialization cannot drop the dialect defaults', () => {
     // Schemastery materializes an absent optional array as `[]`; the resolver
     // must treat that shape like an unset value or a real bash spawn would

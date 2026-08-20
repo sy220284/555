@@ -1,0 +1,9 @@
+{
+  "name": "deepseek-harness-main-protection",
+  "branch": "main",
+  "requirePullRequest": true,
+  "requireLinearHistory": true,
+  "blockDeletion": true,
+  "blockForcePush": true,
+  "requiredChecks": ["pr-policy", "repository-gates / merge-gate"]
+}

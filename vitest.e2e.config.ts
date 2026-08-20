@@ -23,8 +23,9 @@ const repositoryScopeExcludes = [
   'packages/subagent/subagent-claude-code/tests/loader-composition.e2e.ts',
   'packages/tool/e2b-tool/tests/composition.e2e.ts',
   'packages/subagent/subagent-acp/tests/subagent-acp.e2e.ts',
-  'packages/session/session/tests/session.telemetry.e2e.ts',
-  'packages/core/dsh-sdk/tests/dsh-sdk.e2e.ts',
+  'packages/session/session-telemetry-otel/tests/loader-composition.e2e.ts',
+  'packages/subagent/subagent-dsh-sdk/tests/loader-composition.e2e.ts',
+  'apps/cli/tests/web-agent-presets.e2e.ts',
 ]
 
 function positiveIntFromEnv(name: string, fallback: number): number {

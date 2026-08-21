@@ -5,6 +5,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { githubApi, githubRepository, loadPolicy, assertFullSha } from './policy.mjs';
 
+const REF_POSTCONDITION_DELAYS_MS = [0, 250, 500, 1_000, 2_000, 4_000];
+
+async function pause(milliseconds) {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export async function awaitExpectedRef(readSha, expectedSha, delays = REF_POSTCONDITION_DELAYS_MS, wait = pause) {
+  let observedSha;
+  for (const delay of delays) {
+    if (delay > 0) await wait(delay);
+    observedSha = await readSha();
+    if (observedSha === expectedSha) return observedSha;
+  }
+  throw new Error(`ref synchronization postcondition failed: expected ${expectedSha}, last observed ${observedSha ?? '<missing>'}`);
+}
+
 export function synchronizationDecision({ mainSha, branchSha, sourceHeadSha, openPulls, isSourceBranch, aheadBy = 0, behindBy = 0 }) {
   if (branchSha === mainSha) return { action: 'keep', reason: 'already-synchronized' };
   if (isSourceBranch) {
@@ -23,13 +39,16 @@ async function compare(owner, repo, mainSha, branchSha) {
 }
 
 async function synchronizeBranch({ owner, repo, branchName, mainSha, sourceBranch, sourceHeadSha }) {
+  const readBranchSha = async () => {
+    const current = await githubApi(`/repos/${owner}/${repo}/git/ref/heads/${branchName}`, {}, [404]);
+    return current?.object?.sha;
+  };
   const ref = await githubApi(`/repos/${owner}/${repo}/git/ref/heads/${branchName}`, {}, [404]);
   if (!ref) {
     await githubApi(`/repos/${owner}/${repo}/git/refs`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: mainSha }),
     });
-    const finalRef = await githubApi(`/repos/${owner}/${repo}/git/ref/heads/${branchName}`);
-    if (finalRef?.object?.sha !== mainSha) throw new Error(`Failed to recreate ${branchName}`);
+    await awaitExpectedRef(readBranchSha, mainSha);
     return { branchName, action: 'create', finalSha: mainSha };
   }
   const branchSha = assertFullSha(ref.object.sha, `${branchName} sha`);
@@ -52,8 +71,7 @@ async function synchronizeBranch({ owner, repo, branchName, mainSha, sourceBranc
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sha: mainSha, force: decision.action === 'reset' }),
   });
-  const finalRef = await githubApi(`/repos/${owner}/${repo}/git/ref/heads/${branchName}`);
-  if (finalRef?.object?.sha !== mainSha) throw new Error(`${branchName} synchronization postcondition failed`);
+  await awaitExpectedRef(readBranchSha, mainSha);
   return { branchName, ...decision, finalSha: mainSha };
 }
 
@@ -80,17 +98,25 @@ async function main() {
   console.log(JSON.stringify(results));
 }
 
-function selfTest() {
+async function selfTest() {
   const a = 'a'.repeat(40); const b = 'b'.repeat(40); const c = 'c'.repeat(40);
   assert.deepEqual(synchronizationDecision({ mainSha: a, branchSha: b, sourceHeadSha: b, openPulls: 0, isSourceBranch: true }), { action: 'reset', reason: 'verified-squash-complete' });
   assert.deepEqual(synchronizationDecision({ mainSha: a, branchSha: c, sourceHeadSha: b, openPulls: 0, isSourceBranch: true }), { action: 'blocked', reason: 'source-advanced-after-merge' });
   assert.deepEqual(synchronizationDecision({ mainSha: a, branchSha: b, sourceHeadSha: c, openPulls: 1, isSourceBranch: false, aheadBy: 2, behindBy: 1 }), { action: 'skip', reason: 'active-sibling-lane' });
   assert.deepEqual(synchronizationDecision({ mainSha: a, branchSha: b, sourceHeadSha: c, openPulls: 0, isSourceBranch: false, aheadBy: 0, behindBy: 2 }), { action: 'fast-forward', reason: 'idle-sibling-is-main-ancestor' });
   assert.equal(synchronizationDecision({ mainSha: a, branchSha: b, sourceHeadSha: c, openPulls: 0, isSourceBranch: false, aheadBy: 1, behindBy: 1 }).action, 'blocked');
+  const observations = [b, b, a];
+  const waits = [];
+  assert.equal(await awaitExpectedRef(async () => observations.shift(), a, [0, 1, 2], async (delay) => { waits.push(delay); }), a);
+  assert.deepEqual(waits, [1, 2]);
+  await assert.rejects(
+    awaitExpectedRef(async () => b, a, [0, 1], async () => {}),
+    /expected a{40}, last observed b{40}/u,
+  );
   console.log('Integration synchronization self-test passed.');
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  if (process.argv[2] === 'self-test') selfTest();
+  if (process.argv[2] === 'self-test') await selfTest();
   else await main();
 }

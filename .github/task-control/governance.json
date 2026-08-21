@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "executionBranch": "governance",
-  "taskId": "GOV-RC8-WEB-GATE-20260820",
+  "taskId": "GOV-REF-CONSISTENCY-20260821",
   "status": "IMPLEMENTED",
   "phase": "IMPLEMENTED",
-  "goal": "将 rc.8 Web 扩展验证所需的官方客户端构建配置迁回 governance 通道，使 work 产品 PR 不再修改治理信任根。",
+  "goal": "修复永久集成分支更新后 GitHub ref 读取短暂陈旧导致的同步后置条件误报，使主线交付闭环稳定达到 DELIVERED。",
   "verification": [
     "node .github/governance/pr-policy.mjs self-test",
     "node .github/governance/change-impact.mjs self-test",
@@ -14,6 +14,7 @@
     "node .github/governance/branch-hygiene.mjs self-test",
     "node .github/governance/repository-state.mjs self-test",
     "node .github/governance/security-gate.mjs scan-repository",
+    "验证 ref 后置条件有界重试、最终一致与永久失败路径",
     "git diff --check",
     "pr-policy",
     "task-governance",

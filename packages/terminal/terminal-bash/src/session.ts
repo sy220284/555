@@ -23,6 +23,9 @@ import type {
 import type { ResolvedConfig } from './config.ts'
 import { CONTROLLED_PROMPT, TerminalSanitizer } from './sanitize.ts'
 
+/** Minimal DEC CPR reply for headless shells without a terminal emulator. */
+const CURSOR_POSITION_RESPONSE = '\x1b[1;1R'
+
 function utf8Tail(text: string, maxBytes: number): { text: string; truncated: boolean } {
   if (Buffer.byteLength(text) <= maxBytes) return { text, truncated: false }
   const chars = Array.from(text)
@@ -184,6 +187,7 @@ export class LocalPtySession implements TerminalBackendSession {
   private closing = false
   private closePromise: Promise<void> | undefined
   private transportFailure: Error | undefined
+  private terminalResponseTail = Promise.resolve()
 
   constructor(
     private readonly terminal: SubprocessTerminalHandle,
@@ -379,6 +383,9 @@ export class LocalPtySession implements TerminalBackendSession {
 
   private onData(data: string): void {
     const sanitized = this.sanitizer.push(data)
+    if (sanitized.cursorPositionRequests !== undefined) {
+      this.respondToCursorPositionRequests(sanitized.cursorPositionRequests)
+    }
     this.appendOutput(sanitized.text)
     if (sanitized.prompt) {
       // TODO(pty-delayed-signal-prompt): With a reproducer, define a marker-generation boundary
@@ -396,6 +403,19 @@ export class LocalPtySession implements TerminalBackendSession {
       if (sanitized.promptTail.length > remaining) this.promptTail = `${CONTROLLED_PROMPT}\0`
       this.promptTextSeen = this.promptTail === CONTROLLED_PROMPT
     }
+  }
+
+  private respondToCursorPositionRequests(count: number): void {
+    // ConsoleHost queries RawUI before rendering its first prompt. This backend
+    // has no attached frontend emulator, so it owns the one protocol response
+    // required to let line-oriented PowerShell sessions reach readiness.
+    const pending = this.terminalResponseTail.then(async () => {
+      if (this.closing || this.statusValue.kind === 'exited') return
+      await this.terminal.write(CURSOR_POSITION_RESPONSE.repeat(count))
+    })
+    this.terminalResponseTail = pending.catch((error: unknown) => {
+      if (!this.closing && this.statusValue.kind !== 'exited') this.onTransportFailure(error)
+    })
   }
 
   private async onExit(outcome: SubprocessOutcome): Promise<void> {

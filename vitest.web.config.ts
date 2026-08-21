@@ -38,7 +38,8 @@ export default defineConfig({
     // excludes from this product-source repository. Keep the test sources but
     // exclude them from this repository's Web execution scope.
     exclude: repositoryScopeExcludes,
-    // Browser boot + real-model turns are slow; files share one browser, run serial.
+    // Local and record runs stay serial. CI runs workspace-mutating HMR and
+    // dynamic Cordis lifecycle coverage before parallelizing the remaining files.
     testTimeout: 180_000,
     hookTimeout: 120_000,
     fileParallelism: false,

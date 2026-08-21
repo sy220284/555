@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-root",
-  "version": "0.1.0-rc.7",
+  "version": "0.1.0-rc.8",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -17,7 +17,8 @@
     "python/sdk-runtime"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build:web",
+    "build": "tsx scripts/build.ts",
+    "build:official": "tsx scripts/build.ts --profile official",
     "build:lib": "npm run build:lib:host && npm run build:lib:client",
     "build:lib:host": "tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host",
     "build:lib:client": "tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client",
@@ -34,13 +35,14 @@
     "test:web": "npm run test:web:prepare && npm run build && npm run test:web:built",
     "test:web:refresh": "npm run test:web:prepare && npm run build && DSH_SNAPSHOT=refresh vitest run --config vitest.web.config.ts",
     "test:web:built": "vitest run --config vitest.web.config.ts",
+    "test:web:ci": "tsx scripts/run-web-snapshots.ts",
     "test:web:perf": "npm run test:web:prepare && npm run build && npm run test:web:perf:built",
     "test:web:perf:built": "DSH_SNAPSHOT=replay vitest run --config vitest.web.perf.config.ts",
     "test:web:stress": "npm run test:web:prepare && npm run build && vitest run --config vitest.web-stress.config.ts",
     "test:gui": "vitest run packages/client packages/host",
     "dsh": "node --import tsx/esm apps/cli/src/bin.ts",
     "mock:llm": "node --import tsx packages/test-support/llm-mock-server/src/bin.ts",
-    "dev:web": "pnpm --filter @deepseek-ai/dsh-web-frontend run dev"
+    "dev:web": "tsx scripts/dev-web.ts --poll"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "0.25.1",

@@ -130,7 +130,7 @@ function makeSession(
 
 function config(overrides: Partial<ResolvedConfig> = {}): ResolvedConfig {
   return {
-    backendType: 'shell', shellPath: '/bin/bash', shellArgs: [], rows: 24, cols: 80,
+    backendType: 'shell', shellDialect: 'bash', shellPath: '/bin/bash', shellArgs: [], rows: 24, cols: 80,
     scrollbackLines: 10, scrollbackMaxBytes: 128, maxReadBytes: 64,
     pollIntervalMs: 10, exactProbeAfterMs: 20, idleSilenceMs: 50, handoffGraceMs: 10, timeoutMs: 100,
     disposeGraceMs: 20,
@@ -148,6 +148,38 @@ async function initialize(session: LocalPtySession, terminal: FakeTerminal): Pro
 }
 
 describe('LocalPtySession readiness and output', () => {
+  it('answers split cursor-position queries before a headless shell prompt', async () => {
+    vi.useFakeTimers()
+    const terminal = new FakeTerminal()
+    const session = new LocalPtySession(terminal, config())
+    const pending = session.initialize()
+
+    terminal.emitData('\x1b[6')
+    await Promise.resolve()
+    expect(terminal.writes).toEqual([])
+    terminal.emitData('n')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(terminal.writes).toEqual(['\x1b[1;1R'])
+
+    terminal.emitData('\x1b]133;D;0\x07dsh> ')
+    await vi.advanceTimersByTimeAsync(10)
+    await pending
+    expect(session.motd).toBe('dsh> ')
+  })
+
+  it('treats a cursor-position response write rejection as transport failure', async () => {
+    const terminal = new FakeTerminal()
+    terminal.throwWrite = true
+    const session = new LocalPtySession(terminal, config())
+    const pending = session.initialize()
+
+    terminal.emitData('\x1b[6n')
+    await expect(pending).rejects.toThrow('write failed')
+    expect(session.status()).toEqual({ kind: 'exited', exitCode: null, signal: null })
+    expect(terminal.kills).toEqual(['SIGTERM'])
+  })
+
   it('lets queued terminal output run before the first post-write readiness poll', async () => {
     vi.useFakeTimers()
     const terminal = new FakeTerminal()

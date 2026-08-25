@@ -1,10 +1,43 @@
 # 555 工作台
 
-`555` 是 **工作台的永久重建仓库**。这里保存 DeepSeek Harness 的离线永久工具产物工作流，以及基于 Harness 改造出的 ChatGPT 接管工作台。
+`555` 是 **工作台的永久源码与重建仓库**。这里同时保存：
 
-> 工作台 = DeepSeek Harness 本地执行底座 + ChatGPT 接管层。
+1. **改造后的完整源码树**：`workbench-src/`；
+2. 工作台接管层源码：预设、技能、MCP/LSP、脚本和文档；
+3. DeepSeek Harness 离线永久运行产物及构建工作流；
+4. 一键部署、回滚、验收和故障定位工具。
 
-它不是对 DeepSeek Harness 核心源码的长期分叉。当前改造尽量全部放在用户层预设、配置覆盖、技能和运维脚本中，因此以后升级 Harness 时可以重新应用覆盖层，不需要重新手改核心源码。
+> 工作台 = DeepSeek Harness 完整源码/执行底座 + ChatGPT 接管层。
+
+当前改造采用非侵入式设计：尽量不直接改上游核心文件，而把差异集中到 `workbench-src/.workbench/`。这样 `workbench-src/` 仍然是一份**完整可审计、可继续开发的源码**，同时所有改造位置都能精确定位。
+
+## 完整源码入口
+
+```text
+workbench-src/
+├─ apps/                       Harness 应用完整源码
+├─ packages/                   Harness 包与插件完整源码
+├─ python/                     Python SDK 等源码
+├─ native/                     原生组件源码
+├─ vendor/                     仓库内供应代码
+├─ website/                    文档站/网站源码
+├─ scripts/                    构建脚本
+├─ package.json
+├─ pnpm-lock.yaml
+│
+├─ .workbench/                 工作台全部改造源码
+│  ├─ bin/                     安装、卸载、控制脚本
+│  ├─ overlay/                 接管预设、技能、MCP/LSP 配置
+│  ├─ docs/                    改造、能力、部署、排错文档
+│  └─ github-workflows/        工作台相关构建/发布工作流
+│
+├─ WORKBENCH_SOURCE.md         完整源码说明
+└─ WORKBENCH_SOURCE_MANIFEST.json
+```
+
+`workbench-src/` 固定对应 DeepSeek Harness 提交 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`，工作台配置、技能、脚本或文档变化后，会由 GitHub Actions 自动重建完整源码树，避免版本漂移。
+
+> `node_modules`、缓存和本机构建垃圾不属于源码，因此不提交 Git；可运行冻结依赖与生产构建保存在 Release 永久产物中。
 
 ## 当前固定基线
 
@@ -33,11 +66,12 @@ cd 555
 ./bin/install-workbench.sh --skip-runtime
 ```
 
-完全离线时，把 Release 中的两个永久产物放到同一目录：
+完全离线时，把 Release 中的永久产物放到同一目录：
 
 ```text
 deepseek-harness-0.1.1-rc.2-ready-linux-x64.tar.zst
 dsh-toolchain-linux-x64.tar.zst
+SHA256SUMS.txt
 ```
 
 然后：
@@ -56,7 +90,11 @@ dsh-toolchain-linux-x64.tar.zst
 
 ```text
 555/
-├─ .github/workflows/              永久工具产物构建
+├─ workbench-src/                  改造后的完整源码树
+├─ .github/workflows/
+│  ├─ permanent-toolchain.yml      永久运行产物构建
+│  ├─ workbench-overlay-release.yml
+│  └─ sync-full-workbench-source.yml  完整源码自动同步
 ├─ bin/
 │  ├─ install-workbench.sh         完整/覆盖层部署
 │  ├─ uninstall-workbench.sh       回滚改造层
@@ -75,15 +113,16 @@ dsh-toolchain-linux-x64.tar.zst
 │  ├─ TROUBLESHOOTING.md           故障定位
 │  ├─ TEST-REPORT.md               当前验收基线
 │  └─ PLUGIN-INVENTORY.md          运行时插件完整清单
+├─ MANIFEST.json
 └─ VERSION
 ```
 
 ## 重要边界
 
-1. **工作台本地执行不需要模型密钥**；ChatGPT 在当前对话中负责“脑”，Harness 负责“手和工作环境”。
+1. **工作台本地执行不需要模型密钥**；ChatGPT 在当前对话中负责推理，Harness 负责本地执行与工作环境。
 2. 如果直接在 Harness 网页聊天框里要求 Harness 自己生成回答，仍然需要它自己的模型凭据。
-3. 默认监听 `127.0.0.1:3080`。Harness 当前 Web 面没有为公网暴露设计完整认证边界，不应改成公网监听。
-4. 永久运行树已经包含冻结依赖和生产构建。不要在离线运行树里执行 `pnpm install` / `pnpm exec` 去“修依赖”，这会触发跨机器依赖重建并尝试联网。
-5. ChatGPT 沙箱自身可能被平台回收，所以重要状态以 GitHub `555`、Release 永久产物和项目仓库为准。
+3. 默认监听 `127.0.0.1:3080`，不应直接暴露公网。
+4. 永久运行树已经包含冻结依赖和生产构建。不要在离线运行树里执行 `pnpm install` / `pnpm exec` 去“修依赖”。
+5. ChatGPT 沙箱自身可能被平台回收，所以重要状态以 GitHub `555`、完整源码树和 Release 永久产物为准。
 
-详细内容从 [docs/MODIFICATIONS.md](docs/MODIFICATIONS.md) 开始。
+详细内容从 [workbench-src/WORKBENCH_SOURCE.md](workbench-src/WORKBENCH_SOURCE.md) 和 [docs/MODIFICATIONS.md](docs/MODIFICATIONS.md) 开始。

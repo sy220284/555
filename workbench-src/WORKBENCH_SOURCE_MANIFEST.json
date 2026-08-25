@@ -3,6 +3,7 @@
   "harnessVersion": "0.1.1-rc.2",
   "harnessCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
   "upstreamRepository": "deepseek-ai/deepseek-harness",
-  "sourceLayout": "full-upstream-plus-.workbench-overlay",
-  "generatedBy": ".github/workflows/sync-full-workbench-source.yml"
+  "sourceLayout": "complete-upstream-source-plus-integrated-.workbench",
+  "generatedBy": ".github/workflows/sync-full-workbench-source.yml",
+  "autoSyncWorkbenchChanges": true
 }

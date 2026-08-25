@@ -6,6 +6,14 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/sync-full-workbench-source.yml'
+      - '.github/workflows/permanent-toolchain.yml'
+      - '.github/workflows/workbench-overlay-release.yml'
+      - 'README.md'
+      - 'VERSION'
+      - 'MANIFEST.json'
+      - 'bin/**'
+      - 'overlay/**'
+      - 'docs/**'
 
 permissions:
   contents: write
@@ -67,7 +75,7 @@ jobs:
           cat > workbench-src/WORKBENCH_SOURCE.md <<EOF
           # 工作台完整源码
 
-          本目录是工作台的完整可审计源码树。
+          本目录是工作台的完整可审计源码树，不是只有补丁或改造说明。
 
           - 上游：${HARNESS_REPO}
           - 上游固定提交：${HARNESS_SHA}
@@ -77,13 +85,17 @@ jobs:
 
           ## 目录说明
 
-          - Harness 原始完整源码：本目录除 \`.workbench/\` 与本文件外的全部内容。
-          - 工作台接管预设、技能、MCP/LSP、脚本、文档：\`.workbench/\`。
+          - Harness 原始完整源码：本目录除 \`.workbench/\`、\`WORKBENCH_SOURCE.md\` 与 \`WORKBENCH_SOURCE_MANIFEST.json\` 外的全部内容。
+          - 工作台接管预设、技能、MCP/LSP、脚本、文档和发布工作流：\`.workbench/\`。
           - 永久离线运行产物仍由 555 Release 管理；源码树不提交 \`node_modules\`、缓存和本机构建垃圾。
 
-          ## 改造原则
+          ## 同步规则
 
-          当前工作台采用非侵入式覆盖层设计，尽量不修改上游核心文件。这样既保留完整上游源码，又能清晰定位所有工作台差异。完整改造说明见：
+          根仓库中的工作台脚本、配置、技能、文档或相关工作流变化时，本目录会由 GitHub Actions 自动重建并提交，避免完整源码树与改造层版本漂移。
+
+          ## 改造定位
+
+          当前工作台采用非侵入式覆盖层设计，尽量不修改上游核心文件。这样既完整保存上游源码，又能清晰定位所有工作台差异。完整改造说明见：
 
           - \`.workbench/docs/MODIFICATIONS.md\`
           - \`.workbench/docs/CAPABILITIES.md\`
@@ -97,8 +109,9 @@ jobs:
             "harnessVersion": "${HARNESS_VERSION}",
             "harnessCommit": "${HARNESS_SHA}",
             "upstreamRepository": "${HARNESS_REPO}",
-            "sourceLayout": "full-upstream-plus-.workbench-overlay",
-            "generatedBy": ".github/workflows/sync-full-workbench-source.yml"
+            "sourceLayout": "complete-upstream-source-plus-integrated-.workbench",
+            "generatedBy": ".github/workflows/sync-full-workbench-source.yml",
+            "autoSyncWorkbenchChanges": true
           }
           EOF
 
@@ -108,6 +121,8 @@ jobs:
           set -euo pipefail
           test -f workbench-src/package.json
           test -f workbench-src/apps/cli/package.json
+          test -f workbench-src/apps/web/package.json
+          test -f workbench-src/python/sdk/pyproject.toml
           test -f workbench-src/.workbench/bin/install-workbench.sh
           test -f workbench-src/.workbench/overlay/agent-presets/chatgpt-takeover/agent.cordis.template.yml
           test -f workbench-src/.workbench/overlay/skills/repo-review/SKILL.md
@@ -122,8 +137,6 @@ jobs:
             echo "源码文件数异常，拒绝提交：$SOURCE_FILES" >&2
             exit 1
           fi
-
-          git status --short -- workbench-src | head -200
 
       - name: Commit complete source to main
         shell: bash

@@ -1,0 +1,78 @@
+name: 发布工作台覆盖层
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'VERSION'
+      - 'MANIFEST.json'
+      - 'bin/**'
+      - 'docs/**'
+      - 'overlay/**'
+      - '.github/workflows/workbench-overlay-release.yml'
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: 'dsh-offline-0.1.1-rc.2'
+
+jobs:
+  package-workbench:
+    name: 工作台覆盖层永久包
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout 555
+        uses: actions/checkout@v4
+
+      - name: Validate scripts and required files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          bash -n bin/install-workbench.sh
+          bash -n bin/uninstall-workbench.sh
+          bash -n bin/workbench-control.sh
+          test -f overlay/agent-presets/chatgpt-takeover/agent.cordis.template.yml
+          test -f overlay/profile/cordis.patch.template.yml
+          test -f docs/CAPABILITIES.md
+          test -f docs/TEST-REPORT.md
+          for skill in chatgpt-takeover-ops repo-review repo-quality-gate docs-quality task-journal; do
+            test -f "overlay/skills/${skill}/SKILL.md"
+          done
+
+      - name: Package deterministic overlay
+        shell: bash
+        run: |
+          set -euxo pipefail
+          VERSION_ID=$(cat VERSION)
+          mkdir -p out
+          EPOCH=$(git show -s --format=%ct HEAD)
+          tar --sort=name --mtime="@${EPOCH}" --owner=0 --group=0 --numeric-owner \
+            -I 'zstd -19 -T0' \
+            -cf "out/workbench-overlay-${VERSION_ID}.tar.zst" \
+            README.md VERSION MANIFEST.json bin docs overlay
+          cd out
+          sha256sum *.tar.zst > WORKBENCH_SHA256SUMS.txt
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: workbench-overlay
+          path: |
+            out/workbench-overlay-*.tar.zst
+            out/WORKBENCH_SHA256SUMS.txt
+          compression-level: 0
+          retention-days: 90
+
+      - name: Publish to permanent release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --title "工作台永久离线产物" --notes "DeepSeek Harness 永久运行时与 ChatGPT 接管工作台覆盖层。"
+          fi
+          gh release upload "$RELEASE_TAG" out/workbench-overlay-*.tar.zst out/WORKBENCH_SHA256SUMS.txt --clobber

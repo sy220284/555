@@ -47,7 +47,7 @@ jobs:
           node --version
           pnpm --version
 
-      - name: Patch package-bin launchers and optional clangd
+      - name: Patch package-bin launchers, optional clangd, and bundled skills
         shell: bash
         run: |
           set -euo pipefail
@@ -92,6 +92,17 @@ jobs:
           text, count = re.subn(clangd_pattern, clangd_entry, text, count=1, flags=re.S)
           if count != 1:
               raise SystemExit(f'expected exactly one clangd server block, got {count}')
+
+          skill_anchor = "- id: skill-filesystem\n  name: '@deepseek-ai/dsh-skill-filesystem'\n"
+          skill_block = (
+              skill_anchor
+              + "  config:\n"
+              + "    bundledSkillDir: !!js process.argv[1].replace(/[\\\\/]lib[\\\\/]bin\\.js$/, '/config/agent-presets/workbench/skills')\n"
+          )
+          count = text.count(skill_anchor)
+          if count != 1:
+              raise SystemExit(f'expected exactly one skill-filesystem anchor, got {count}')
+          text = text.replace(skill_anchor, skill_block, 1)
 
           old_doc = '`clangd` 可通过 `DSH_CLANGD_BIN` 指定。'
           new_doc = '`clangd` 为可选外部依赖；仅在设置 `DSH_CLANGD_BIN` 时启用 C/C++ 语言服务，缺少它不会阻断工作台启动。'

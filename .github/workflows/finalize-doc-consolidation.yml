@@ -46,19 +46,20 @@ jobs:
               raise SystemExit('unable to locate temporary markdown validation block')
 
           replacement = '''md=markdown_files()
-bad=[p.as_posix() for p in md if not is_functional(p)]
-functional_readmes=[p.as_posix() for p in md if p.name.lower().startswith('readme') and is_functional(p)]
-functional_zh=[p.as_posix() for p in md if p.name.endswith('.zh.md') and is_functional(p)]
-print(f'functional Markdown files retained: {len(md)}')
-print('functional README-like assets:', functional_readmes)
-print('functional .zh.md assets:', functional_zh)
-if bad:
-    raise SystemExit('non-functional Markdown remains:\\n'+'\\n'.join(bad))
-if (root/'docs').exists() or (root/'.agents/notes').exists():
-    raise SystemExit('legacy documentation tree still exists')
-print('semantic Markdown validation: OK')
-PY
-'''
+          bad=[p.as_posix() for p in md if not is_functional(p)]
+          functional_readmes=[p.as_posix() for p in md if p.name.lower().startswith('readme') and is_functional(p)]
+          functional_zh=[p.as_posix() for p in md if p.name.endswith('.zh.md') and is_functional(p)]
+          print(f'functional Markdown files retained: {len(md)}')
+          print('functional README-like assets:', functional_readmes)
+          print('functional .zh.md assets:', functional_zh)
+          if bad:
+              raise SystemExit('non-functional Markdown remains:\\n'+'\\n'.join(bad))
+          if (root/'docs').exists() or (root/'.agents/notes').exists():
+              raise SystemExit('legacy documentation tree still exists')
+          print('semantic Markdown validation: OK')
+          PY
+          '''
+          replacement = '\n'.join(line[10:] if line.startswith('          ') else line for line in replacement.splitlines()) + '\n'
           script = script[:start] + replacement + script[end:]
 
           old_cleanup = 'rm -f .github/workflows/apply-doc-consolidation.yml'

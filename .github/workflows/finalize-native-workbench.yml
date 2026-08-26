@@ -94,18 +94,18 @@ jobs:
               raise SystemExit(f'expected exactly one clangd server block, got {count}')
 
           insertion_anchor = "comp = comp.replace(old_persona, new_persona, 1)\n\nterminal_anchor ="
-          insertion = r'''comp = comp.replace(old_persona, new_persona, 1)
-
-skill_filesystem_anchor = "- id: skill-filesystem\n  name: '@deepseek-ai/dsh-skill-filesystem'\n"
-skill_filesystem_block = skill_filesystem_anchor + r'''
-  config:
-    bundledSkillDir: !!js process.argv[1].replace(/[\\/]lib[\\/]bin\.js$/, '/config/agent-presets/workbench/skills')
-'''
-if skill_filesystem_anchor not in comp:
-    raise SystemExit('skill-filesystem anchor not found')
-comp = comp.replace(skill_filesystem_anchor, skill_filesystem_block, 1)
-
-terminal_anchor ='''
+          insertion = (
+              "comp = comp.replace(old_persona, new_persona, 1)\n\n"
+              "skill_filesystem_anchor = \"- id: skill-filesystem\\n  name: '@deepseek-ai/dsh-skill-filesystem'\\n\"\n"
+              "skill_filesystem_block = skill_filesystem_anchor + r'''\n"
+              "  config:\n"
+              "    bundledSkillDir: !!js process.argv[1].replace(/[\\\\/]lib[\\\\/]bin\\.js$/, '/config/agent-presets/workbench/skills')\n"
+              "'''\n"
+              "if skill_filesystem_anchor not in comp:\n"
+              "    raise SystemExit('skill-filesystem anchor not found')\n"
+              "comp = comp.replace(skill_filesystem_anchor, skill_filesystem_block, 1)\n\n"
+              "terminal_anchor ="
+          )
           count = text.count(insertion_anchor)
           if count != 1:
               raise SystemExit(f'expected exactly one workbench preset insertion anchor, got {count}')
@@ -141,5 +141,5 @@ terminal_anchor ='''
         with:
           name: native-migration-diagnostic
           path: /tmp/native-migration-diagnostic.txt
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 3

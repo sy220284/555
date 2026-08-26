@@ -18,15 +18,16 @@ const root = resolve(import.meta.dirname, '..')
 /** Repo-authored Markdown checked for relative links. */
 const PATTERNS = [
   'README.md',
-  'README.zh.md',
-  '.agents/notes/**/*.md',
-  'docs/**/*.md',
-  'packages/*/*.md',
-  'packages/*/*/*.md',
-  'examples/**/*.md',
   'AGENTS.md',
-  'packages/AGENTS.md',
+  'CLAUDE.md',
+  '**/AGENTS.md',
+  '**/CLAUDE.md',
   '.agents/skills/**/*.md',
+  'apps/cli/config/agent-presets/**/skills/**/*.md',
+  '.github/**/*.md',
+  '**/snapshots/**/*.md',
+  '**/fixtures/**/*.md',
+  'packages/skill/skill-badge/assets/dsh-badge.md',
 ]
 
 /** A broken relative link: a missing target path or a missing anchor on it. */

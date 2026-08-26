@@ -31,7 +31,7 @@ jobs:
   # repository state — not PR-editable, no merge required) retargets all
   # three onto the in-house
   # vm-backup pool and re-running the failed jobs is the entire switch —
-  # see .agents/notes/implemented/process/2026-07-26-ci-failover-runbook.md. The
+  # 历史设计依据已收敛到仓库根 README 的“历史决策收敛索引”。
   # in-house pool's readiness is re-proven on every master push by the
   # serial-linux-selfhosted standby lane in ci-master.yml. The Windows failover
   # switch is the separate DSH_CI_FAILOVER_WINDOWS variable on the windows-native
@@ -315,7 +315,7 @@ jobs:
   # apt); scripts/wine-windows-gates.sh owns the gate logic and is the same
   # script the optional local gate `pnpm run check:windows-wine` runs.
   # Current topology and fidelity limits live in
-  # .agents/notes/implemented/process/2026-08-08-native-windows-pull-request-ci.md
+  # 历史设计依据已收敛到仓库根 README 的“历史决策收敛索引”。
   windows:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

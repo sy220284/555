@@ -4,8 +4,8 @@ Probes for [the taxonomy](../SKILL.md#taxonomy), tuned during the 2026-08 purge.
 
 ## Invocation rules
 
-- Add `--hidden --glob '!.git/**'` so `.agents/` is searched; ripgrep skips dot-directories by default and the purge's biggest miss risk was Agent Notes.
-- Exclusions go last so a later include cannot re-admit them: `--glob '!vendor/**' --glob '!node_modules/**' --glob '!.agents/notes/archived/**' --glob '!.agents/skills/dsh-trim-cot-leakage/**'` (the skill's own files quote leaked wording as calibration), plus recorded fixture and snapshot directories in scope. The [owning note](../../../notes/implemented/process/2026-08-09-committed-artifact-citations.md) also self-hits through its quoted evidence; judge it as evidence, not usage.
+- Add `--hidden --glob '!.git/**'` so `.agents/` is searched; ripgrep skips dot-directories by default, while executable skills and repository instructions live there.
+- Exclusions go last so a later include cannot re-admit them: `--glob '!vendor/**' --glob '!node_modules/**' --glob '!.agents/skills/dsh-trim-cot-leakage/**'` (the skill's own files quote leaked wording as calibration), plus recorded fixture and snapshot directories in scope.
 - Natural-language lines carry `-i` so sentence-initial capitals hit ("This PR adds…", "Probably fine…"); the first line, which matches code patterns, stays case-sensitive — `-i` would turn `\bT\d\b` and `\bP-I\b` into noise.
 - A zero-hit pattern proves nothing until you have seen it match: test it against a known-positive string before trusting the negative.
 
@@ -40,4 +40,4 @@ Judged and kept during the purge; expect them again:
 - **Contrastive "actually" and noun "wait"** — ordinary English, not hedging; no committed line probes them, so they surface only when you extend the battery with broader hedging patterns.
 - **"Today" in generated timestamps and CLI output samples** — recorded output keeps its voice.
 - **本版本 in zh prose** — a legitimate rendering of "this release" in versioned-artifact contexts; the banned indexical is 本版 as a bare stamp mirroring "this cut".
-- **Alternatives-considered sections** — "rejected" inside an Agent Note's genre slot is the sanctioned home, not review choreography.
+- **Historical-decision summaries** — `rejected` or equivalent wording in the root `README.md` historical-decision index records durable rationale, not review choreography.

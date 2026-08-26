@@ -1,6 +1,6 @@
 # Sandbox CI: the keyless real-kernel confinement proofs. This master-only
 # reference stays outside the pull-request verdict; rationale lives in
-# .agents/notes/implemented/process/2026-07-21-serial-cross-platform-ci-reference.md.
+# 历史设计依据已收敛到仓库根 README 的“历史决策收敛索引”。
 # A separate workflow from ci.yml because the axis is different — these jobs
 # fan out over OS×runner (kernel capabilities), not node versions. The Landlock
 # launcher is built from native/landlock-run on each Landlock leg and installed

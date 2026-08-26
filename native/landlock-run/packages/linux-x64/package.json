@@ -14,7 +14,6 @@
     "x64"
   ],
   "files": [
-    "README.md",
     "bin/",
     "prebuilds.json"
   ],

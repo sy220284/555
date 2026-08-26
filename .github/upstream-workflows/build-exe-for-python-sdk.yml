@@ -1,7 +1,7 @@
 name: Build single-exe
 
 # Native builds for the release targets; see
-# .agents/notes/implemented/architecture/2026-07-10-single-file-executable-sdk-runtime-distribution.md.
+# 历史设计依据已收敛到仓库根 README 的“历史决策收敛索引”。
 # A full target run retains one SDK wheel and three runtime wheels; subset
 # dispatch retains the SDK wheel and selected runtime wheels. Bare executables
 # and source closures are test inputs. Run manually, label a PR `build-exe`

@@ -13,7 +13,7 @@ const required = [
   'apps/cli/config/workbench/typescript-language-server.mjs',
   'apps/cli/config/workbench/mcp-filesystem.mjs',
   'packages/bundle/web-app/cordis.patch.yml',
-  'docs/workbench.zh.md',
+  'README.md',
 ]
 for (const file of required) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`missing workbench source: ${file}`)

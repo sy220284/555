@@ -2,7 +2,7 @@
  * The JavaScript API over the prebuilt `landlock-run` launcher: resolve the
  * binary for this host, build its grant argv, and run its functional probe.
  *
- * This module owns the launcher's CLI contract (`docs/cli-contract.md`) so
+ * This module owns the launcher's CLI contract (summarized in the repository root README) so
  * consumers never parse launcher output or spell launcher flags themselves —
  * the contract and the binaries version together in one package family,
  * which makes probe-parsing drift against the binary structurally

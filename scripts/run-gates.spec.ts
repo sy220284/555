@@ -102,9 +102,10 @@ describe('gate graph validation', () => {
   it('schedules the longest documentation leaves before short checks', () => {
     const ids = withPnpmEntrypoint(() => gatesForMode('doc-sync').map(subject => subject.id))
 
-    expect(ids.slice(0, 10)).toEqual([
-      'doc-typecheck', 'docs-site-build', 'doc-graphs', 'markdown-links', 'type-equivalence',
-      'cordis-catalog', 'mermaid', 'scoped-events', 'translation-pairing', 'markdown-wrap',
+    expect(ids).toEqual([
+      'docs-site-build', 'markdown-links', 'markdown-wrap', 'scoped-events',
+      'client-catalog', 'export-jsdoc', 'public-repository-links',
+      'config-source-ownership', 'skill-invocation-metadata',
     ])
   })
 
@@ -298,7 +299,6 @@ describe('Typert contract preparation', () => {
     for (const [id, script] of [
       ['typecheck', 'typecheck:contracts-ready'],
       ['lint', 'lint:contracts-ready'],
-      ['doc-typecheck', 'doc-typecheck:contracts-ready'],
     ] as const) {
       expect(subject.find(item => item.id === id)).toMatchObject({
         displayCommand: `pnpm run ${script}`,
@@ -309,7 +309,6 @@ describe('Typert contract preparation', () => {
     expect(subject.find(item => item.id === 'build')?.needs).toEqual([
       'typecheck',
       'lint',
-      'doc-typecheck',
     ])
   })
 
@@ -320,17 +319,12 @@ describe('Typert contract preparation', () => {
       displayCommand: 'pnpm run check:ci:lint:contracts-ready',
       args: ['/private/pnpm.cjs', 'run', 'check:ci:lint:contracts-ready'],
     })
-    expect(subject.find(item => item.id === 'doc-typecheck')).toMatchObject({
-      displayCommand: 'pnpm run doc-typecheck:contracts-ready',
-      args: ['/private/pnpm.cjs', 'run', 'doc-typecheck:contracts-ready'],
-    })
   })
 
-  it('keeps standalone doc sync responsible for preparation', () => {
-    const docTypecheck = withPnpmEntrypoint(() =>
-      gatesForMode('doc-sync').find(item => item.id === 'doc-typecheck'))
+  it('keeps standalone doc sync free of the retired multi-document typecheck', () => {
+    const ids = withPnpmEntrypoint(() => gatesForMode('doc-sync').map(item => item.id))
 
-    expect(docTypecheck?.displayCommand).toBe('pnpm run doc-typecheck')
+    expect(ids).not.toContain('doc-typecheck')
   })
 })
 
@@ -363,7 +357,7 @@ describe('Node 24 lane ownership', () => {
     const subject = withPnpmEntrypoint(() => gatesForMode('ci-consumers'))
 
     expect(defaultConcurrency('ci-consumers', subject.length, 4)).toEqual({
-      workers: 10,
+      workers: 9,
       source: 'ci-consumers gate count',
     })
     expect(subject.map(item => item.id)).toEqual([
@@ -374,7 +368,6 @@ describe('Node 24 lane ownership', () => {
       'lint-and-duplication',
       'snapshot',
       'web-snapshot',
-      'doc-typecheck',
       'node-next-types',
       'built-bin-smoke',
     ])
@@ -390,16 +383,12 @@ describe('Node 24 lane ownership', () => {
     for (const id of [
       'snapshot',
       'web-snapshot',
-      'doc-typecheck',
       'node-next-types',
       'built-bin-smoke',
     ]) {
       expect(subject.find(item => item.id === id)?.needs).toEqual(['built-package-invariants'])
     }
     expect(subject.find(item => item.id === 'snapshot')?.env).toEqual({ DSH_EXAMPLE_MODE: 'lib' })
-    expect(subject.find(item => item.id === 'doc-typecheck')?.env).toEqual({
-      DSH_DOC_TYPECHECK_USE_BUILD_OUTPUT: '1',
-    })
     expect(subject.find(item => item.id === 'built-bin-smoke')?.args).toEqual(
       expect.arrayContaining([
         'packages/subagent/subagent-codex/tests/loader-composition.e2e.ts',

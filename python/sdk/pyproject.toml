@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "deepseek-harness-sdk"
 version = "0.0.0.dev0"
 description = "Python SDK for DeepSeek Harness"
-readme = "README.md"
+readme = { text = "555 工作台 Python 组件。完整技术文档见仓库根 README.md。", content-type = "text/markdown" }
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "DeepSeek" }]
@@ -16,10 +16,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/deepseek-ai/deepseek-harness"
-Documentation = "https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/python-sdk.md"
-Issues = "https://github.com/deepseek-ai/deepseek-harness/issues"
-Source = "https://github.com/deepseek-ai/deepseek-harness"
+Homepage = "https://github.com/sy220284/555"
+Documentation = "https://github.com/sy220284/555/blob/main/README.md"
+Issues = "https://github.com/sy220284/555/issues"
+Source = "https://github.com/sy220284/555"
 
 [dependency-groups]
 test = ["pytest>=8.0"]

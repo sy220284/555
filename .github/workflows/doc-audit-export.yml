@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Collect human-readable Markdown
+      - name: Collect documentation and source text
         shell: bash
         run: |
           python - <<'PY'
@@ -22,28 +22,29 @@ jobs:
           import hashlib, json, shutil
 
           root = Path('.')
-          out = Path('.doc-audit-export')
-          out.mkdir()
+          docs_out = Path('.doc-audit-export')
+          src_out = Path('.source-audit-export')
+          docs_out.mkdir()
+          src_out.mkdir()
           inventory = []
 
-          excluded_prefixes = (
+          doc_excluded_prefixes = (
               'vendor/',
               '.agents/skills/',
               'node_modules/',
               '.doc-audit-export/',
+              '.source-audit-export/',
           )
-          excluded_files = {
-              'THIRD_PARTY_NOTICES.md',
-          }
+          doc_excluded_files = {'THIRD_PARTY_NOTICES.md'}
 
           for path in sorted(root.rglob('*.md')):
               rel = path.as_posix()
-              if rel in excluded_files or any(rel.startswith(p) for p in excluded_prefixes):
+              if rel in doc_excluded_files or any(rel.startswith(p) for p in doc_excluded_prefixes):
                   continue
               if not path.is_file():
                   continue
               data = path.read_bytes()
-              dest = out / rel
+              dest = docs_out / rel
               dest.parent.mkdir(parents=True, exist_ok=True)
               shutil.copy2(path, dest)
               inventory.append({
@@ -53,17 +54,54 @@ jobs:
                   'sha256': hashlib.sha256(data).hexdigest(),
               })
 
-          (out / '_inventory.json').write_text(
+          (docs_out / '_inventory.json').write_text(
               json.dumps(inventory, ensure_ascii=False, indent=2),
               encoding='utf-8',
           )
-          print(f'Collected {len(inventory)} Markdown files')
+
+          text_suffixes = {
+              '.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs',
+              '.json', '.yml', '.yaml', '.toml', '.py', '.sh', '.md', '.txt',
+          }
+          source_excluded_prefixes = (
+              '.git/', 'vendor/', 'node_modules/', '.doc-audit-export/', '.source-audit-export/',
+          )
+          source_inventory = []
+          for path in sorted(root.rglob('*')):
+              rel = path.as_posix()
+              if not path.is_file() or any(rel.startswith(p) for p in source_excluded_prefixes):
+                  continue
+              if path.suffix.lower() not in text_suffixes and path.name not in {'package.json', 'pnpm-workspace.yaml'}:
+                  continue
+              try:
+                  data = path.read_bytes()
+                  data.decode('utf-8')
+              except (UnicodeDecodeError, OSError):
+                  continue
+              dest = src_out / rel
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(path, dest)
+              source_inventory.append({'path': rel, 'bytes': len(data)})
+
+          (src_out / '_inventory.json').write_text(
+              json.dumps(source_inventory, ensure_ascii=False, indent=2),
+              encoding='utf-8',
+          )
+          print(f'Collected {len(inventory)} Markdown files and {len(source_inventory)} source/config text files')
           PY
-      - name: Upload audit bundle
+      - name: Upload documentation audit bundle
         uses: actions/upload-artifact@v4
         with:
           name: documentation-audit-bundle
           path: .doc-audit-export
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload source audit bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-audit-bundle
+          path: .source-audit-export
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1

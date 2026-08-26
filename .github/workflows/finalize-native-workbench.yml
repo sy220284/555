@@ -93,16 +93,23 @@ jobs:
           if count != 1:
               raise SystemExit(f'expected exactly one clangd server block, got {count}')
 
-          skill_anchor = "- id: skill-filesystem\n  name: '@deepseek-ai/dsh-skill-filesystem'\n"
-          skill_block = (
-              skill_anchor
-              + "  config:\n"
-              + "    bundledSkillDir: !!js process.argv[1].replace(/[\\\\/]lib[\\\\/]bin\\.js$/, '/config/agent-presets/workbench/skills')\n"
-          )
-          count = text.count(skill_anchor)
+          insertion_anchor = "comp = comp.replace(old_persona, new_persona, 1)\n\nterminal_anchor ="
+          insertion = r'''comp = comp.replace(old_persona, new_persona, 1)
+
+skill_filesystem_anchor = "- id: skill-filesystem\n  name: '@deepseek-ai/dsh-skill-filesystem'\n"
+skill_filesystem_block = skill_filesystem_anchor + r'''
+  config:
+    bundledSkillDir: !!js process.argv[1].replace(/[\\/]lib[\\/]bin\.js$/, '/config/agent-presets/workbench/skills')
+'''
+if skill_filesystem_anchor not in comp:
+    raise SystemExit('skill-filesystem anchor not found')
+comp = comp.replace(skill_filesystem_anchor, skill_filesystem_block, 1)
+
+terminal_anchor ='''
+          count = text.count(insertion_anchor)
           if count != 1:
-              raise SystemExit(f'expected exactly one skill-filesystem anchor, got {count}')
-          text = text.replace(skill_anchor, skill_block, 1)
+              raise SystemExit(f'expected exactly one workbench preset insertion anchor, got {count}')
+          text = text.replace(insertion_anchor, insertion, 1)
 
           old_doc = '`clangd` 可通过 `DSH_CLANGD_BIN` 指定。'
           new_doc = '`clangd` 为可选外部依赖；仅在设置 `DSH_CLANGD_BIN` 时启用 C/C++ 语言服务，缺少它不会阻断工作台启动。'

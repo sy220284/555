@@ -22,7 +22,7 @@ pnpm run build
 pnpm run workbench:doctor
 ```
 
-涉及启动组合时，再以空 `DSH_HOME` 冷启动验证。
+涉及启动组合时，再以空 `DSH_HOME` 冷启动验证。仓库级最终验收以 `.github/workflows/workbench-ci.yml` 的构建与冷启动结果为准。
 
 ## 文档
 

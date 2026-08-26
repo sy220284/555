@@ -180,21 +180,6 @@ jobs:
               return False
 
           md=markdown_files()
-          bad=[p for p in md if not is_functional(p)]
-          if len(bad) != 4:
-              raise SystemExit(
-                  f'expected exactly 4 non-functional Markdown files, found {len(bad)}:\n'
-                  + '\n'.join(p.as_posix() for p in bad)
-              )
-
-          print('removing non-functional Markdown:')
-          for p in bad:
-              print(p.as_posix())
-              if not p.is_file():
-                  raise SystemExit(f'expected a regular Markdown file: {p}')
-              p.unlink()
-
-          md=markdown_files()
           bad=[p.as_posix() for p in md if not is_functional(p)]
           readmes=[p.as_posix() for p in md if p.name.lower().startswith('readme')]
           zh=[p.as_posix() for p in md if p.name.endswith('.zh.md')]

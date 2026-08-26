@@ -1,0 +1,2 @@
+name: 工作台模式
+description: 完整本地执行工作台：原生工具 + Code Mode、持久终端、技能、LSP；本地执行管理不依赖 Harness 自身模型凭据。

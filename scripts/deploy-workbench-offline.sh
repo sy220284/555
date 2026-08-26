@@ -22,7 +22,7 @@ usage() {
 
 选项：
   --artifact <zip>       使用 GitHub Actions 下载的 workbench-offline-linux-x64.zip
-  --artifact-dir <目录>  使用已存在的离线产物目录（含两个 tar.zst 与 SHA256SUMS.txt）
+  --artifact-dir <目录>  使用已存在的离线产物目录（含两个 tar.gz/tar.zst 与 SHA256SUMS.txt）
   --target <目录>        部署目录，默认 ~/.local/share/555-workbench
   --workspace <目录>     本地文件服务根目录，默认部署后的 workbench 源码目录
   --host <地址>          Web 监听地址，默认 127.0.0.1

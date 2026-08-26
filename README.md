@@ -113,7 +113,12 @@ pnpm run workbench:web
 | `scripts/deploy-workbench-offline.sh` | 永久离线一键部署、升级与冷启动验收 |
 | `.github/workflows/workbench-ci.yml` | 构建、预设端到端与冷启动验收 |
 | `.github/workflows/permanent-toolchain.yml` | 永久离线产物构建与实装验收 |
-| `TECHNICAL.md` | 完整中文技术文档，也是系统级说明的单一维护点。
+| `TECHNICAL.md` | 完整中文技术文档 |
+
+## 文档规则
+
+- `README.md` 只承担项目首页、快速启动与稳定入口。
+- [`TECHNICAL.md`](TECHNICAL.md) 是唯一完整技术文档，也是系统级说明的单一维护点。
 - 运行代码、配置、类型与测试始终是最终事实源。
 - 运行时技能、测试快照、测试夹具和法律文件按程序用途独立保留。
 - 禁止恢复重复的包级说明、双语镜像或分散决策文档树。

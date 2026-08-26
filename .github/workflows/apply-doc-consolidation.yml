@@ -1,0 +1,63 @@
+name: 一次性文档收敛
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/apply-doc-consolidation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rebuild and consolidate documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .migration/part-* > /tmp/555-migration.b64
+          base64 -d /tmp/555-migration.b64 > /tmp/555-migration.tar.xz
+          mkdir -p /tmp/555-migration
+          tar -xJf /tmp/555-migration.tar.xz -C /tmp/555-migration
+          MIG=/tmp/555-migration/migration-mini2
+
+          python "$MIG/build_555_readme_repo.py"
+          git apply --check "$MIG/final-mods.patch"
+          git apply "$MIG/final-mods.patch"
+
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            rm -rf -- "$path"
+          done < "$MIG/delete-paths.txt"
+
+          rm -rf .migration
+          rm -f .github/workflows/apply-doc-consolidation.yml
+
+          test -s README.md
+          test ! -e docs
+          test ! -e .agents/notes
+          grep -q '^# 555 工作台完整技术文档' README.md
+          node scripts/workbench-doctor.mjs
+          git diff --check
+
+          python - <<'PY'
+          from pathlib import Path
+          root=Path('.')
+          md=[p for p in root.rglob('*.md') if '.git' not in p.parts and 'vendor' not in p.parts and 'node_modules' not in p.parts]
+          if len(md) != 185:
+              raise SystemExit(f'expected 185 functional Markdown files, found {len(md)}')
+          if (root/'docs').exists() or (root/'.agents/notes').exists():
+              raise SystemExit('legacy documentation tree still exists')
+          print(f'functional Markdown files: {len(md)}')
+          PY
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'docs: consolidate repository technical documentation'
+          git push origin HEAD:main

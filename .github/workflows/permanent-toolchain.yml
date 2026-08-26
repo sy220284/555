@@ -1,162 +1,69 @@
-name: 构建永久工具产物
-
+name: 构建工作台永久离线产物
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - '.github/workflows/permanent-toolchain.yml'
-
+      - 'apps/cli/config/agent-presets/workbench/**'
+      - 'apps/cli/config/workbench/**'
+      - 'packages/bundle/web-app/cordis.patch.yml'
+      - 'apps/cli/package.json'
+      - 'pnpm-lock.yaml'
 permissions:
   contents: write
-
 env:
   NODE_VERSION: '22.19.0'
   PNPM_VERSION: '11.7.0'
-  DSH_SHA: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
-  DSH_VERSION: '0.1.1-rc.2'
-  RELEASE_TAG: 'dsh-offline-0.1.1-rc.2'
-
+  WORKBENCH_VERSION: '1.0.0'
+  RELEASE_TAG: 'workbench-1.0.0'
 jobs:
   build-linux-x64:
-    name: Linux x64 永久离线工具包
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - name: Checkout artifact repository
-        uses: actions/checkout@v4
-
-      - name: Setup exact Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      - name: Enable exact pnpm
+      - run: corepack enable && corepack prepare "pnpm@${PNPM_VERSION}" --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run workbench:doctor
+      - name: Package toolchain and ready source
         shell: bash
         run: |
-          set -euxo pipefail
-          corepack enable
-          corepack prepare "pnpm@${PNPM_VERSION}" --activate
-          node --version
-          pnpm --version
-
-      - name: Checkout exact DeepSeek Harness source
-        uses: actions/checkout@v4
-        with:
-          repository: deepseek-ai/deepseek-harness
-          ref: ${{ env.DSH_SHA }}
-          path: dsh
-          persist-credentials: false
-
-      - name: Verify source version
-        shell: bash
-        run: |
-          set -euxo pipefail
-          node -e "const p=require('./dsh/package.json'); if(p.version!==process.env.DSH_VERSION) throw new Error('version mismatch: '+p.version); if(p.packageManager!=='pnpm@'+process.env.PNPM_VERSION) throw new Error('pnpm mismatch: '+p.packageManager); console.log(p.version,p.packageManager,p.engines)"
-
-      - name: Install frozen dependency closure
-        working-directory: dsh
-        shell: bash
-        run: |
-          set -euxo pipefail
-          pnpm install --frozen-lockfile
-
-      - name: Build production artifacts
-        working-directory: dsh
-        shell: bash
-        run: |
-          set -euxo pipefail
-          pnpm run build
-
-      - name: Package exact toolchain
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p out/toolchain
-          curl -fL --retry 5 --retry-delay 3 \
-            "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
-            -o "out/toolchain/node-v${NODE_VERSION}-linux-x64.tar.xz"
-          cd out/toolchain
-          npm pack "pnpm@${PNPM_VERSION}"
-          cd ../..
-          cat > out/toolchain/INSTALL.txt <<EOF
-          DeepSeek Harness 离线工具链
-          Node.js: ${NODE_VERSION} linux-x64
-          pnpm: ${PNPM_VERSION}
-
-          解压 Node.js 后，将其 bin 目录加入 PATH；然后使用 Node 自带 npm 离线安装：
-            npm install -g ./pnpm-${PNPM_VERSION}.tgz
-          EOF
-          tar -I 'zstd -19 -T0' -cf "out/dsh-toolchain-linux-x64.tar.zst" -C out toolchain
-
-      - name: Package ready-to-run checkout
-        shell: bash
-        run: |
-          set -euxo pipefail
-          rm -rf dsh/.git
-          cat > dsh/OFFLINE_BUILD_INFO.txt <<EOF
-          DeepSeek Harness ${DSH_VERSION}
-          commit: ${DSH_SHA}
+          set -euo pipefail
+          mkdir -p out/toolchain stage
+          curl -fL --retry 5 "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o "out/toolchain/node-v${NODE_VERSION}-linux-x64.tar.xz"
+          (cd out/toolchain && npm pack "pnpm@${PNPM_VERSION}")
+          rsync -a --exclude='.git' --exclude='out' ./ stage/workbench/
+          cat > stage/workbench/OFFLINE_BUILD_INFO.txt <<INFO
+          Workbench ${WORKBENCH_VERSION}
+          source commit: ${GITHUB_SHA}
           Node.js: ${NODE_VERSION}
           pnpm: ${PNPM_VERSION}
-          dependencies: pnpm install --frozen-lockfile completed
-          build: pnpm run build completed
-          web: pnpm dsh web --no-open
-          default URL: http://127.0.0.1:3080
-          EOF
-          tar -I 'zstd -10 -T0' -cf "out/deepseek-harness-${DSH_VERSION}-ready-linux-x64.tar.zst" dsh
-
-      - name: Generate checksums and manifest
-        shell: bash
-        run: |
-          set -euxo pipefail
-          cd out
-          sha256sum *.tar.zst > SHA256SUMS.txt
-          cat > MANIFEST.txt <<EOF
-          Permanent offline release: ${RELEASE_TAG}
-          DeepSeek Harness: ${DSH_VERSION}
-          Commit: ${DSH_SHA}
-          Node.js: ${NODE_VERSION}
-          pnpm: ${PNPM_VERSION}
-          Built: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
-
-          dsh-toolchain-linux-x64.tar.zst
-            - exact Node.js linux-x64 archive
-            - pnpm ${PNPM_VERSION} npm package for offline installation
-
-          deepseek-harness-${DSH_VERSION}-ready-linux-x64.tar.zst
-            - exact source checkout
-            - complete frozen pnpm dependency closure
-            - completed production build output
-            - ready for: pnpm dsh web --no-open
-          EOF
-
-      - name: Upload workflow artifact for immediate retrieval
-        uses: actions/upload-artifact@v4
+          frozen dependencies: installed
+          production build: completed
+          default preset: workbench
+          INFO
+          tar -I 'zstd -10 -T0' -cf "out/workbench-${WORKBENCH_VERSION}-ready-linux-x64.tar.zst" -C stage workbench
+          tar -I 'zstd -19 -T0' -cf "out/workbench-toolchain-linux-x64.tar.zst" -C out toolchain
+          (cd out && sha256sum *.tar.zst > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
         with:
-          name: dsh-offline-linux-x64
+          name: workbench-offline-linux-x64
           path: |
-            out/dsh-toolchain-linux-x64.tar.zst
-            out/deepseek-harness-${{ env.DSH_VERSION }}-ready-linux-x64.tar.zst
+            out/workbench-1.0.0-ready-linux-x64.tar.zst
+            out/workbench-toolchain-linux-x64.tar.zst
             out/SHA256SUMS.txt
-            out/MANIFEST.txt
           compression-level: 0
           retention-days: 90
-
-      - name: Publish permanent GitHub Release
+      - name: Publish permanent release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          set -euxo pipefail
-          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" \
-              --title "DeepSeek Harness ${DSH_VERSION} 永久离线工具产物" \
-              --notes "永久离线工具链与完整依赖/构建包。精确版本：Node.js ${NODE_VERSION}、pnpm ${PNPM_VERSION}、DeepSeek Harness ${DSH_VERSION} (${DSH_SHA})。"
-          fi
-          gh release upload "$RELEASE_TAG" \
-            out/dsh-toolchain-linux-x64.tar.zst \
-            "out/deepseek-harness-${DSH_VERSION}-ready-linux-x64.tar.zst" \
-            out/SHA256SUMS.txt \
-            out/MANIFEST.txt \
-            --clobber
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --title "工作台 ${WORKBENCH_VERSION} 永久离线产物" --notes "由 555 根目录的源码内生工作台直接构建。"
+          gh release upload "$RELEASE_TAG" out/*.tar.zst out/SHA256SUMS.txt --clobber

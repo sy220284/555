@@ -1,0 +1,52 @@
+name: 完成工作台源码内生迁移
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-native-workbench.yml'
+      - '.github/migrate-native-workbench.sh'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-native-workbench
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22.19.0'
+  PNPM_VERSION: '11.7.0'
+  WORKBENCH_VERSION: '1.0.0'
+  UPSTREAM_VERSION: '0.1.1-rc.2'
+  UPSTREAM_COMMIT: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
+
+jobs:
+  migrate:
+    name: 根目录迁移并完整验收
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout 555
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup exact Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable exact pnpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare "pnpm@${PNPM_VERSION}" --activate
+          node --version
+          pnpm --version
+
+      - name: Run one-time native migration
+        shell: bash
+        run: bash .github/migrate-native-workbench.sh

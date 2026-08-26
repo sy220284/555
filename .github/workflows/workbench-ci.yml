@@ -1,0 +1,42 @@
+name: 工作台源码验收
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - 'docs/workbench*'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/workbench-ci.yml'
+permissions:
+  contents: read
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: corepack enable && corepack prepare pnpm@11.7.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run workbench:doctor
+      - name: Cold-start workbench
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DSH_HOME="$RUNNER_TEMP/dsh-home"
+          export DSH_WORKBENCH_MCP_ROOT="$GITHUB_WORKSPACE"
+          node apps/cli/lib/bin.js web --no-open > "$RUNNER_TEMP/workbench.log" 2>&1 &
+          PID=$!
+          trap 'kill $PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:3080/ >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3080/ >/dev/null

@@ -74,7 +74,7 @@ jobs:
           clangd_entry = (
               "\n    - id: lsp-stdio-clangd\n"
               "      name: '@deepseek-ai/dsh-lsp-stdio'\n"
-              "      disabled: !!js !process.env.DSH_CLANGD_BIN\n"
+              "      disabled: !!js process.env.DSH_CLANGD_BIN == null\n"
               "      config:\n"
               "        servers:\n"
               "          clangd:\n"

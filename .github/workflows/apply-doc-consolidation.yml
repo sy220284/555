@@ -27,6 +27,25 @@ jobs:
           MIG=/tmp/555-migration/migration-mini2
 
           python "$MIG/build_555_readme_repo.py"
+          python - "$MIG/final-mods.patch" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1])
+          fixed=[]
+          count=0
+          for line in p.read_text().splitlines():
+              marker='+保持改动聚焦。'
+              if line.startswith('-保持改动聚焦。') and marker in line:
+                  left,right=line.split(marker,1)
+                  fixed.extend([left, marker+right])
+                  count += 1
+              else:
+                  fixed.append(line)
+          if count != 2:
+              raise SystemExit(f'expected 2 joined EOF patch lines, found {count}')
+          p.write_text('\n'.join(fixed)+'\n')
+          print('repaired joined EOF patch lines:', count)
+          PY
           git apply --check "$MIG/final-mods.patch"
           git apply "$MIG/final-mods.patch"
 

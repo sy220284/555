@@ -43,7 +43,7 @@ const MINIMAL_BASH_DESCRIPTION = `Run commands in a bash shell
 /**
  * Boot the shipped Web composition, minus the rows that would bind a port,
  * touch the network, or write outside the test. Everything that decides an
- * agent's capabilities is the real thing, including both shipped presets.
+ * agent's capabilities is the real thing, including the shipped presets.
  */
 async function bootWeb(
   settingsFile: string,
@@ -78,6 +78,10 @@ async function bootWeb(
     // agent's capabilities, which is all this file asserts.
     { id: 'web-runtime', disabled: true },
     { id: 'session-telemetry-otel', disabled: true },
+    // The workbench filesystem MCP row spawns a child process. It is a host-side
+    // deployment integration, not part of the preset-composition contract this
+    // test asserts, so keep it out of this side-effect-free boot.
+    { id: 'workbench-mcp-filesystem', disabled: true },
     // A deployment-level skill on the host registry's GLOBAL layer — the same
     // registration shape a repository plugin's skill root uses. The layered
     // skills test below proves it reaches preset-composed agents.
@@ -216,10 +220,10 @@ describe('the shipped Web composition', () => {
     }
   })
 
-  it('supplies both shipped presets, and only those, from the system root', async () => {
+  it('supplies every shipped preset, and only those, from the system root', async () => {
     const listed = await ctx.agentPresets.list()
 
-    expect(listed.map(preset => preset.id).sort()).toEqual(['code', 'cordis', 'minimal', 'standard'])
+    expect(listed.map(preset => preset.id).sort()).toEqual(['code', 'cordis', 'minimal', 'standard', 'workbench'])
     expect(listed.every(preset => preset.trust === 'system')).toBe(true)
     expect(ctx.agentPresets.defaultId).toBe('standard')
   })

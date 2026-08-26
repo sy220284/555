@@ -37,7 +37,7 @@ jobs:
           mkdir -p out/toolchain stage
           curl -fL --retry 5 "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o "out/toolchain/node-v${NODE_VERSION}-linux-x64.tar.xz"
           (cd out/toolchain && npm pack "pnpm@${PNPM_VERSION}")
-          rsync -a --exclude='.git' --exclude='out' ./ stage/workbench/
+          rsync -a --exclude='.git' --exclude='out' --exclude='stage' ./ stage/workbench/
           cat > stage/workbench/OFFLINE_BUILD_INFO.txt <<INFO
           Workbench ${WORKBENCH_VERSION}
           source commit: ${GITHUB_SHA}

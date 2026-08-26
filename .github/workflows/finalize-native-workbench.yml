@@ -47,7 +47,7 @@ jobs:
           node --version
           pnpm --version
 
-      - name: Patch package-bin launchers, optional clangd, and bundled skills
+      - name: Patch package-bin launchers, optional clangd, bundled skills, and publish boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -116,6 +116,28 @@ jobs:
           if old_doc not in text:
               raise SystemExit('clangd documentation anchor not found')
           text = text.replace(old_doc, new_doc, 1)
+
+          publish_anchor = (
+              "git add -A\n"
+              "git commit -m 'feat: integrate workbench directly into complete source'\n"
+              "git push origin HEAD:main"
+          )
+          publish_block = (
+              "# The Actions token can publish source but cannot mutate workflow files.\n"
+              "# Keep the current workflow set and one-time script in this source commit;\n"
+              "# the controller publishes final workflows and removes the bootstrap files next.\n"
+              "rm -rf .github/workflows\n"
+              "mkdir -p .github/workflows\n"
+              "git checkout HEAD -- .github/workflows\n"
+              "git checkout HEAD -- .github/migrate-native-workbench.sh\n"
+              "git add -A\n"
+              "git commit -m 'feat: integrate workbench directly into complete source'\n"
+              "git push origin HEAD:main"
+          )
+          count = text.count(publish_anchor)
+          if count != 1:
+              raise SystemExit(f'expected exactly one publish anchor, got {count}')
+          text = text.replace(publish_anchor, publish_block, 1)
 
           path.write_text(text)
           PY

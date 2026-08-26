@@ -19,7 +19,7 @@ export interface DocsPage {
 export const docsPages: DocsPage[] = [{
   locale: 'root',
   contentLocale: 'zh-CN',
-  source: 'README.md',
+  source: 'TECHNICAL.md',
   route: 'index.md',
   label: '555 工作台完整技术文档',
   sidebar: 'zh-reference',

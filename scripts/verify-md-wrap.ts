@@ -3,7 +3,7 @@
  * AST distinguishes paragraphs—including those in lists and blockquotes—from
  * multiline structural nodes. The checker never rewrites; symlinked instruction
  * files are deduped. VitePress frontmatter and custom-container delimiters are
- * masked before parsing. The owning convention is in the root `AGENTS.md` and consolidated `README.md`.
+ * masked before parsing. The owning convention is in the root `AGENTS.md` and `TECHNICAL.md`.
  */
 
 import { readFileSync } from 'node:fs'
@@ -17,6 +17,7 @@ const root = resolve(import.meta.dirname, '..')
 /** Files to check: doc-typecheck's scope, system-prompt expected outputs, and the AGENTS.md pair. */
 const PATTERNS = [
   'README.md',
+  'TECHNICAL.md',
   'AGENTS.md',
   'CLAUDE.md',
   '**/AGENTS.md',

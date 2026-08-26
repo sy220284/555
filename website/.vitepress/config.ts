@@ -1,4 +1,4 @@
-/** VitePress：只投影仓库根 README.md。 */
+/** VitePress：只投影仓库根 TECHNICAL.md。 */
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { PageData, SiteConfig } from 'vitepress'

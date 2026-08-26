@@ -18,6 +18,7 @@ const root = resolve(import.meta.dirname, '..')
 /** Repo-authored Markdown checked for relative links. */
 const PATTERNS = [
   'README.md',
+  'TECHNICAL.md',
   'AGENTS.md',
   'CLAUDE.md',
   '**/AGENTS.md',

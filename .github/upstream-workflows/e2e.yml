@@ -23,7 +23,7 @@ name: E2E (real DeepSeek API)
 # in the BASE repo's context WITH secrets while still able to check out untrusted
 # fork code — a textbook key-leak vector, especially once this repo is public.
 # The fork/secret model and its public-repo implications are recorded in
-# 历史设计依据已收敛到仓库根 README 的“历史决策收敛索引”。
+# 历史设计依据已收敛到仓库根 TECHNICAL.md 的“历史决策收敛索引”。
 #
 # Note: scheduled triggers are auto-disabled after 60 days of repo inactivity;
 # push/pull_request/workflow_dispatch act as backstops.

@@ -1,0 +1,57 @@
+name: 一次性修复工作台预设验收
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-fix-workbench-presets.yml'
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch preset E2E and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('apps/cli/tests/web-agent-presets.e2e.ts')
+          text = path.read_text()
+          replacements = [
+              (
+                  "agent's capabilities is the real thing, including both shipped presets.",
+                  "agent's capabilities is the real thing, including the shipped presets.",
+              ),
+              (
+                  "    { id: 'session-telemetry-otel', disabled: true },\n",
+                  "    { id: 'session-telemetry-otel', disabled: true },\n"
+                  "    // The workbench filesystem MCP row spawns a child process. It is a host-side\n"
+                  "    // deployment integration, not part of the preset-composition contract this\n"
+                  "    // test asserts, so keep it out of this side-effect-free boot.\n"
+                  "    { id: 'workbench-mcp-filesystem', disabled: true },\n",
+              ),
+              (
+                  "it('supplies both shipped presets, and only those, from the system root'",
+                  "it('supplies every shipped preset, and only those, from the system root'",
+              ),
+              (
+                  "expect(listed.map(preset => preset.id).sort()).toEqual(['code', 'cordis', 'minimal', 'standard'])",
+                  "expect(listed.map(preset => preset.id).sort()).toEqual(['code', 'cordis', 'minimal', 'standard', 'workbench'])",
+              ),
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one match, got {count}: {old[:80]}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+          rm .github/workflows/one-time-fix-workbench-presets.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/cli/tests/web-agent-presets.e2e.ts .github/workflows/one-time-fix-workbench-presets.yml
+          git diff --cached --check
+          git commit -m 'test: align workbench preset e2e'
+          git push origin HEAD:main

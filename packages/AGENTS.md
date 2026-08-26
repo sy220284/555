@@ -1,27 +1,39 @@
-# AGENTS.md — Harness Packages
+# AGENTS.md — Packages
 
-These package-specific rules supplement the repo-wide [conventions](../AGENTS.md#conventions).
+本文件补充根目录 `AGENTS.md`，适用于 `packages/`。
 
-- **Plugin exports:** service packages default-export their service class; function plugins named-export `name` / `inject` / `Config` / `apply` and have no default export. Mixing the forms makes the Loader discard the function plugin's namespace ([postmortem](../docs/postmortem/0001-acp-default-export-drops-inject.md)).
-- **Optional services use `ctx.get(name)`.** Reserve `ctx.<name>` for declared injections; the property proxy is topology-sensitive, while strict `ctx.get` reads the global service store ([postmortem](../docs/postmortem/0001-acp-default-export-drops-inject.md)).
-- **Product-visible plugins require a non-unit REAL-composition test.** Hand-built `ctx.plugin(...)` suites are insufficient. Boot test-only `cordis.yml` through the Loader and app/process; mock only external services or nondeterministic inputs and assert model-visible, durable, or user-visible output. Keep opt-ins out of shipped defaults. [Policy](../docs/testing.md).
-- **Initiator-owned private chains derive, then capture.** Under `ctx.agents.withInitiator()`, recover the Agent at each orchestration entry, derive `agent.session`, and let operation-local helpers close over it. Keep `Agent` and `Session` explicit at lifecycle, session-log, service, authority, worker/process, persistence, and wire interfaces; do not widen a leaf helper from `Session` to `Context` merely to hide a parameter ([rationale](../.agents/notes/implemented/architecture/2026-07-15-agent-initiator-scope.md)).
-- **Represent one asynchronous operation with one lifecycle controller or transaction.** Separate readiness, cancellation, disposal, reservation, or sentinel state requires an independent owner or settlement point; otherwise fold it while preserving rollback, callback containment, and quiescence.
-- **Design Service Definitions for all current Consumers.** Keep tool-schema, Loader, UI, transport, and provider-specific behavior in the Consumer or provider; do not let one Consumer dictate the service contract ([capability-seam rationale](../.agents/notes/implemented/architecture/2026-06-13-capability-seams.md)). Inverse smell: a public service method with one internal caller — pass a private capability closure instead (`RunCodeBridgeOptions`).
-- **Require a current owner and need.** Tie each abstraction, state machine, option, defensive copy, and compatibility path to a current contract or production consumer, and keep behavior in its owning plugin or service.
-- **Require evidence for public choices.** Configurability does not justify an unsupported default, public operation set, format, or imported external concept. Use current-consumer evidence or relevant prior art; otherwise require an explicit value or defer the choice.
-- **Write model-facing contracts from the model's perspective.** Prompts, tool schemas, results, and diagnostics contain only task-relevant concepts, not UI, transport, or implementation vocabulary. Pin stable model-visible text verbatim and dynamic behavior through snapshots or end-to-end coverage.
-- **Enforce a decision in the operation that makes it.** Schema omission, prompt filtering, facades, wrappers, and listener order are not enforcement when direct or alternate callers can bypass them; test denial through the executor.
-- **Publish state only at its commit point.** Emit each notification and update derived state only after the operation succeeds; derive caches, prompts, UI echoes, replay, and query views from one authoritative source.
-- **Apply bounds to the complete result.** Enforce byte, token, item, and time limits where the complete emitted or retained value, including wrappers and metadata, is known; test tiny and exact limits, oversized single chunks, and multibyte byte limits.
-- **Registry contributions prove disposal** through the HMR-safety test required by [testing policy](../docs/testing.md): dispose the fiber and observe removal.
-- **Every package owns `./invariant`.** Register the manifest name; check an event/data relation or give empty installers package-specific `No runtime invariant:` reasons. Generated companions, unexplained empties, and ignored reporters fail [`verify-package-invariants`](../.agents/notes/implemented/architecture/2026-07-19-package-invariant-runtime-contracts.md).
+## 包边界
 
-[Naming rules](../docs/cookbook/adding-a-package.md#name-the-role-that-exists):
+- 保持现有插件化结构和 Service Definition / Provider / Consumer 分工；只有职责确实独立时才拆包。
+- 服务包按现有导出约定提供实现；函数插件保持命名导出并与 Loader 约定一致。
+- 跨包依赖使用正式 workspace package 名称；不要依赖别的包的私有文件路径。
+- 配置、协议和安全约束在最早可确定的位置失败，禁止静默跳过缺失依赖或无效配置。
+- 注册、监听和运行时贡献必须有对应释放路径；生命周期、后台任务和进程资源必须能收口。
+- 模型可见内容、工具结果、持久状态和用户可见状态应有明确的权威来源，避免多套并行状态。
 
-- **Package tsconfig:** extends `tsconfig.base.json` (Client: `tsconfig.base.client.json`), uses `rootDir: src`, `outDir: lib/types`, and references each workspace dependency plus `runtime-diagnostics/invariants`; registers in exactly one aggregate. Only `api/remotes` splits for generated contracts; ordinary two-entry Client plugins do not ([layout](../docs/development.md#typescript-project-layout)).
-- `src/types.ts` contains only types — no runtime code.
-- Tests live at package level under `tests/`, not `src/__tests__/`.
-- A package's README and JSDoc are part of the change: altered behavior (config keys, defaults, error codes, wire fields) updates them in the same commit. `doc-sync` gates what it can; apply [dsh-prose-standard](../.agents/skills/dsh-prose-standard/SKILL.md) for complete, concise prose and verify accuracy against code.
-- Package READMEs document model, token, and KV-cache effects using the [canonical Model Experience format](../docs/cookbook/adding-a-package.md#4-write-the-package-readme).
-- Package READMEs put durable consumer gaps and non-obvious maintainer constraints under `## Known Limitations and Deferred Work`; ordinary cleanup stays in its TODO or Agent Note. Packages with none use a justified [allowlist entry](../scripts/verify-package-readme-limitations.ts) ([rationale](../.agents/notes/implemented/process/2026-07-10-readme-known-limitations-gate.md)).
+## 测试
+
+修改插件组合、Loader 行为或产品可见能力时，不能只依赖手工 `ctx.plugin(...)` 单元测试；至少增加或运行覆盖真实组合的测试。底层测试策略参考 `../docs/testing.md`。
+
+工作台相关包变更最终还必须通过根目录：
+
+```bash
+pnpm run build
+pnpm run workbench:doctor
+```
+
+涉及启动组合时，再以空 `DSH_HOME` 冷启动验证。
+
+## 文档
+
+Package README 和 JSDoc 只描述当前契约、配置、失败方式、限制和扩展点。修改这些内容时同步更新，不记录评审历史、迁移过程或已经删除的 Agent Note。
+
+可参考：
+
+- `../docs/architecture.md`：整体架构
+- `../docs/development.md`：源码开发约定
+- `../docs/testing.md`：测试策略
+- `../docs/subsystems/`：底层子系统
+- `../README.md`：工作台最终定位与使用方式
+
+`docs/postmortem/` 中仍保留的内容仅作为底层历史故障案例，不是当前规范来源；与现有源码冲突时以源码和当前文档为准。

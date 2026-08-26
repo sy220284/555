@@ -26,6 +26,8 @@ README.md                                   工作台主文档
 
 底层 Harness 架构仍遵循插件化与 Cordis 组合机制。修改核心包前可参考 `docs/architecture.md`、`docs/development.md`、`docs/testing.md`、`docs/subsystems/` 与各 package README；这些文档只作为当前源码的技术参考，代码与实际组合配置是最终事实来源。
 
+`.agents/notes/` 保留上游已经形成的设计决策与历史依据，因为当前技术文档和质量门禁仍引用它们；它们是参考资料，不是工作台新增功能的强制产物。普通工作台修改无需为了流程形式额外创建 Agent Note。
+
 ## 开发与验收
 
 运行时基线：Node.js `22.19.0`、pnpm `11.7.0`。
@@ -50,14 +52,14 @@ pnpm run workbench:doctor
 - 新的模型可见行为优先通过插件、服务或正式组合接入，避免把产品逻辑塞进 agent loop。
 - 注册类能力必须可释放，后台任务和持久终端必须有明确生命周期。
 - 安全边界、文件范围、外部进程和凭据处理必须显式；禁止提交密钥。
-- 改动 package 对外行为、配置或限制时，同步更新对应 package README/JSDoc；无需为普通修改新增历史设计笔记。
+- 改动 package 对外行为、配置或限制时，同步更新对应 package README/JSDoc。
 - 测试按改动范围选择；工作台关键链最终以 `workbench-ci.yml` 的完整构建和冷启动为准。
 
 ## 文档规则
 
 根 `README.md` 是工作台用户与维护者的主入口，`docs/workbench.zh.md` 是简版技术说明。`docs/` 中保留的 Harness 文档用于理解仍存在的底层架构、配置、工具和子系统；与当前源码冲突时，以源码和工作台主文档为准。
 
-仓库不再维护上游的品牌规范、贡献流程、旧 README 翻译对、Agent Notes 历史库或翻译维护手册。不要重新生成这些已清理内容。
+仓库已经清理上游品牌规范、旧贡献流程、旧 README 翻译对和旧基准说明。现有双语技术文档及 `docs/i18n/` 仍由当前文档门禁使用，因此保留；工作台新增主文档不要求复制上游 README 的旧翻译结构。
 
 `LICENSE` 与 `THIRD_PARTY_NOTICES.md` 属于法律/依赖归属文件，不作为普通文档清理对象；依赖变化时按实际许可证要求更新。
 

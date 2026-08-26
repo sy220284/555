@@ -47,14 +47,17 @@ jobs:
           node --version
           pnpm --version
 
-      - name: Patch package-bin launchers
+      - name: Patch package-bin launchers and optional clangd
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import re
+
           path = Path('.github/migrate-native-workbench.sh')
           text = path.read_text()
+
           replacements = {
               "const entry = require.resolve('typescript-language-server')\nawait import(pathToFileURL(entry).href)":
                   "const entry = new URL('../../node_modules/typescript-language-server/lib/cli.mjs', import.meta.url)\nawait import(entry.href)",
@@ -66,6 +69,36 @@ jobs:
               if count != 1:
                   raise SystemExit(f'expected exactly one launcher anchor, got {count}: {old!r}')
               text = text.replace(old, new, 1)
+
+          clangd_pattern = r"\n          clangd:\n.*?(?=\n    - id: tool-lsp)"
+          clangd_entry = (
+              "\n    - id: lsp-stdio-clangd\n"
+              "      name: '@deepseek-ai/dsh-lsp-stdio'\n"
+              "      disabled: !!js !process.env.DSH_CLANGD_BIN\n"
+              "      config:\n"
+              "        servers:\n"
+              "          clangd:\n"
+              "            command: !!js process.env.DSH_CLANGD_BIN\n"
+              "            args: [--background-index]\n"
+              "            extensionToLanguage:\n"
+              "              .c: c\n"
+              "              .h: c\n"
+              "              .cc: cpp\n"
+              "              .cpp: cpp\n"
+              "              .cxx: cpp\n"
+              "              .hh: cpp\n"
+              "              .hpp: cpp\n"
+          )
+          text, count = re.subn(clangd_pattern, clangd_entry, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f'expected exactly one clangd server block, got {count}')
+
+          old_doc = '`clangd` 可通过 `DSH_CLANGD_BIN` 指定。'
+          new_doc = '`clangd` 为可选外部依赖；仅在设置 `DSH_CLANGD_BIN` 时启用 C/C++ 语言服务，缺少它不会阻断工作台启动。'
+          if old_doc not in text:
+              raise SystemExit('clangd documentation anchor not found')
+          text = text.replace(old_doc, new_doc, 1)
+
           path.write_text(text)
           PY
 

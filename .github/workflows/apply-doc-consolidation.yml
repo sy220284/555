@@ -127,6 +127,7 @@ jobs:
           保持改动聚焦。提交前确认没有旧旁挂架构、没有无关运行产物、没有绝对机器路径进入源码。工作台源码变更完成后，以构建、doctor、冷启动和相关功能实测作为完成标准。
           EOF
           sed -i 's/^          //' AGENTS.md
+          sed -i 's/[[:space:]]\+$//' README.md
 
           while IFS= read -r path; do
             [ -n "$path" ] || continue

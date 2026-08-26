@@ -57,8 +57,8 @@ jobs:
             echo "migration_exit_code=${rc}"
             echo '--- last 200 migration log lines ---'
             tail -n 200 /tmp/native-migration.log
-            echo '--- server log tail ---'
-            tail -n 120 /tmp/workbench-web.log 2>/dev/null || true
+            echo '--- workbench native server log ---'
+            tail -n 200 "${RUNNER_TEMP}/workbench-native.log" 2>/dev/null || true
           } > /tmp/native-migration-diagnostic.txt
           exit "$rc"
 

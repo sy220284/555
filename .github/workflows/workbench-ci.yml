@@ -29,6 +29,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run workbench:doctor
+      - name: Workbench preset E2E
+        run: pnpm exec vitest run --config vitest.e2e.config.ts apps/cli/tests/web-agent-presets.e2e.ts
       - name: Cold-start workbench
         shell: bash
         run: |

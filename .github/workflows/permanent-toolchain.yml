@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/permanent-toolchain.yml'
+      - 'scripts/deploy-workbench-offline.sh'
+      - 'scripts/workbench-doctor.mjs'
       - 'apps/cli/config/agent-presets/workbench/**'
       - 'apps/cli/config/workbench/**'
       - 'packages/bundle/web-app/cordis.patch.yml'
@@ -30,13 +32,34 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run workbench:doctor
-      - name: Package toolchain and ready source
+      - name: Package executable toolchain and ready source
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p out/toolchain stage
-          curl -fL --retry 5 "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o "out/toolchain/node-v${NODE_VERSION}-linux-x64.tar.xz"
-          (cd out/toolchain && npm pack "pnpm@${PNPM_VERSION}")
+          mkdir -p out/toolchain stage "$RUNNER_TEMP/toolchain-src"
+
+          curl -fL --retry 5 \
+            "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+            -o "$RUNNER_TEMP/toolchain-src/node.tar.xz"
+          tar -xJf "$RUNNER_TEMP/toolchain-src/node.tar.xz" -C out/toolchain
+
+          npm pack "pnpm@${PNPM_VERSION}" --pack-destination "$RUNNER_TEMP/toolchain-src" >/dev/null
+          PNPM_TGZ=$(find "$RUNNER_TEMP/toolchain-src" -maxdepth 1 -type f -name 'pnpm-*.tgz' -print -quit)
+          test -n "$PNPM_TGZ"
+          tar -xzf "$PNPM_TGZ" -C out/toolchain
+
+          mkdir -p out/toolchain/bin
+          ln -sfn "../node-v${NODE_VERSION}-linux-x64/bin/node" out/toolchain/bin/node
+          cat > out/toolchain/bin/pnpm <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          ROOT=$(cd -- "$(dirname -- "$0")/.." && pwd)
+          exec "$ROOT/bin/node" "$ROOT/package/bin/pnpm.mjs" "$@"
+          SH
+          chmod +x out/toolchain/bin/pnpm
+          out/toolchain/bin/node --version
+          out/toolchain/bin/pnpm --version
+
           rsync -a --exclude='.git' --exclude='out' --exclude='stage' ./ stage/workbench/
           cat > stage/workbench/OFFLINE_BUILD_INFO.txt <<INFO
           Workbench ${WORKBENCH_VERSION}
@@ -47,23 +70,46 @@ jobs:
           production build: completed
           default preset: workbench
           INFO
-          tar -I 'zstd -10 -T0' -cf "out/workbench-${WORKBENCH_VERSION}-ready-linux-x64.tar.zst" -C stage workbench
-          tar -I 'zstd -19 -T0' -cf "out/workbench-toolchain-linux-x64.tar.zst" -C out toolchain
-          (cd out && sha256sum *.tar.zst > SHA256SUMS.txt)
+
+          # gzip is intentionally used for the permanent installer assets: tar preserves
+          # pnpm workspace symlinks, while gzip avoids requiring zstd on a fresh host.
+          tar -czf "out/workbench-${WORKBENCH_VERSION}-ready-linux-x64.tar.gz" -C stage workbench
+          tar -czf "out/workbench-toolchain-linux-x64.tar.gz" -C out toolchain
+          (cd out && sha256sum *.tar.gz > SHA256SUMS.txt)
+
+      - name: Install packaged artifacts and smoke-test them
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="$RUNNER_TEMP/installed-workbench"
+          bash scripts/deploy-workbench-offline.sh \
+            --artifact-dir out \
+            --target "$TARGET" \
+            --port 3099
+          "$TARGET/status-workbench.sh"
+          curl -fsS http://127.0.0.1:3099/ >/dev/null
+          "$TARGET/stop-workbench.sh"
+
       - uses: actions/upload-artifact@v4
         with:
           name: workbench-offline-linux-x64
           path: |
-            out/workbench-1.0.0-ready-linux-x64.tar.zst
-            out/workbench-toolchain-linux-x64.tar.zst
+            out/workbench-1.0.0-ready-linux-x64.tar.gz
+            out/workbench-toolchain-linux-x64.tar.gz
             out/SHA256SUMS.txt
           compression-level: 0
           retention-days: 90
+
       - name: Publish permanent release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --title "工作台 ${WORKBENCH_VERSION} 永久离线产物" --notes "由 555 根目录的源码内生工作台直接构建。"
-          gh release upload "$RELEASE_TAG" out/*.tar.zst out/SHA256SUMS.txt --clobber
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" \
+              --title "工作台 ${WORKBENCH_VERSION} 永久离线产物" \
+              --notes "由 555 根目录源码构建，并经过离线安装与 HTTP 冷启动验收。"
+          gh release upload "$RELEASE_TAG" out/*.tar.gz out/SHA256SUMS.txt --clobber
+          gh release delete-asset "$RELEASE_TAG" "workbench-${WORKBENCH_VERSION}-ready-linux-x64.tar.zst" -y 2>/dev/null || true
+          gh release delete-asset "$RELEASE_TAG" "workbench-toolchain-linux-x64.tar.zst" -y 2>/dev/null || true

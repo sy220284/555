@@ -58,6 +58,26 @@ DSH_WORKBENCH_MCP_ROOT="$PWD" pnpm run workbench:web
 
 `DSH_WORKBENCH_MCP_ROOT` 用于限定本地文件服务允许访问的根目录。C/C++ 语言服务属于可选能力，可通过 `DSH_CLANGD_BIN` 指定 `clangd`；未配置时不会阻断工作台启动。
 
+### 永久离线一键部署
+
+永久 Release 自带匹配版本的 Node.js、pnpm、已安装依赖和生产构建结果。新部署推荐直接执行：
+
+```bash
+bash scripts/deploy-workbench-offline.sh
+```
+
+脚本会自动下载永久 Release、校验 SHA-256、保留 pnpm 工作区符号链接、验证运行时依赖、生成启动/停止/状态入口并完成 HTTP 冷启动验收；不会修改系统 Node.js/pnpm，也不会重新执行 `pnpm install`。
+
+已从 GitHub Actions 下载离线产物时也可直接部署：
+
+```bash
+bash scripts/deploy-workbench-offline.sh \
+  --artifact ./workbench-offline-linux-x64.zip \
+  --target ~/.local/share/555-workbench
+```
+
+升级到同一目标目录会保留 `data/`；启动失败会回滚上一版。新永久产物使用 `tar.gz`，无需宿主机安装 `zstd`；脚本仍兼容历史 `tar.zst` 产物。
+
 ## 验收
 
 工作台相关修改至少执行：
@@ -66,6 +86,7 @@ DSH_WORKBENCH_MCP_ROOT="$PWD" pnpm run workbench:web
 pnpm install --frozen-lockfile
 pnpm run build
 pnpm run workbench:doctor
+pnpm exec vitest run --config vitest.e2e.config.ts apps/cli/tests/web-agent-presets.e2e.ts
 ```
 
 随后使用空的工作台数据目录进行冷启动：
@@ -78,6 +99,8 @@ pnpm run workbench:web
 
 验收应确认：网页返回正常、默认预设为 `workbench`、5 个内置技能可发现、本地文件服务与语言服务已经挂载、SQLite 会话索引能够创建。
 
+`workbench:doctor` 同时验证运行时依赖是否能从命令行应用实际解析，避免出现“依赖声明存在、自检通过，但离线解包后的工作区链接已经损坏”的假阳性。
+
 ## 主要源码入口
 
 | 路径 | 作用 |
@@ -86,15 +109,11 @@ pnpm run workbench:web
 | `apps/cli/config/workbench/` | 本地文件服务与语言服务启动器 |
 | `packages/bundle/web-app/cordis.patch.yml` | 网页工作台正式组合 |
 | `packages/` | 234 个工作区包 |
-| `scripts/workbench-doctor.mjs` | 工作台静态自检 |
-| `.github/workflows/workbench-ci.yml` | 构建与冷启动验收 |
-| `.github/workflows/permanent-toolchain.yml` | 永久离线恢复产物 |
-| `TECHNICAL.md` | 完整中文技术文档 |
-
-## 文档规则
-
-- `README.md` 只承担项目首页、快速启动与稳定入口。
-- [`TECHNICAL.md`](TECHNICAL.md) 是唯一完整技术文档，也是系统级说明的单一维护点。
+| `scripts/workbench-doctor.mjs` | 工作台静态与运行时自检 |
+| `scripts/deploy-workbench-offline.sh` | 永久离线一键部署、升级与冷启动验收 |
+| `.github/workflows/workbench-ci.yml` | 构建、预设端到端与冷启动验收 |
+| `.github/workflows/permanent-toolchain.yml` | 永久离线产物构建与实装验收 |
+| `TECHNICAL.md` | 完整中文技术文档，也是系统级说明的单一维护点。
 - 运行代码、配置、类型与测试始终是最终事实源。
 - 运行时技能、测试快照、测试夹具和法律文件按程序用途独立保留。
 - 禁止恢复重复的包级说明、双语镜像或分散决策文档树。

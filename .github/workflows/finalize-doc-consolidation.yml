@@ -57,9 +57,10 @@ jobs:
           if (root/'docs').exists() or (root/'.agents/notes').exists():
               raise SystemExit('legacy documentation tree still exists')
           print('semantic Markdown validation: OK')
-          PY
+          __INNER_HEREDOC_END__
           '''
           replacement = '\n'.join(line[10:] if line.startswith('          ') else line for line in replacement.splitlines()) + '\n'
+          replacement = replacement.replace('__INNER_HEREDOC_END__', 'PY')
           script = script[:start] + replacement + script[end:]
 
           old_cleanup = 'rm -f .github/workflows/apply-doc-consolidation.yml'

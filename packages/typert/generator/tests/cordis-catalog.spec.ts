@@ -3,6 +3,8 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   projectCordisCatalog,
+  renderInheritedPage,
+  renderPageRegion,
   type CordisCatalogPolicy,
 } from '../src/cordis-catalog.ts'
 import {

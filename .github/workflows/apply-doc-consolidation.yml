@@ -150,12 +150,39 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           root=Path('.')
-          md=[p for p in root.rglob('*.md') if '.git' not in p.parts and 'vendor' not in p.parts and 'node_modules' not in p.parts]
-          if len(md) != 185:
-              raise SystemExit(f'expected 185 functional Markdown files, found {len(md)}')
+          md=sorted(p for p in root.rglob('*.md') if '.git' not in p.parts and 'vendor' not in p.parts and 'node_modules' not in p.parts)
+
+          def is_functional(p: Path) -> bool:
+              rel=p.as_posix()
+              if rel in {'README.md','AGENTS.md','CLAUDE.md','THIRD_PARTY_NOTICES.md'}:
+                  return True
+              if p.name in {'AGENTS.md','CLAUDE.md','SKILL.md'}:
+                  return True
+              if rel.startswith('.agents/skills/') or rel.startswith('.claude/skills/'):
+                  return True
+              if rel.startswith('.github/'):
+                  return True
+              wrapped='/' + rel
+              if '/tests/snapshots/' in wrapped or '/tests/fixtures/' in wrapped:
+                  return True
+              if rel == 'packages/skill/skill-badge/assets/dsh-badge.md':
+                  return True
+              if rel == 'scripts/fixtures/translation-prompt/snapshot-note.md':
+                  return True
+              return False
+
+          bad=[p.as_posix() for p in md if not is_functional(p)]
+          readmes=[p.as_posix() for p in md if p.name.lower().startswith('readme')]
+          zh=[p.as_posix() for p in md if p.name.endswith('.zh.md')]
+          if bad:
+              raise SystemExit('non-functional Markdown remains:\n'+'\n'.join(bad))
+          if readmes != ['README.md']:
+              raise SystemExit('unexpected README documents remain:\n'+'\n'.join(readmes))
+          if zh:
+              raise SystemExit('bilingual Markdown remains:\n'+'\n'.join(zh))
           if (root/'docs').exists() or (root/'.agents/notes').exists():
               raise SystemExit('legacy documentation tree still exists')
-          print(f'functional Markdown files: {len(md)}')
+          print(f'functional Markdown files retained: {len(md)}')
           PY
 
           git config user.name github-actions[bot]

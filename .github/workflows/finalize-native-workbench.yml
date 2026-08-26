@@ -49,4 +49,24 @@ jobs:
 
       - name: Run one-time native migration
         shell: bash
-        run: bash .github/migrate-native-workbench.sh
+        run: |
+          set +e
+          bash -x .github/migrate-native-workbench.sh 2>&1 | tee /tmp/native-migration.log
+          rc=${PIPESTATUS[0]}
+          {
+            echo "migration_exit_code=${rc}"
+            echo '--- last 200 migration log lines ---'
+            tail -n 200 /tmp/native-migration.log
+            echo '--- server log tail ---'
+            tail -n 120 /tmp/workbench-web.log 2>/dev/null || true
+          } > /tmp/native-migration-diagnostic.txt
+          exit "$rc"
+
+      - name: Upload failure diagnostic
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-migration-diagnostic
+          path: /tmp/native-migration-diagnostic.txt
+          if-no-files-found: error
+          retention-days: 3

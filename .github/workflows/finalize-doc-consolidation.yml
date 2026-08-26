@@ -1,0 +1,72 @@
+name: 文档收敛最终闭环
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/finalize-doc-consolidation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run verified migration with semantic validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('.github/workflows/apply-doc-consolidation.yml').read_text()
+          marker = '        run: |\n'
+          if source.count(marker) != 1:
+              raise SystemExit('unable to locate migration run block uniquely')
+
+          body = source.split(marker, 1)[1]
+          lines = []
+          for line in body.splitlines():
+              if line.startswith('          '):
+                  lines.append(line[10:])
+              elif not line:
+                  lines.append('')
+              else:
+                  raise SystemExit(f'unexpected indentation in migration body: {line!r}')
+          script = '\n'.join(lines) + '\n'
+
+          start_marker = "md=markdown_files()\nbad=[p for p in md if not is_functional(p)]\nif len(bad) != 4:"
+          start = script.find(start_marker)
+          end = script.find('\ngit config user.name', start)
+          if start < 0 or end < 0:
+              raise SystemExit('unable to locate temporary markdown validation block')
+
+          replacement = '''md=markdown_files()
+bad=[p.as_posix() for p in md if not is_functional(p)]
+functional_readmes=[p.as_posix() for p in md if p.name.lower().startswith('readme') and is_functional(p)]
+functional_zh=[p.as_posix() for p in md if p.name.endswith('.zh.md') and is_functional(p)]
+print(f'functional Markdown files retained: {len(md)}')
+print('functional README-like assets:', functional_readmes)
+print('functional .zh.md assets:', functional_zh)
+if bad:
+    raise SystemExit('non-functional Markdown remains:\\n'+'\\n'.join(bad))
+if (root/'docs').exists() or (root/'.agents/notes').exists():
+    raise SystemExit('legacy documentation tree still exists')
+print('semantic Markdown validation: OK')
+PY
+'''
+          script = script[:start] + replacement + script[end:]
+
+          old_cleanup = 'rm -f .github/workflows/apply-doc-consolidation.yml'
+          new_cleanup = 'rm -f .github/workflows/apply-doc-consolidation.yml .github/workflows/finalize-doc-consolidation.yml'
+          if script.count(old_cleanup) != 1:
+              raise SystemExit('unable to locate workflow self-cleanup uniquely')
+          script = script.replace(old_cleanup, new_cleanup, 1)
+
+          Path('/tmp/finalize-doc-consolidation.sh').write_text(script)
+          PY
+          bash /tmp/finalize-doc-consolidation.sh

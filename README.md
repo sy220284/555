@@ -547,6 +547,9 @@ SQLite 索引
 
 ---
 
+<a id="run"></a>
+<a id="run-from-source"></a>
+
 ## 12. 从源码运行
 
 ### 环境要求

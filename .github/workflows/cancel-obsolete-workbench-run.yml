@@ -1,0 +1,23 @@
+name: 取消旧版工作台产物运行
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cancel-obsolete-workbench-run.yml'
+permissions:
+  actions: write
+  contents: read
+jobs:
+  cancel:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Cancel obsolete run 32925063005
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/32925063005 --jq .status)
+          if [ "$status" = "in_progress" ] || [ "$status" = "queued" ]; then
+            gh api --method POST repos/${GITHUB_REPOSITORY}/actions/runs/32925063005/cancel
+          fi

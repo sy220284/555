@@ -1,0 +1,69 @@
+name: 文档审计导出
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/doc-audit-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export-docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect human-readable Markdown
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json, shutil
+
+          root = Path('.')
+          out = Path('.doc-audit-export')
+          out.mkdir()
+          inventory = []
+
+          excluded_prefixes = (
+              'vendor/',
+              '.agents/skills/',
+              'node_modules/',
+              '.doc-audit-export/',
+          )
+          excluded_files = {
+              'THIRD_PARTY_NOTICES.md',
+          }
+
+          for path in sorted(root.rglob('*.md')):
+              rel = path.as_posix()
+              if rel in excluded_files or any(rel.startswith(p) for p in excluded_prefixes):
+                  continue
+              if not path.is_file():
+                  continue
+              data = path.read_bytes()
+              dest = out / rel
+              dest.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(path, dest)
+              inventory.append({
+                  'path': rel,
+                  'bytes': len(data),
+                  'lines': data.count(b'\n') + (0 if data.endswith(b'\n') or not data else 1),
+                  'sha256': hashlib.sha256(data).hexdigest(),
+              })
+
+          (out / '_inventory.json').write_text(
+              json.dumps(inventory, ensure_ascii=False, indent=2),
+              encoding='utf-8',
+          )
+          print(f'Collected {len(inventory)} Markdown files')
+          PY
+      - name: Upload audit bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-audit-bundle
+          path: .doc-audit-export
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1

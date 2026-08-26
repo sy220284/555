@@ -47,6 +47,28 @@ jobs:
           node --version
           pnpm --version
 
+      - name: Patch package-bin launchers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/migrate-native-workbench.sh')
+          text = path.read_text()
+          replacements = {
+              "const entry = require.resolve('typescript-language-server')\nawait import(pathToFileURL(entry).href)":
+                  "const entry = new URL('../../node_modules/typescript-language-server/lib/cli.mjs', import.meta.url)\nawait import(entry.href)",
+              "const entry = require.resolve('@modelcontextprotocol/server-filesystem')\nawait import(pathToFileURL(entry).href)":
+                  "const entry = new URL('../../node_modules/@modelcontextprotocol/server-filesystem/dist/index.js', import.meta.url)\nawait import(entry.href)",
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one launcher anchor, got {count}: {old!r}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+
       - name: Run one-time native migration
         shell: bash
         run: |

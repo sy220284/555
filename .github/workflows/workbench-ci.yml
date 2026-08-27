@@ -16,9 +16,12 @@ on:
       - '.github/workflows/workbench-ci.yml'
 permissions:
   contents: read
+concurrency:
+  group: workbench-ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build-and-smoke:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4

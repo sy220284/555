@@ -1,0 +1,32 @@
+name: local-dotnet-toolchain
+
+on:
+  push:
+    branches:
+      - tooling/local-dotnet-sdk-20260912
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-dotnet-sdk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install portable .NET SDK 8.0.425
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Artifacts/dotnet-sdk
+          curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --version 8.0.425 --install-dir "$GITHUB_WORKSPACE/Artifacts/dotnet-sdk" --no-path
+          "$GITHUB_WORKSPACE/Artifacts/dotnet-sdk/dotnet" --info
+      - name: Upload portable SDK
+        uses: actions/upload-artifact@v7
+        with:
+          name: dotnet-sdk-8.0.425-linux-x64
+          path: Artifacts/dotnet-sdk/**
+          if-no-files-found: error
+          retention-days: 3

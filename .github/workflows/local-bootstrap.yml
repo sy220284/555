@@ -1,0 +1,42 @@
+name: local-bootstrap
+
+on:
+  push:
+    branches:
+      - tooling/local-dotnet8-artifact-20260912
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Package exact 8.0.30 targeting packs
+        run: |
+          VERSION=8.0.30
+          for path in \
+            "/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/$VERSION" \
+            "/usr/share/dotnet/packs/Microsoft.AspNetCore.App.Ref/$VERSION" \
+            "/usr/share/dotnet/packs/Microsoft.NETCore.App.Host.linux-x64/$VERSION"; do
+            test -d "$path"
+          done
+          mkdir -p /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Ref
+          mkdir -p /tmp/dotnet-packs8/packs/Microsoft.AspNetCore.App.Ref
+          mkdir -p /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Host.linux-x64
+          cp -a "/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/$VERSION" /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Ref/
+          cp -a "/usr/share/dotnet/packs/Microsoft.AspNetCore.App.Ref/$VERSION" /tmp/dotnet-packs8/packs/Microsoft.AspNetCore.App.Ref/
+          cp -a "/usr/share/dotnet/packs/Microsoft.NETCore.App.Host.linux-x64/$VERSION" /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Host.linux-x64/
+          tar -C /tmp -czf /tmp/dotnet8-packs-8.0.30.tar.gz dotnet-packs8
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dotnet8-packs-8.0.30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/dotnet8-packs-8.0.30.tar.gz
+          if-no-files-found: error
+          compression-level: 1
+          retention-days: 1

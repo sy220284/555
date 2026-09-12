@@ -82,8 +82,17 @@ internal static class Program
         Expect(session.Submit(invalidEnemyHold), PrototypeCommandAdmissionResult.InvalidTarget);
         var hold = new PrototypePlayerCommand(600, 21, 2, PrototypePlayerCommandKind.HoldUnit, 2000);
         Expect(session.Submit(hold), PrototypeCommandAdmissionResult.Accepted);
+        while (session.World.Tick < 600)
+            session.Step();
+        PrototypeCombatUnitState heldUnit = session.World.TeamB.Units.Single(unit => unit.Id == 2000);
+        if (!heldUnit.HoldingPosition)
+            throw new InvalidOperationException("unit hold command did not update authoritative state");
+
+        int waypointPayload = PrototypeUnitWaypointPayload.Encode(2000, 4);
+        var unitWaypoint = new PrototypePlayerCommand(601, 22, 2, PrototypePlayerCommandKind.SetUnitWaypoint, waypointPayload);
+        Expect(session.Submit(unitWaypoint), PrototypeCommandAdmissionResult.Accepted);
         AnnihilationPrototypeResult result = session.RunUntilResolved(60000);
-        if (session.ExecutedCommandCount != 4 || session.PendingCommandCount != 0)
+        if (session.ExecutedCommandCount != 5 || session.PendingCommandCount != 0)
             throw new InvalidOperationException("live session command accounting drifted");
 
         PrototypePlayerCommand[] executed = session.GetExecutedCommands();
@@ -99,7 +108,7 @@ internal static class Program
             throw new InvalidOperationException("live admitted command stream did not replay to the authoritative result");
 
         Expect(session.Submit(Plan(result.ResolvedTick + 1, 21, 1, PrototypeAnnihilationPlan.Aggressive)), PrototypeCommandAdmissionResult.MatchResolved);
-        Console.WriteLine($"live_match winner={result.WinnerTeamId} tick={result.ResolvedTick} hash={result.StateHash:X16} commands={executed.Length} unit_hold=true");
+        Console.WriteLine($"live_match winner={result.WinnerTeamId} tick={result.ResolvedTick} hash={result.StateHash:X16} commands={executed.Length} unit_hold=true unit_waypoint=true");
     }
 
     private static PrototypePlayerCommand Plan(int tick, int sequence, int playerId, PrototypeAnnihilationPlan plan)

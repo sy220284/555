@@ -10,7 +10,8 @@ namespace ModernRA.Rules
         TickNotInFuture = 2,
         TickTooFarFuture = 3,
         DuplicateSequence = 4,
-        SequenceTooOld = 5
+        SequenceTooOld = 5,
+        MatchResolved = 6
     }
 
     public sealed class PrototypeCommandInbox

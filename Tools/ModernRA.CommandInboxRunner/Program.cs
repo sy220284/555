@@ -47,6 +47,8 @@ internal static class Program
             if (canonicalHash != reorderedHash)
                 throw new InvalidOperationException("admitted command order depends on packet arrival order");
 
+            RunLiveCommandedMatch();
+
             Console.WriteLine("PLAYER COMMAND INBOX GATE PASSED");
             Console.WriteLine($"canonical_hash={canonicalHash:X16} pending={canonicalInbox.PendingCount} max_lead_ticks={canonicalInbox.MaxLeadTicks}");
             Console.WriteLine("replay_window_bits=64 duplicate_rejected=true too_old_rejected=true future_window_enforced=true");
@@ -58,6 +60,39 @@ internal static class Program
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    private static void RunLiveCommandedMatch()
+    {
+        AnnihilationPrototypeConfig config = GrayRangeGeneratedData.Create().CreateStandardAnnihilationConfig();
+        var session = new LiveCommandedAnnihilationSession(config, maxCommandLeadTicks: 700);
+
+        Expect(session.Submit(Plan(1, 10, 2, PrototypeAnnihilationPlan.Aggressive)), PrototypeCommandAdmissionResult.Accepted);
+        Expect(session.Submit(Plan(1, 10, 1, PrototypeAnnihilationPlan.Economy)), PrototypeCommandAdmissionResult.Accepted);
+        session.Step();
+        if (session.World.Tick != 1 || session.ExecutedCommandCount != 2)
+            throw new InvalidOperationException("live session did not execute admitted tick-one commands");
+
+        var rally = new PrototypePlayerCommand(600, 20, 2, PrototypePlayerCommandKind.SetTeamRallyWaypoint, 0);
+        Expect(session.Submit(rally), PrototypeCommandAdmissionResult.Accepted);
+        AnnihilationPrototypeResult result = session.RunUntilResolved(60000);
+        if (session.ExecutedCommandCount != 3 || session.PendingCommandCount != 0)
+            throw new InvalidOperationException("live session command accounting drifted");
+
+        PrototypePlayerCommand[] executed = session.GetExecutedCommands();
+        var replayTimeline = new DeterministicCommandTimeline(executed);
+        if (replayTimeline.ComputeCanonicalHash() != session.ComputeExecutedCommandHash())
+            throw new InvalidOperationException("live session exported a non-canonical command stream");
+
+        AnnihilationPrototypeWorld replayWorld = AnnihilationPrototype.Create(config);
+        for (int i = 0; i < 60000 && !replayWorld.Resolved; i++)
+            DeterministicCommandTimeline.StepWithCommands(replayWorld, replayTimeline);
+        ulong replayHash = AnnihilationPrototype.ComputeStateHash(replayWorld);
+        if (!replayWorld.Resolved || replayWorld.Tick != result.ResolvedTick || replayHash != result.StateHash)
+            throw new InvalidOperationException("live admitted command stream did not replay to the authoritative result");
+
+        Expect(session.Submit(Plan(result.ResolvedTick + 1, 21, 1, PrototypeAnnihilationPlan.Aggressive)), PrototypeCommandAdmissionResult.MatchResolved);
+        Console.WriteLine($"live_match winner={result.WinnerTeamId} tick={result.ResolvedTick} hash={result.StateHash:X16} commands={executed.Length}");
     }
 
     private static PrototypePlayerCommand Plan(int tick, int sequence, int playerId, PrototypeAnnihilationPlan plan)

@@ -1,0 +1,40 @@
+name: apply-local-supply-runtime
+
+on:
+  push:
+    branches:
+      - tooling/local-dotnet-sdk-20260912
+    paths:
+      - '.github/workflows/apply-local-supply-runtime.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-local-commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: implementation/supply-runtime-integration-20260912
+          fetch-depth: 0
+      - name: Reconstruct locally validated patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin tooling/local-dotnet-sdk-20260912
+          : > /tmp/supply-runtime.patch
+          for part in 00 01 02 03 04; do
+            git show origin/tooling/local-dotnet-sdk-20260912:Artifacts/local-patches/supply-runtime/part-${part} >> /tmp/supply-runtime.patch
+          done
+          grep -q '^From 74e4e48779c11c6414c44184e8b258a41e2bd7f2 ' /tmp/supply-runtime.patch
+          git apply --check /tmp/supply-runtime.patch
+      - name: Apply local commit and push feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'OpenAI Local Worker'
+          git config user.email 'local-worker@example.invalid'
+          git am /tmp/supply-runtime.patch
+          git push origin HEAD:implementation/supply-runtime-integration-20260912

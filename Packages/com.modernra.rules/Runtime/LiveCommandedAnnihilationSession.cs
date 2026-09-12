@@ -31,17 +31,31 @@ namespace ModernRA.Rules
         {
             if (command.Kind == PrototypePlayerCommandKind.SetTeamRallyWaypoint)
                 return command.IntValue >= 0 && command.IntValue < World.SharedCorridor.Length;
+            if (command.Kind == PrototypePlayerCommandKind.SetUnitWaypoint)
+            {
+                if (!PrototypeUnitWaypointPayload.TryDecode(command.IntValue, out int unitId, out int waypointIndex) ||
+                    waypointIndex >= World.SharedCorridor.Length)
+                {
+                    return false;
+                }
+                return IsOwnedAliveUnit(command.PlayerId, unitId);
+            }
             if (command.Kind != PrototypePlayerCommandKind.HoldUnit &&
                 command.Kind != PrototypePlayerCommandKind.ResumeUnit)
             {
                 return true;
             }
 
-            PrototypeAnnihilationTeamState team = command.PlayerId == 1 ? World.TeamA : World.TeamB;
+            return IsOwnedAliveUnit(command.PlayerId, command.IntValue);
+        }
+
+        private bool IsOwnedAliveUnit(int playerId, int unitId)
+        {
+            PrototypeAnnihilationTeamState team = playerId == 1 ? World.TeamA : World.TeamB;
             for (int i = 0; i < team.Units.Count; i++)
             {
                 PrototypeCombatUnitState unit = team.Units[i];
-                if (unit.Id == command.IntValue)
+                if (unit.Id == unitId)
                     return unit.Alive;
             }
             return false;

@@ -8,7 +8,31 @@ namespace ModernRA.Rules
         SetPlan = 1,
         SetTeamRallyWaypoint = 2,
         HoldUnit = 3,
-        ResumeUnit = 4
+        ResumeUnit = 4,
+        SetUnitWaypoint = 5
+    }
+
+    public static class PrototypeUnitWaypointPayload
+    {
+        private const int WaypointBits = 7;
+        private const int WaypointMask = (1 << WaypointBits) - 1;
+        private const int MaxUnitId = int.MaxValue >> WaypointBits;
+
+        public static int Encode(int unitId, int waypointIndex)
+        {
+            if (unitId <= 0 || unitId > MaxUnitId)
+                throw new ArgumentOutOfRangeException(nameof(unitId));
+            if (waypointIndex < 0 || waypointIndex > 64)
+                throw new ArgumentOutOfRangeException(nameof(waypointIndex));
+            return (unitId << WaypointBits) | waypointIndex;
+        }
+
+        public static bool TryDecode(int payload, out int unitId, out int waypointIndex)
+        {
+            unitId = payload >> WaypointBits;
+            waypointIndex = payload & WaypointMask;
+            return payload > 0 && unitId > 0 && waypointIndex <= 64;
+        }
     }
 
     public readonly struct PrototypePlayerCommand
@@ -156,6 +180,10 @@ namespace ModernRA.Rules
                     if (command.IntValue <= 0)
                         throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "unit id must be positive");
                     break;
+                case PrototypePlayerCommandKind.SetUnitWaypoint:
+                    if (!PrototypeUnitWaypointPayload.TryDecode(command.IntValue, out _, out _))
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid unit waypoint payload");
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "unsupported prototype command kind");
             }
@@ -185,9 +213,33 @@ namespace ModernRA.Rules
                 case PrototypePlayerCommandKind.ResumeUnit:
                     SetUnitHoldingState(team, command.IntValue, false);
                     break;
+                case PrototypePlayerCommandKind.SetUnitWaypoint:
+                    if (!PrototypeUnitWaypointPayload.TryDecode(command.IntValue, out int unitId, out int waypointIndex) ||
+                        waypointIndex >= world.SharedCorridor.Length)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "unit waypoint is outside the shared corridor");
+                    }
+                    SetUnitWaypoint(team, unitId, waypointIndex);
+                    break;
                 default:
                     throw new InvalidOperationException($"unsupported prototype command kind {command.Kind}");
             }
+        }
+
+        private static void SetUnitWaypoint(PrototypeAnnihilationTeamState team, int unitId, int waypointIndex)
+        {
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (unit.Id != unitId)
+                    continue;
+                if (!unit.Alive)
+                    throw new InvalidOperationException($"unit {unitId} is destroyed");
+                unit.CorridorCursor = waypointIndex;
+                unit.HoldingPosition = false;
+                return;
+            }
+            throw new InvalidOperationException($"unit {unitId} is not owned by player {team.TeamId}");
         }
 
         private static void SetUnitHoldingState(PrototypeAnnihilationTeamState team, int unitId, bool holding)

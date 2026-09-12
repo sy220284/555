@@ -2,5 +2,6 @@
   "name": "ModernRA.Presentation",
   "rootNamespace": "ModernRA.Presentation",
   "references": ["ModernRA.Rules", "ModernRA.Simulation", "Unity.Entities", "Unity.Mathematics", "Unity.Collections"],
+  "defineConstraints": ["!UNITY_SERVER"],
   "autoReferenced": true
 }

@@ -25,7 +25,7 @@ jobs:
           set -euo pipefail
           OUT="$RUNNER_TEMP/dotnet-8-linux-x64"
           META="Artifacts/local-toolchain"
-          SDK_VERSION="$(dotnet --version)"
+          SDK_VERSION="$(find "$DOTNET_ROOT/sdk" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep '^8\.' | sort -V | tail -1)"
           RUNTIME_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^8\./ {print $2}' | sort -V | tail -1)"
           ASPNET_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.AspNetCore.App" && $2 ~ /^8\./ {print $2}' | sort -V | tail -1)"
           FXR_VERSION="$(find "$DOTNET_ROOT/host/fxr" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep '^8\.' | sort -V | tail -1)"
@@ -58,7 +58,7 @@ jobs:
             cp -a "$manifests" "$OUT/sdk-manifests/"
           done
           printf '%s\n' "$SDK_VERSION" | tee "$META/dotnet-version.txt"
-          dotnet --info | tee "$META/dotnet-info.txt"
+          "$OUT/dotnet" --info | tee "$META/dotnet-info.txt"
           printf 'sdk=%s\nruntime=%s\nfxr=%s\n' "$SDK_VERSION" "$RUNTIME_VERSION" "$FXR_VERSION" > "$META/toolchain-components.txt"
           "$OUT/dotnet" --version
       - name: Upload local toolchain artifact

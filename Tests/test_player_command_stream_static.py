@@ -39,7 +39,7 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
 
     def test_gate_scenario_permanently_swaps_baseline_plans(self):
         text = RUNNER.read_text(encoding="utf-8")
-        create = text[text.index("private static PrototypePlayerCommand[] CreateCommands()"):text.index("private static void AssertInvalidCommandsAreRejected")]
+        create = text[text.index("private static PrototypePlayerCommand[] CreateCommands()"):text.index("private static void ReplayRoundTrip")]
         self.assertEqual(2, create.count("new PrototypePlayerCommand("))
         self.assertIn("1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy", create)
         self.assertIn("1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive", create)
@@ -52,7 +52,10 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("GrayRangeGeneratedData.SourceMapSha256", replay)
         self.assertIn("RULESET_ANNIHILATION_STANDARD", replay)
         self.assertIn("command replay canonical hash mismatch", replay)
+        self.assertIn("command replay scenario id mismatch", replay)
+        self.assertIn("ValidateOutcome", replay)
         self.assertIn("ReplayRoundTrip(config, canonical, commanded)", runner)
+        self.assertIn("PlayerCommandReplayFile.ValidateOutcome", runner)
         self.assertIn("persisted command replay changed authoritative result", runner)
         self.assertIn("command replay serialization is not byte-stable", runner)
 

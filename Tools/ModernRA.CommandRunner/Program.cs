@@ -1,0 +1,109 @@
+using ModernRA.Rules;
+
+internal static class Program
+{
+    private const int WatchdogTicks = 60000;
+    private const int Repetitions = 8;
+
+    private static int Main()
+    {
+        try
+        {
+            RuntimeMapBootstrapData map = GrayRangeGeneratedData.Create();
+            AnnihilationPrototypeConfig config = map.CreateStandardAnnihilationConfig();
+            PrototypePlayerCommand[] commands = CreateCommands();
+
+            PrototypePlayerCommand[] reversed = (PrototypePlayerCommand[])commands.Clone();
+            Array.Reverse(reversed);
+            var canonical = new DeterministicCommandTimeline(commands);
+            var reversedTimeline = new DeterministicCommandTimeline(reversed);
+            if (canonical.ComputeCanonicalHash() != reversedTimeline.ComputeCanonicalHash())
+                throw new InvalidOperationException("command timeline hash depends on insertion order");
+
+            CommandRunResult? expected = null;
+            for (int repetition = 0; repetition < Repetitions; repetition++)
+            {
+                PrototypePlayerCommand[] input = repetition % 2 == 0 ? commands : reversed;
+                CommandRunResult result = Run(config, input);
+                if (expected.HasValue && !expected.Value.Equals(result))
+                    throw new InvalidOperationException($"commanded run drifted on repetition {repetition}");
+                expected = result;
+            }
+
+            AnnihilationPrototypeWorld baselineWorld = AnnihilationPrototype.Create(config);
+            AnnihilationPrototypeResult baseline = AnnihilationPrototype.Run(baselineWorld, WatchdogTicks);
+            CommandRunResult commanded = expected ?? throw new InvalidOperationException("no commanded result produced");
+            if (commanded.StateHash == baseline.StateHash && commanded.ResolvedTick == baseline.ResolvedTick)
+                throw new InvalidOperationException("command stream did not affect authoritative match result");
+
+            AssertInvalidCommandsAreRejected();
+
+            Console.WriteLine("PLAYER COMMAND GATE PASSED");
+            Console.WriteLine($"commands={commands.Length} command_hash={canonical.ComputeCanonicalHash():X16}");
+            Console.WriteLine($"commanded winner={commanded.WinnerTeamId} tick={commanded.ResolvedTick} hash={commanded.StateHash:X16}");
+            Console.WriteLine($"baseline winner={baseline.WinnerTeamId} tick={baseline.ResolvedTick} hash={baseline.StateHash:X16}");
+            Console.WriteLine($"repetitions={Repetitions} insertion_order_independent=true");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("PLAYER COMMAND GATE FAILED");
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
+    }
+
+    private static CommandRunResult Run(AnnihilationPrototypeConfig config, PrototypePlayerCommand[] commands)
+    {
+        AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
+        var timeline = new DeterministicCommandTimeline(commands);
+        for (int i = 0; i < WatchdogTicks && !world.Resolved; i++)
+            DeterministicCommandTimeline.StepWithCommands(world, timeline);
+        if (!world.Resolved)
+            throw new InvalidOperationException("commanded annihilation scenario did not resolve before watchdog");
+        return new CommandRunResult(world.WinnerTeamId, world.Tick, AnnihilationPrototype.ComputeStateHash(world));
+    }
+
+    private static PrototypePlayerCommand[] CreateCommands()
+    {
+        return new[]
+        {
+            new PrototypePlayerCommand(600, 20, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy),
+            new PrototypePlayerCommand(1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy),
+            new PrototypePlayerCommand(360, 20, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive),
+            new PrototypePlayerCommand(1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive)
+        };
+    }
+
+    private static void AssertInvalidCommandsAreRejected()
+    {
+        ExpectArgumentFailure(new[]
+        {
+            new PrototypePlayerCommand(10, 1, 1, PrototypePlayerCommandKind.SetPlan, 0),
+            new PrototypePlayerCommand(10, 1, 1, PrototypePlayerCommandKind.SetPlan, 1)
+        });
+        ExpectArgumentFailure(new[]
+        {
+            new PrototypePlayerCommand(0, 1, 1, PrototypePlayerCommandKind.SetPlan, 0)
+        });
+        ExpectArgumentFailure(new[]
+        {
+            new PrototypePlayerCommand(10, 1, 3, PrototypePlayerCommandKind.SetPlan, 0)
+        });
+    }
+
+    private static void ExpectArgumentFailure(PrototypePlayerCommand[] commands)
+    {
+        try
+        {
+            _ = new DeterministicCommandTimeline(commands);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+        throw new InvalidOperationException("invalid command set was accepted");
+    }
+
+    private readonly record struct CommandRunResult(int WinnerTeamId, int ResolvedTick, ulong StateHash);
+}

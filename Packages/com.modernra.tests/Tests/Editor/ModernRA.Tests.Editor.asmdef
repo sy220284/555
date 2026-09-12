@@ -1,7 +1,7 @@
 {
   "name": "ModernRA.Tests.Editor",
   "rootNamespace": "ModernRA.Tests",
-  "references": ["ModernRA.Core", "ModernRA.Rules", "ModernRA.Simulation", "ModernRA.AI", "ModernRA.Robotics", "Unity.Entities"],
+  "references": ["ModernRA.Core", "ModernRA.Rules", "ModernRA.Simulation", "ModernRA.AI", "ModernRA.IntelEW", "ModernRA.Robotics", "ModernRA.Network", "Unity.Entities"],
   "optionalUnityReferences": ["TestAssemblies"],
   "includePlatforms": ["Editor"],
   "autoReferenced": false

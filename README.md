@@ -55,21 +55,30 @@
 - `com.modernra.rules`：纯C#确定性权威规则内核；
 - `com.modernra.simulation`：30Hz实体模拟边界并引用统一规则内核；
 - `com.modernra.combat`：装甲/武器/伤害事件契约；
-- `com.modernra.navigation`：导航层、共享路径走廊和局部避障契约；
+- `com.modernra.navigation`：导航层、共享路径走廊、空间索引和局部避障契约；
 - `com.modernra.ai`：AI权限组件与统一授权规则适配；
 - `com.modernra.intel-ew`：六级情报、四级电子战与统一情报过滤规则适配；
 - `com.modernra.robotics`：A1—A4自主状态与统一降级规则适配；
 - `com.modernra.network`：命令/快照边界、五级复制可见性；
 - `com.modernra.tests`：编辑器契约测试、确定性规则测试、规则适配测试；
 - `Tools/ModernRA.SimRunner`：不依赖渲染/UI/音频的无画面权威规则运行器；
+- `Tools/ModernRA.AnnihilationRunner`：地图驱动的完整歼灭规则闭环运行器；
+- `Tools/runtime_map_codegen.py`：权威地图侧车生成编译期运行数据；
+- `Tools/graybox_generator.py`：确定性灰盒/区域图/公平性派生；
+- `GrayRangeBootstrapSystem`：Unity ECS地图锚点实体化；
+- `AnnihilationRuleBridgeSystem`：统一歼灭规则到Unity ECS的固定步镜像桥；
+- 可持久化确定性录像/检查点重放基础链；
 - `/Data/Rulesets`、`/Data/Minerals`、`/Data/Technology`：首批权威数据；
 - `/Data/Maps/MAP_GRAY_RANGE.map.json`：首张地图机器侧车；
 - `/Data/Schemas`：首批JSON Schema；
 - `Tools/content_validator.py`：独立内容验证器；
-- `.github/workflows/content-validation.yml`：数据自动门禁；
-- `.github/workflows/simulation-gates.yml`：确定性模拟/规则自动门禁。
+- `Tools/project_structure_validator.py`：Unity版本、包/程序集、架构边界与30Hz前置门禁；
+- `Tools/run_unity_g1.py`：真实Unity批处理编译/EditMode执行器；
+- `.github/workflows/content-validation.yml`：数据/结构/灰盒自动门禁；
+- `.github/workflows/simulation-gates.yml`：确定性模拟/玩法自动门禁；
+- `.github/workflows/unity-g1.yml`：真实Unity G1自托管执行入口。
 
-这些说明项目已经从纯 `code_contract_ready` 继续推进到部分规则可执行、可回归，但整体生命周期仍是 **`implementation_bootstrap`**，不代表游戏已经可玩。
+整体生命周期仍是 **`implementation_bootstrap`**，不代表游戏已经可玩。
 
 ## 已实际验证
 
@@ -82,29 +91,35 @@
 - 双方工业资源结果完全对称：`14999.600 / 14999.600`；
 - 主采集累计 `20000.000`，第二采集组累计 `9999.200`，80%递减及采矿单位损失均生效；
 - 第一种直射战斗发生6424次射击、636个击毁；
+- 1000实体空间查询候选扫描较朴素全量扫描减少约94.6%；
+- 1000单位自由目标获取/同步伤害战斗300 tick重复结果一致，基线哈希 `477FF238CD8346B6`；
+- 3000实体分频错峰参考工作量较全频执行下降约57%；
 - Unknown/Anomaly敌军不进入客户端状态；Detected/Classified/Confirmed/Tracked按不同精度下发；
 - AI所属玩家、授权区、权限等级、禁令和玩家覆盖代次均进入判权；
 - A1—A4机器人在断联、算力不足、重干扰/黑区下按等级降级；
-- 本机权威服务器/客户端规则回环通过内容哈希校验、命令序列防重放、客户端意图校验、情报过滤、增量快照和客户端插值。
+- 本机权威服务器/客户端规则回环通过内容哈希校验、命令序列防重放、客户端意图校验、情报过滤、增量快照和客户端插值；
+- `MAP_GRAY_RANGE` 标准歼灭规则闭环自然结束于 tick `1893`，最终哈希 `1979A9B7B4183764`；
+- 歼灭录像16个检查点可持久化、读回并确定性重放；
+- G1静态前置已验证冻结的 Unity `6000.3.24f1`、10个嵌入包、10个程序集和Simulation表现层依赖红线。
 
 ## 当前准确状态
 
 当前生命周期：**`implementation_bootstrap`**。
 
-已经通过的是权威规则层和无画面规则门禁的一部分。仍未通过的关键门禁：
+已经通过的是权威规则、数据、无画面玩法、确定性、部分性能算法和Unity接桥代码。当前最高优先级阻断是：
 
-- Unity `6000.3.24f1` 在真实编辑器环境中完整解析包、编译全部程序集并运行EditMode测试；
-- `MAP_GRAY_RANGE` 实际Unity灰盒场景生成、导航烘焙、双方实体出生和可视化资源采集；
-- 正式ECS批处理移动、导航、伤害、情报、AI、机器人/EW和Unity Transport复制系统；
-- 目标硬件上的800—1500实体P50/P95/P99性能预算；
-- 第一局建设/采集/生产/移动/战斗/胜败全部闭环的歼灭灰盒；
-- 正式美术、音效、配音、战役、线上服务和发布级内容。
+- Unity `6000.3.24f1` 尚未在合法激活的真实编辑器/自托管执行器中完整解析包、编译全部程序集并运行EditMode测试（G1）；
+- `MAP_GRAY_RANGE` 尚未在真实Unity进程内完成灰盒可视化、运行实体核对和导航烘焙；
+- 正式ECS批处理经济、移动、导航、伤害、情报、AI、机器人/EW和Unity Transport复制系统尚未替换当前规则镜像/合同路径；
+- 目标硬件上的800—1500实体P50/P95/P99性能预算尚未实测；
+- 规则层歼灭已闭环，但Unity内玩家相机、框选、命令输入、可操作完整对局与玩家命令流录像尚未完成；
+- 正式美术、音效、配音、战役、线上服务和发布级内容尚未生产。
 
 因此不得把当前主线称为 `playable`、`content_complete` 或 `ship_ready`。
 
 ## 风险驱动实现顺序
 
-真实Unity编译/测试 → Unity灰原试验场生成 → ECS批处理接入统一规则内核 → 目标硬件性能 → 完整歼灭灰盒 → 征服矿产科技 → 动态前线 → 快速战争满战备 → 战区大规模 → 正式表现/音频/内容生产。
+真实Unity编译/EditMode → Unity灰原试验场运行核对 → 最低灰盒表现/相机/选择/命令 → 正式ECS批处理接入统一规则内核 → 目标硬件性能 → Unity完整歼灭灰盒 → 征服矿产科技 → 动态前线 → 快速战争满战备 → 战区大规模 → 正式表现/音频/内容生产。
 
 每一步必须有自动测试、状态哈希和性能数据后再继续扩张。
 
@@ -119,6 +134,7 @@
 - [系统复杂度预算](docs/specs/SYSTEM_COMPLEXITY_BUDGET.md)
 - [完整性矩阵](docs/specs/SPEC_COMPLETENESS_MATRIX.md)
 - [测试矩阵](docs/specs/TEST_MATRIX.md)
+- [实现门禁](docs/specs/IMPLEMENTATION_TEST_GATES.md)
 - [AI代理执行规则](AGENT.md)
 
 ## 最终开发原则

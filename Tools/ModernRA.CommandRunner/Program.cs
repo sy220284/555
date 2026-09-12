@@ -37,6 +37,7 @@ internal static class Program
                 throw new InvalidOperationException("command stream did not affect authoritative match result");
 
             AssertInvalidCommandsAreRejected();
+            ReplayRoundTrip(config, canonical, commanded);
 
             Console.WriteLine("PLAYER COMMAND GATE PASSED");
             Console.WriteLine($"commands={commands.Length} command_hash={canonical.ComputeCanonicalHash():X16}");
@@ -74,6 +75,40 @@ internal static class Program
             new PrototypePlayerCommand(1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive),
             new PrototypePlayerCommand(1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy)
         };
+    }
+
+    private static void ReplayRoundTrip(AnnihilationPrototypeConfig config, DeterministicCommandTimeline canonical, CommandRunResult expected)
+    {
+        PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
+            GrayRangeGeneratedData.MapId,
+            canonical.ToCanonicalArray(),
+            canonical.ComputeCanonicalHash(),
+            expected.WinnerTeamId,
+            expected.ResolvedTick,
+            expected.StateHash);
+
+        string path = Path.Combine(Path.GetTempPath(), $"modernra-command-{Guid.NewGuid():N}.json");
+        try
+        {
+            PlayerCommandReplayFile.Write(path, document);
+            byte[] firstBytes = File.ReadAllBytes(path);
+            PlayerCommandReplayDocument loaded = PlayerCommandReplayFile.Read(path);
+            PrototypePlayerCommand[] loadedCommands = PlayerCommandReplayFile.ToCommands(loaded);
+            CommandRunResult replayed = Run(config, loadedCommands);
+            if (!replayed.Equals(expected))
+                throw new InvalidOperationException("persisted command replay changed authoritative result");
+
+            byte[] secondBytes = PlayerCommandReplayFile.Serialize(loaded);
+            if (!firstBytes.AsSpan().SequenceEqual(secondBytes))
+                throw new InvalidOperationException("command replay serialization is not byte-stable");
+
+            Console.WriteLine($"command_replay_bytes={firstBytes.Length} command_replay_sha256={PlayerCommandReplayFile.Sha256Hex(firstBytes)}");
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
     }
 
     private static void AssertInvalidCommandsAreRejected()

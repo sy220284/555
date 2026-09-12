@@ -1,0 +1,23 @@
+name: unity-g1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unity-editor-validation:
+    runs-on: [self-hosted, unity-6000.3.24f1]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Run structural preflight
+        run: python Tools/project_structure_validator.py
+      - name: Compile project and run EditMode tests in Unity 6000.3.24f1
+        env:
+          UNITY_EDITOR_PATH: ${{ vars.UNITY_EDITOR_PATH }}
+        run: python Tools/run_unity_g1.py

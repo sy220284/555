@@ -47,6 +47,7 @@ internal static class Program
             if (canonicalHash != reorderedHash)
                 throw new InvalidOperationException("admitted command order depends on packet arrival order");
 
+            RunBattleGroupAIExecution();
             RunLiveCommandedMatch();
 
             Console.WriteLine("PLAYER COMMAND INBOX GATE PASSED");
@@ -60,6 +61,52 @@ internal static class Program
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    private static void RunBattleGroupAIExecution()
+    {
+        AnnihilationPrototypeConfig config = GrayRangeGeneratedData.Create().CreateStandardAnnihilationConfig();
+        AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
+        while (world.TeamA.Units.Count < 2)
+            AnnihilationPrototype.Step(world);
+
+        PrototypeControlGroupRules.AssignUnitFromAI(world.TeamA, world.TeamA.Units[0].Id, 2);
+        PrototypeControlGroupRules.AssignUnitFromAI(world.TeamA, world.TeamA.Units[1].Id, 2);
+        int attackWaypoint = world.SharedCorridor.Length - 1;
+        var visibleTargets = new[]
+        {
+            new PrototypeBattleGroupTarget(1, attackWaypoint, 1000, 1000, 1000, 1000, 1, RuleIntelLevel.Unknown),
+            new PrototypeBattleGroupTarget(20, attackWaypoint, 700, 900, 500, 700, 1200, RuleIntelLevel.Confirmed),
+            new PrototypeBattleGroupTarget(10, attackWaypoint, 700, 900, 500, 700, 1200, RuleIntelLevel.Confirmed)
+        };
+
+        if (!PrototypeBattleGroupAI.TryPlan(world, 1, 5, 2, PrototypeBattleGroupStance.Balanced, visibleTargets, out PrototypeBattleGroupDecision decision))
+            throw new InvalidOperationException("battle-group AI did not produce an executable decision");
+        if (decision.TargetId != 10 || decision.Phase != PrototypeBattleGroupPhase.Move)
+            throw new InvalidOperationException("battle-group AI target selection was not deterministic or used hidden intelligence");
+
+        var authority = new RuleAIAuthority(
+            RuleAIAuthorityLevel.BattleGroup,
+            ownerPlayerId: 1,
+            regionId: 5,
+            forbidden: RuleAIForbiddenAction.None,
+            playerOverrideGeneration: world.TeamA.PlayerOverrideGeneration);
+        if (!PrototypeBattleGroupAI.TryExecute(world, authority, decision))
+            throw new InvalidOperationException("authorized battle-group AI decision was not applied");
+        if (world.TeamA.Units.Count(unit => unit.Alive && unit.ControlGroupId == 2 && unit.CorridorCursor == attackWaypoint) != 2)
+            throw new InvalidOperationException("battle-group AI did not take control of all assigned units");
+
+        PrototypeControlGroupRules.SetGroupHolding(world.TeamA, 2, true);
+        var refreshedAuthority = new RuleAIAuthority(
+            RuleAIAuthorityLevel.BattleGroup,
+            ownerPlayerId: 1,
+            regionId: 5,
+            forbidden: RuleAIForbiddenAction.None,
+            playerOverrideGeneration: world.TeamA.PlayerOverrideGeneration);
+        if (PrototypeBattleGroupAI.TryExecute(world, refreshedAuthority, decision))
+            throw new InvalidOperationException("stale battle-group AI decision survived player takeover");
+
+        Console.WriteLine($"battle_group_ai target={decision.TargetId} phase={decision.Phase} score={decision.UtilityScore} units=2 player_takeover=true");
     }
 
     private static void RunLiveCommandedMatch()

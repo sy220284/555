@@ -1,0 +1,93 @@
+.Center.X, b.Center.Y, PrototypeSupplyRuntime.StandardBaseSupplyCapacity, b.SafeRadiusMeters)
++                }
+             };
+         }
+     }
+diff --git a/Packages/com.modernra.simulation/Runtime/AnnihilationRuleBridgeSystem.cs b/Packages/com.modernra.simulation/Runtime/AnnihilationRuleBridgeSystem.cs
+index 257e8d9..a11bf61 100644
+--- a/Packages/com.modernra.simulation/Runtime/AnnihilationRuleBridgeSystem.cs
++++ b/Packages/com.modernra.simulation/Runtime/AnnihilationRuleBridgeSystem.cs
+@@ -135,6 +135,7 @@ namespace ModernRA.Simulation
+                 Entity entity = EnsureEntity(_unitEntities, unit.Id, team.TeamId, 2, 0);
+                 EntityManager.SetComponentData(entity, new SimPosition { Value = new float3(unit.X, 0f, unit.Y) });
+                 EntityManager.SetComponentData(entity, new HealthState { Current = unit.Health, Maximum = 1000 });
++                EntityManager.SetComponentData(entity, new SupplyState { Level = (byte)unit.SupplyLevel });
+             }
+         }
+ 
+@@ -144,6 +145,8 @@ namespace ModernRA.Simulation
+                 return existing;
+ 
+             Entity entity = EntityManager.CreateEntity(typeof(AnnihilationRuleEntity), typeof(CommandOwner), typeof(SimPosition), typeof(HealthState));
++            if (entityKind == 2)
++                EntityManager.AddComponent<SupplyState>(entity);
+             EntityManager.SetComponentData(entity, new AnnihilationRuleEntity
+             {
+                 StableId = key,
+diff --git a/Tests/test_unity_rule_bridge_static.py b/Tests/test_unity_rule_bridge_static.py
+index 1da7412..4985ab4 100644
+--- a/Tests/test_unity_rule_bridge_static.py
++++ b/Tests/test_unity_rule_bridge_static.py
+@@ -41,6 +41,11 @@ class UnityRuleBridgeStaticTests(unittest.TestCase):
+         ):
+             self.assertIn(name, text)
+ 
++    def test_bridge_mirrors_authoritative_supply_state(self):
++        text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
++        self.assertIn("AddComponent<SupplyState>", text)
++        self.assertIn("new SupplyState { Level = (byte)unit.SupplyLevel }", text)
++
+     def test_runtime_state_blocks_rule_bridge_until_map_exists(self):
+         text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
+         self.assertIn("RequireForUpdate<GrayRangeRuntimeState>()", text)
+diff --git a/Tools/ModernRA.SimRunner/SupplyGateChecks.cs b/Tools/ModernRA.SimRunner/SupplyGateChecks.cs
+index 8f38190..9ac03ca 100644
+--- a/Tools/ModernRA.SimRunner/SupplyGateChecks.cs
++++ b/Tools/ModernRA.SimRunner/SupplyGateChecks.cs
+@@ -57,7 +57,143 @@ internal static class SupplyGateChecks
+         Check(RuleSupplyEffects.AdvancedAmmoReplenishmentPermille(RuleSupplyLevel.CutOff) == 0,
+             "cut-off units must not replenish advanced ammunition");
+ 
+-        Console.WriteLine("supply_gate=passed interval_ticks=150 capacities=120+40 levels=sufficient+insufficient+cutoff");
++        VerifyPrototypeSupplyNodeOrderIsCanonical();
++        VerifyPrototypeSupplyCadenceAndRecovery();
++        VerifyBattleGroupRoutesToSupplyNode();
++
++        Console.WriteLine("supply_gate=passed interval_ticks=150 capacities=120+40 levels=sufficient+insufficient+cutoff runtime=true battle_group_resupply=true");
++    }
++
++    private static void VerifyPrototypeSupplyNodeOrderIsCanonical()
++    {
++        AnnihilationPrototypeConfig Build(bool reverse)
++        {
++            var first = new RuleSupplyNode(1, 1, 0, 0, 120, 700);
++            var second = new RuleSupplyNode(2, 2, 3000, 0, 120, 700);
++            return new AnnihilationPrototypeConfig
++            {
++                SpawnA = new Int2(0, 0),
++                SpawnB = new Int2(3000, 0),
++                SharedCorridor = new[] { new Int2(0, 0), new Int2(1500, 0), new Int2(3000, 0) },
++                StartingIndustrialMilli = 0,
++                MaxLiveTanksPerTeam = 1,
++                SupplyNodes = reverse ? new[] { second, first } : new[] { first, second }
++            };
++        }
++
++        AnnihilationPrototypeWorld canonical = AnnihilationPrototype.Create(Build(false));
++        AnnihilationPrototypeWorld reversed = AnnihilationPrototype.Create(Build(true));
++        Check(canonical.SupplyNodes[0].NodeId == 1 && reversed.SupplyNodes[0].NodeId == 1,
++            "prototype did not canonicalize supply node order by stable node id");
++        Check(AnnihilationPrototype.ComputeStateHash(canonical) == AnnihilationPrototype.ComputeStateHash(reversed),
++            "equivalent supply-node input order changed authoritative state hash");
++    }
++
++    private static void VerifyPrototypeSupplyCadenceAndRecovery()
++    {
++        var config = new AnnihilationPrototypeConfig
++        {
++            SpawnA = new Int2(0, 0),
++            SpawnB = new Int2(3000, 0),
++            SharedCorridor = new[] { new Int2(0, 0), new Int2(1000, 0), new Int2(2000, 0), new Int2(3000, 0) },
++            StartingIndustrialMilli = 0,
++            MaxLiveTanksPerTeam = 1,
++            SupplyNodes

@@ -68,6 +68,14 @@ namespace ModernRA.Rules
             MarkPlayerOverride(team);
         }
 
+        public static void AssignUnitFromAI(PrototypeAnnihilationTeamState team, int unitId, int groupId)
+        {
+            if (!PrototypeControlGroupPayload.IsValidGroupId(groupId))
+                throw new ArgumentOutOfRangeException(nameof(groupId));
+            PrototypeCombatUnitState unit = RequireAliveOwnedUnit(team, unitId);
+            unit.ControlGroupId = groupId;
+        }
+
         public static void SetGroupWaypoint(PrototypeAnnihilationTeamState team, int groupId, int waypointIndex)
         {
             bool applied = false;
@@ -121,6 +129,27 @@ namespace ModernRA.Rules
                     continue;
                 unit.CorridorCursor = waypointIndex;
                 unit.HoldingPosition = false;
+            }
+            return true;
+        }
+
+        public static bool TryApplyAIHolding(AnnihilationPrototypeWorld world, int playerId, uint orderGeneration, int groupId)
+        {
+            if (world == null)
+                throw new ArgumentNullException(nameof(world));
+            PrototypeAnnihilationTeamState team = playerId == 1 ? world.TeamA : world.TeamB;
+            if (orderGeneration < team.PlayerOverrideGeneration ||
+                !PrototypeControlGroupPayload.IsValidGroupId(groupId) ||
+                !HasAliveMember(team, groupId))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (unit.Alive && unit.ControlGroupId == groupId)
+                    unit.HoldingPosition = true;
             }
             return true;
         }

@@ -44,6 +44,9 @@ class PlayerCommandInboxStaticTests(unittest.TestCase):
         self.assertIn("PrototypePlayerCommandKind.AssignUnitToControlGroup", text)
         self.assertIn("PrototypePlayerCommandKind.SetControlGroupWaypoint", text)
         self.assertIn("stale AI order survived", text)
+        self.assertIn("PrototypeBattleGroupAI.TryPlan", text)
+        self.assertIn("battle-group AI did not take control", text)
+        self.assertIn("stale battle-group AI decision survived player takeover", text)
 
     def test_runner_compiles_all_rules_and_is_wired_to_simulation_gate(self):
         project = PROJECT.read_text(encoding="utf-8")

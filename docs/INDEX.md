@@ -53,9 +53,10 @@
 - `specs/ABILITY_STATUS_REGISTRY.md`：普通能力与状态ID。
 - `specs/BUILDING_CATALOG.md`：建筑、防御与特色建筑。
 - `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁；快速战争全科技预置。
-- `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给公式。
+- `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给通用公式。
 - `specs/GAME_MODE_RULES.md`：五种模式权威胜负、动态控制、投降、友军和异常结算。
 - `specs/MODE_PLAYABILITY_PROFILES.md`：五种模式开局战备、核心决策、翻盘、地图、AI职责和可玩性门禁。
+- `specs/MODE_RESOURCE_PROFILES.md`：五种模式开局库存、安全/争夺经济、战略资源、数据、电力、算力、补给和长期经济结构。
 - `specs/QUICKWAR_FULL_READINESS.md`：快速战争满科技、完整建筑、初始联合编制、资源储备和公平性执行规格。
 - `specs/BALANCE_BASELINES.md`：总体平衡基线；时长只作遥测，不作规则触发。
 
@@ -100,6 +101,7 @@
 - `design/03A_FREEDOM_WARFARE.md`
 - `specs/GAME_MODE_RULES.md`
 - `specs/MODE_PLAYABILITY_PROFILES.md`
+- `specs/MODE_RESOURCE_PROFILES.md`
 
 涉及快速战争开局、科技、编制、地图部署或平衡时还必须读取 `specs/QUICKWAR_FULL_READINESS.md`。
 

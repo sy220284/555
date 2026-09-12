@@ -5,7 +5,8 @@ namespace ModernRA.Rules
 {
     public enum PrototypePlayerCommandKind : byte
     {
-        SetPlan = 1
+        SetPlan = 1,
+        SetTeamRallyWaypoint = 2
     }
 
     public readonly struct PrototypePlayerCommand
@@ -135,12 +136,21 @@ namespace ModernRA.Rules
                 throw new ArgumentOutOfRangeException(nameof(command), "command sequence must be non-negative");
             if (command.PlayerId != 1 && command.PlayerId != 2)
                 throw new ArgumentOutOfRangeException(nameof(command), "prototype player id must be 1 or 2");
-            if (command.Kind != PrototypePlayerCommandKind.SetPlan)
-                throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "unsupported prototype command kind");
-            if (command.IntValue != (int)PrototypeAnnihilationPlan.Aggressive &&
-                command.IntValue != (int)PrototypeAnnihilationPlan.Economy)
+            switch (command.Kind)
             {
-                throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid annihilation plan value");
+                case PrototypePlayerCommandKind.SetPlan:
+                    if (command.IntValue != (int)PrototypeAnnihilationPlan.Aggressive &&
+                        command.IntValue != (int)PrototypeAnnihilationPlan.Economy)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid annihilation plan value");
+                    }
+                    break;
+                case PrototypePlayerCommandKind.SetTeamRallyWaypoint:
+                    if (command.IntValue < 0 || command.IntValue > 64)
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid rally waypoint index");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "unsupported prototype command kind");
             }
         }
 
@@ -151,6 +161,16 @@ namespace ModernRA.Rules
             {
                 case PrototypePlayerCommandKind.SetPlan:
                     team.Plan = (PrototypeAnnihilationPlan)command.IntValue;
+                    break;
+                case PrototypePlayerCommandKind.SetTeamRallyWaypoint:
+                    if (command.IntValue >= world.SharedCorridor.Length)
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "rally waypoint is outside the shared corridor");
+                    for (int i = 0; i < team.Units.Count; i++)
+                    {
+                        PrototypeCombatUnitState unit = team.Units[i];
+                        if (unit.Alive)
+                            unit.CorridorCursor = command.IntValue;
+                    }
                     break;
                 default:
                     throw new InvalidOperationException($"unsupported prototype command kind {command.Kind}");

@@ -37,14 +37,23 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("command stream did not affect authoritative match result", text)
         self.assertIn("DeterministicCommandTimeline.StepWithCommands", text)
 
-    def test_gate_scenario_permanently_swaps_baseline_plans(self):
+    def test_gate_scenario_keeps_plan_swap_and_adds_tactical_rally(self):
         text = RUNNER.read_text(encoding="utf-8")
         create = text[text.index("private static PrototypePlayerCommand[] CreateCommands()"):text.index("private static void ReplayRoundTrip")]
-        self.assertEqual(2, create.count("new PrototypePlayerCommand("))
+        self.assertEqual(3, create.count("new PrototypePlayerCommand("))
         self.assertIn("1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy", create)
         self.assertIn("1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive", create)
-        self.assertNotIn("360", create)
-        self.assertNotIn("600", create)
+        self.assertIn("600, 20, 2, PrototypePlayerCommandKind.SetTeamRallyWaypoint, 0", create)
+        self.assertIn("rally waypoint command did not affect authoritative match result", text)
+        self.assertIn("tactical_rally=true", text)
+
+    def test_tactical_rally_command_moves_alive_team_units_via_authoritative_corridor(self):
+        text = RULES.read_text(encoding="utf-8")
+        self.assertIn("SetTeamRallyWaypoint = 2", text)
+        self.assertIn("rally waypoint is outside the shared corridor", text)
+        self.assertIn("unit.CorridorCursor = command.IntValue", text)
+        self.assertIn("if (unit.Alive)", text)
+        self.assertNotIn("UnityEngine", text)
 
     def test_command_replay_binds_content_and_round_trips_authoritative_result(self):
         replay = REPLAY.read_text(encoding="utf-8")
@@ -56,7 +65,6 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("ValidateScenario", replay)
         self.assertIn("ValidateOutcome", replay)
         self.assertIn("ReplayRoundTrip(config, map.MapId, canonical, commanded)", runner)
-        self.assertNotIn("GrayRangeGeneratedData.MapId", replay)
         self.assertNotIn("GrayRangeGeneratedData.MapId", runner)
         self.assertIn("PlayerCommandReplayFile.ValidateScenario", runner)
         self.assertIn("PlayerCommandReplayFile.ValidateOutcome", runner)

@@ -12,14 +12,18 @@ namespace ModernRA.Rules
         public readonly PrototypeBattleGroupStance Stance;
         public readonly RuleAIAuthorityLevel AuthorityLevel;
         public readonly RuleAIForbiddenAction Forbidden;
+        public readonly int MinimumSupplyPermille;
 
         public PrototypeBattleGroupOrderSpec(int playerId, int regionId, int groupId, int desiredUnitCount,
-            PrototypeBattleGroupStance stance, RuleAIAuthorityLevel authorityLevel, RuleAIForbiddenAction forbidden)
+            PrototypeBattleGroupStance stance, RuleAIAuthorityLevel authorityLevel, RuleAIForbiddenAction forbidden,
+            int minimumSupplyPermille = 800)
         {
             if (playerId != 1 && playerId != 2) throw new ArgumentOutOfRangeException(nameof(playerId));
             if (!PrototypeControlGroupPayload.IsValidGroupId(groupId)) throw new ArgumentOutOfRangeException(nameof(groupId));
             if (desiredUnitCount <= 0) throw new ArgumentOutOfRangeException(nameof(desiredUnitCount));
             if (authorityLevel < RuleAIAuthorityLevel.BattleGroup) throw new ArgumentOutOfRangeException(nameof(authorityLevel));
+            if (minimumSupplyPermille < 0 || minimumSupplyPermille > 1000)
+                throw new ArgumentOutOfRangeException(nameof(minimumSupplyPermille));
             PlayerId = playerId;
             RegionId = regionId;
             GroupId = groupId;
@@ -27,6 +31,7 @@ namespace ModernRA.Rules
             Stance = stance;
             AuthorityLevel = authorityLevel;
             Forbidden = forbidden;
+            MinimumSupplyPermille = minimumSupplyPermille;
         }
     }
 
@@ -53,6 +58,7 @@ namespace ModernRA.Rules
     {
         private const int AssembleTimeoutTicks = 30 * DeterministicUpdateBudget.TickRate;
         private readonly List<PrototypeBattleGroupRuntimeState> _groups = new List<PrototypeBattleGroupRuntimeState>();
+        private readonly PrototypeSupplyRuntime _supply = new PrototypeSupplyRuntime();
         private PrototypeBattleGroupTarget[] _playerOneTargets = Array.Empty<PrototypeBattleGroupTarget>();
         private PrototypeBattleGroupTarget[] _playerTwoTargets = Array.Empty<PrototypeBattleGroupTarget>();
 
@@ -83,6 +89,16 @@ namespace ModernRA.Rules
             else throw new ArgumentOutOfRangeException(nameof(playerId));
         }
 
+        public void SetSupplyNodes(int playerId, IEnumerable<RuleSupplyNode> nodes)
+        {
+            _supply.SetSupplyNodes(playerId, nodes);
+        }
+
+        public bool TryGetUnitSupplyState(int entityId, out PrototypeUnitSupplyState state)
+        {
+            return _supply.TryGetUnitState(entityId, out state);
+        }
+
         public void ApplyIntelSnapshot(int playerId, PrototypeBattleGroupIntelAdapter adapter, AuthoritativeSnapshot snapshot)
         {
             if (adapter == null) throw new ArgumentNullException(nameof(adapter));
@@ -102,7 +118,10 @@ namespace ModernRA.Rules
             if (world == null) throw new ArgumentNullException(nameof(world));
             if (decisionTick != world.Tick + 1)
                 throw new ArgumentOutOfRangeException(nameof(decisionTick), "planning must run for the next authoritative tick");
-            if (!PlanningEnabled || world.Resolved) return;
+            if (world.Resolved) return;
+
+            _supply.RefreshIfDue(world);
+            if (!PlanningEnabled) return;
 
             for (int i = 0; i < _groups.Count; i++)
             {
@@ -133,6 +152,11 @@ namespace ModernRA.Rules
                 hash = StateHash64.Add(hash, (int)state.Spec.Stance);
                 hash = StateHash64.Add(hash, (int)state.Spec.AuthorityLevel);
                 hash = StateHash64.Add(hash, (int)state.Spec.Forbidden);
+                if (state.Spec.MinimumSupplyPermille != 800)
+                {
+                    hash = StateHash64.Add(hash, 0x53555054);
+                    hash = StateHash64.Add(hash, state.Spec.MinimumSupplyPermille);
+                }
                 hash = StateHash64.Add(hash, state.AuthorizedGeneration);
                 hash = StateHash64.Add(hash, (int)state.Phase);
                 hash = StateHash64.Add(hash, state.PhaseEnteredTick);
@@ -143,6 +167,11 @@ namespace ModernRA.Rules
             }
             HashTargets(ref hash, _playerOneTargets);
             HashTargets(ref hash, _playerTwoTargets);
+            if (_supply.HasAnyConfiguration)
+            {
+                hash = StateHash64.Add(hash, 0x53555050);
+                hash = StateHash64.Add(hash, _supply.ComputeStateHash());
+            }
             return hash;
         }
 
@@ -159,23 +188,40 @@ namespace ModernRA.Rules
                 return;
             }
 
-            IReadOnlyList<PrototypeBattleGroupTarget> targets = state.Spec.PlayerId == 1 ? _playerOneTargets : _playerTwoTargets;
             PrototypeBattleGroupDecision decision;
-            if (targets.Count == 0 && state.TargetId >= 0)
+            int supplyCoveragePermille = _supply.GetGroupCoveragePermille(team, state.Spec.GroupId);
+            if (supplyCoveragePermille < state.Spec.MinimumSupplyPermille)
             {
-                decision = new PrototypeBattleGroupDecision(state.Spec.PlayerId, state.Spec.RegionId, state.Spec.GroupId,
-                    state.AuthorizedGeneration, PrototypeBattleGroupPhase.Consolidate, -1,
-                    AverageWaypoint(team, state.Spec.GroupId), 0);
-            }
-            else if (!PrototypeBattleGroupAI.TryPlan(world, state.Spec.PlayerId, state.Spec.RegionId, state.Spec.GroupId,
-                state.Spec.Stance, targets, out decision))
-            {
-                return;
+                int homeWaypoint = state.Spec.PlayerId == 1 ? 0 : world.SharedCorridor.Length - 1;
+                decision = new PrototypeBattleGroupDecision(
+                    state.Spec.PlayerId,
+                    state.Spec.RegionId,
+                    state.Spec.GroupId,
+                    state.AuthorizedGeneration,
+                    PrototypeBattleGroupPhase.Resupply,
+                    -1,
+                    homeWaypoint,
+                    0);
             }
             else
             {
-                decision = new PrototypeBattleGroupDecision(decision.PlayerId, decision.RegionId, decision.GroupId,
-                    state.AuthorizedGeneration, decision.Phase, decision.TargetId, decision.WaypointIndex, decision.UtilityScore);
+                IReadOnlyList<PrototypeBattleGroupTarget> targets = state.Spec.PlayerId == 1 ? _playerOneTargets : _playerTwoTargets;
+                if (targets.Count == 0 && state.TargetId >= 0)
+                {
+                    decision = new PrototypeBattleGroupDecision(state.Spec.PlayerId, state.Spec.RegionId, state.Spec.GroupId,
+                        state.AuthorizedGeneration, PrototypeBattleGroupPhase.Consolidate, -1,
+                        AverageWaypoint(team, state.Spec.GroupId), 0);
+                }
+                else if (!PrototypeBattleGroupAI.TryPlan(world, state.Spec.PlayerId, state.Spec.RegionId, state.Spec.GroupId,
+                    state.Spec.Stance, targets, out decision))
+                {
+                    return;
+                }
+                else
+                {
+                    decision = new PrototypeBattleGroupDecision(decision.PlayerId, decision.RegionId, decision.GroupId,
+                        state.AuthorizedGeneration, decision.Phase, decision.TargetId, decision.WaypointIndex, decision.UtilityScore);
+                }
             }
 
             state.DecisionsPlanned++;

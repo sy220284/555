@@ -46,6 +46,8 @@ internal static class UpdateBudgetGateChecks
         Console.WriteLine(
             $"update_budget_gate=passed entities={entities} ticks={ticks} scheduled={scheduled} full_rate={fullRateEverything} " +
             $"reduction_permille={reductionPermille} battle_peak={battleGroupPeak} theater_peak={theaterPeak} strategic_peak={strategicPeak}");
+
+        MassCombatGateChecks.Run();
     }
 
     private static void Check(bool condition, string message)

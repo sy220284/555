@@ -1,6 +1,6 @@
 {
   "name":"ModernRA.Robotics",
   "rootNamespace":"ModernRA.Robotics",
-  "references":["ModernRA.Simulation","Unity.Entities"],
+  "references":["ModernRA.Rules","ModernRA.Simulation","Unity.Entities"],
   "autoReferenced":true
 }

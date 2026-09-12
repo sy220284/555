@@ -24,11 +24,11 @@
     {"site_id":"SITE_RADAR_E","site_type":"RADAR","position":[5200,3800],"control_region_id":"REGION_EAST","owner":"NEUTRAL"}
   ],
   "control_regions": [
-    {"region_id":"REGION_HOME_A","polygon":[[0,0],[2600,0],[2600,2600],[0,2600]],"neighbors":["REGION_WEST","REGION_CENTER"],"strategic_weight":1.0,"control_tags":["HOME_CORE"],"contained_resource_nodes":["RES_A_I1","RES_A_I2","RES_A_S1"],"contained_strategic_sites":[]},
+    {"region_id":"REGION_HOME_A","polygon":[[0,0],[2600,0],[2600,2600],[0,2600]],"neighbors":["REGION_WEST","REGION_CENTER","REGION_EAST"],"strategic_weight":1.0,"control_tags":["HOME_CORE"],"contained_resource_nodes":["RES_A_I1","RES_A_I2","RES_A_S1"],"contained_strategic_sites":[]},
     {"region_id":"REGION_WEST","polygon":[[1800,2200],[4000,2200],[4000,5200],[1800,5200]],"neighbors":["REGION_HOME_A","REGION_CENTER","REGION_HOME_B"],"strategic_weight":1.3,"control_tags":["TRANSIT","HIGH_GROUND"],"contained_resource_nodes":[],"contained_strategic_sites":["SITE_RADAR_W"]},
     {"region_id":"REGION_CENTER","polygon":[[2600,2600],[5400,2600],[5400,5400],[2600,5400]],"neighbors":["REGION_HOME_A","REGION_WEST","REGION_EAST","REGION_HOME_B"],"strategic_weight":2.0,"control_tags":["INDUSTRIAL","DATA","TRANSIT"],"contained_resource_nodes":["RES_MID_I1","RES_MID_I2"],"contained_strategic_sites":["SITE_DATA_CENTER"]},
     {"region_id":"REGION_EAST","polygon":[[4000,2800],[6200,2800],[6200,5800],[4000,5800]],"neighbors":["REGION_HOME_A","REGION_CENTER","REGION_HOME_B"],"strategic_weight":1.3,"control_tags":["TRANSIT","HIGH_GROUND"],"contained_resource_nodes":[],"contained_strategic_sites":["SITE_RADAR_E"]},
-    {"region_id":"REGION_HOME_B","polygon":[[5400,5400],[8000,5400],[8000,8000],[5400,8000]],"neighbors":["REGION_CENTER","REGION_EAST"],"strategic_weight":1.0,"control_tags":["HOME_CORE"],"contained_resource_nodes":["RES_B_I1","RES_B_I2","RES_B_S1"],"contained_strategic_sites":[]}
+    {"region_id":"REGION_HOME_B","polygon":[[5400,5400],[8000,5400],[8000,8000],[5400,8000]],"neighbors":["REGION_CENTER","REGION_EAST","REGION_WEST"],"strategic_weight":1.0,"control_tags":["HOME_CORE"],"contained_resource_nodes":["RES_B_I1","RES_B_I2","RES_B_S1"],"contained_strategic_sites":[]}
   ],
   "home_core_regions": [{"team_slot":1,"region_id":"REGION_HOME_A"},{"team_slot":2,"region_id":"REGION_HOME_B"}],
   "theater_critical_regions": ["REGION_CENTER"],

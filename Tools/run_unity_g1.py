@@ -8,6 +8,15 @@ import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EXPECTED_EDITOR_VERSION = "6000.3.24f1"
+REQUIRED_VERSIONED_PROJECT_SETTINGS = (
+    "ProjectSettings.asset",
+    "EditorBuildSettings.asset",
+    "EditorSettings.asset",
+    "GraphicsSettings.asset",
+    "QualitySettings.asset",
+    "TagManager.asset",
+    "TimeManager.asset",
+)
 REQUIRED_EDITMODE_TESTS = (
     "ModernRA.Tests.FixedStepRateTests.Bootstrap_ConfiguresFixedStepGroupToThirtyHertz",
     "ModernRA.Tests.UnityWorldBootstrapSmokeTests.GrayRangeBootstrap_MaterializesRuntimeStateAndAllAnchors",
@@ -118,6 +127,29 @@ def _test_case_full_name(case):
     return case.attrib.get("name", "")
 
 
+def missing_versioned_project_settings(root=ROOT):
+    settings_root = root / "ProjectSettings"
+    return [
+        name
+        for name in REQUIRED_VERSIONED_PROJECT_SETTINGS
+        if not (settings_root / name).exists()
+    ]
+
+
+def snapshot_generated_project_settings(root, artifacts, names):
+    destination = artifacts / "generated-project-settings"
+    destination.mkdir(parents=True, exist_ok=True)
+    copied = []
+    for name in names:
+        source = root / "ProjectSettings" / name
+        if not source.exists():
+            continue
+        target = destination / name
+        target.write_bytes(source.read_bytes())
+        copied.append(name)
+    return copied
+
+
 def verify_test_results(path, required_tests=REQUIRED_EDITMODE_TESTS):
     if not path.exists():
         raise RuntimeError(f"Unity did not produce EditMode results: {path}")
@@ -143,7 +175,11 @@ def verify_test_results(path, required_tests=REQUIRED_EDITMODE_TESTS):
     missing = []
     not_passed = []
     for required in required_tests:
-        matches = [(name, case_result) for name, case_result in executed.items() if name == required or name.endswith(required)]
+        matches = [
+            (name, case_result)
+            for name, case_result in executed.items()
+            if name == required or name.endswith(required)
+        ]
         if not matches:
             missing.append(required)
             continue
@@ -199,6 +235,7 @@ def main():
         verify_project_version()
         editor = require_editor()
         verify_editor_binary(editor)
+        missing_settings_before_compile = missing_versioned_project_settings(ROOT)
 
         artifacts.mkdir(parents=True, exist_ok=True)
         for artifact in (compile_log, test_log, test_results):
@@ -221,6 +258,22 @@ def main():
             return 2
 
         verify_package_lock()
+
+        if missing_settings_before_compile:
+            copied = snapshot_generated_project_settings(
+                ROOT, artifacts, missing_settings_before_compile
+            )
+            missing_after_compile = missing_versioned_project_settings(ROOT)
+            if missing_after_compile:
+                raise RuntimeError(
+                    "Unity project settings baseline is incomplete and Unity did not generate all required files: "
+                    + ", ".join(missing_after_compile)
+                )
+            raise RuntimeError(
+                "Unity generated required ProjectSettings files that were absent from the checkout. "
+                "Commit the Unity-generated files and rerun G1 before closing the gate. Captured: "
+                + ", ".join(copied)
+            )
 
         test_command = base_editor_command(editor) + [
             "-runTests",

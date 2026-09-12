@@ -11,6 +11,7 @@ internal static class Program
         {
             RuntimeMapBootstrapData map = GrayRangeGeneratedData.Create();
             AnnihilationPrototypeConfig config = map.CreateStandardAnnihilationConfig();
+            PrototypePlayerCommand[] planCommands = CreatePlanCommands();
             PrototypePlayerCommand[] commands = CreateCommands();
 
             PrototypePlayerCommand[] reversed = (PrototypePlayerCommand[])commands.Clone();
@@ -36,14 +37,19 @@ internal static class Program
             if (commanded.StateHash == baseline.StateHash && commanded.ResolvedTick == baseline.ResolvedTick)
                 throw new InvalidOperationException("command stream did not affect authoritative match result");
 
+            CommandRunResult plansOnly = Run(config, planCommands);
+            if (commanded.StateHash == plansOnly.StateHash && commanded.ResolvedTick == plansOnly.ResolvedTick)
+                throw new InvalidOperationException("rally waypoint command did not affect authoritative match result");
+
             AssertInvalidCommandsAreRejected();
             ReplayRoundTrip(config, map.MapId, canonical, commanded);
 
             Console.WriteLine("PLAYER COMMAND GATE PASSED");
             Console.WriteLine($"commands={commands.Length} command_hash={canonical.ComputeCanonicalHash():X16}");
             Console.WriteLine($"commanded winner={commanded.WinnerTeamId} tick={commanded.ResolvedTick} hash={commanded.StateHash:X16}");
+            Console.WriteLine($"plans_only winner={plansOnly.WinnerTeamId} tick={plansOnly.ResolvedTick} hash={plansOnly.StateHash:X16}");
             Console.WriteLine($"baseline winner={baseline.WinnerTeamId} tick={baseline.ResolvedTick} hash={baseline.StateHash:X16}");
-            Console.WriteLine($"repetitions={Repetitions} insertion_order_independent=true");
+            Console.WriteLine($"repetitions={Repetitions} insertion_order_independent=true tactical_rally=true");
             return 0;
         }
         catch (Exception ex)
@@ -65,15 +71,24 @@ internal static class Program
         return new CommandRunResult(world.WinnerTeamId, world.Tick, AnnihilationPrototype.ComputeStateHash(world));
     }
 
+    private static PrototypePlayerCommand[] CreatePlanCommands()
+    {
+        return new[]
+        {
+            new PrototypePlayerCommand(1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive),
+            new PrototypePlayerCommand(1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy)
+        };
+    }
+
     private static PrototypePlayerCommand[] CreateCommands()
     {
         return new[]
         {
-            // Permanently swap the prototype production plans at the first authoritative tick.
-            // This guarantees the command stream changes authoritative inputs instead of
-            // temporarily diverging and later returning to the baseline plans.
+            // Permanently swap the production plans, then redirect the current aggressive
+            // battle group toward the enemy end of the authoritative shared corridor.
             new PrototypePlayerCommand(1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive),
-            new PrototypePlayerCommand(1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy)
+            new PrototypePlayerCommand(1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy),
+            new PrototypePlayerCommand(600, 20, 2, PrototypePlayerCommandKind.SetTeamRallyWaypoint, 0)
         };
     }
 
@@ -127,6 +142,10 @@ internal static class Program
         ExpectArgumentFailure(new[]
         {
             new PrototypePlayerCommand(10, 1, 3, PrototypePlayerCommandKind.SetPlan, 0)
+        });
+        ExpectArgumentFailure(new[]
+        {
+            new PrototypePlayerCommand(10, 2, 1, PrototypePlayerCommandKind.SetTeamRallyWaypoint, 65)
         });
     }
 

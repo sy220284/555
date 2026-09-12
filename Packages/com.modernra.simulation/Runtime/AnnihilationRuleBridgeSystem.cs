@@ -135,6 +135,7 @@ namespace ModernRA.Simulation
                 Entity entity = EnsureEntity(_unitEntities, unit.Id, team.TeamId, 2, 0);
                 EntityManager.SetComponentData(entity, new SimPosition { Value = new float3(unit.X, 0f, unit.Y) });
                 EntityManager.SetComponentData(entity, new HealthState { Current = unit.Health, Maximum = 1000 });
+                EntityManager.SetComponentData(entity, new SupplyState { Level = (byte)unit.SupplyLevel });
             }
         }
 
@@ -144,6 +145,8 @@ namespace ModernRA.Simulation
                 return existing;
 
             Entity entity = EntityManager.CreateEntity(typeof(AnnihilationRuleEntity), typeof(CommandOwner), typeof(SimPosition), typeof(HealthState));
+            if (entityKind == 2)
+                EntityManager.AddComponent<SupplyState>(entity);
             EntityManager.SetComponentData(entity, new AnnihilationRuleEntity
             {
                 StableId = key,

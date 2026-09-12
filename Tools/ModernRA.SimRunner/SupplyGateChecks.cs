@@ -57,7 +57,143 @@ internal static class SupplyGateChecks
         Check(RuleSupplyEffects.AdvancedAmmoReplenishmentPermille(RuleSupplyLevel.CutOff) == 0,
             "cut-off units must not replenish advanced ammunition");
 
-        Console.WriteLine("supply_gate=passed interval_ticks=150 capacities=120+40 levels=sufficient+insufficient+cutoff");
+        VerifyPrototypeSupplyNodeOrderIsCanonical();
+        VerifyPrototypeSupplyCadenceAndRecovery();
+        VerifyBattleGroupRoutesToSupplyNode();
+
+        Console.WriteLine("supply_gate=passed interval_ticks=150 capacities=120+40 levels=sufficient+insufficient+cutoff runtime=true battle_group_resupply=true");
+    }
+
+    private static void VerifyPrototypeSupplyNodeOrderIsCanonical()
+    {
+        AnnihilationPrototypeConfig Build(bool reverse)
+        {
+            var first = new RuleSupplyNode(1, 1, 0, 0, 120, 700);
+            var second = new RuleSupplyNode(2, 2, 3000, 0, 120, 700);
+            return new AnnihilationPrototypeConfig
+            {
+                SpawnA = new Int2(0, 0),
+                SpawnB = new Int2(3000, 0),
+                SharedCorridor = new[] { new Int2(0, 0), new Int2(1500, 0), new Int2(3000, 0) },
+                StartingIndustrialMilli = 0,
+                MaxLiveTanksPerTeam = 1,
+                SupplyNodes = reverse ? new[] { second, first } : new[] { first, second }
+            };
+        }
+
+        AnnihilationPrototypeWorld canonical = AnnihilationPrototype.Create(Build(false));
+        AnnihilationPrototypeWorld reversed = AnnihilationPrototype.Create(Build(true));
+        Check(canonical.SupplyNodes[0].NodeId == 1 && reversed.SupplyNodes[0].NodeId == 1,
+            "prototype did not canonicalize supply node order by stable node id");
+        Check(AnnihilationPrototype.ComputeStateHash(canonical) == AnnihilationPrototype.ComputeStateHash(reversed),
+            "equivalent supply-node input order changed authoritative state hash");
+    }
+
+    private static void VerifyPrototypeSupplyCadenceAndRecovery()
+    {
+        var config = new AnnihilationPrototypeConfig
+        {
+            SpawnA = new Int2(0, 0),
+            SpawnB = new Int2(3000, 0),
+            SharedCorridor = new[] { new Int2(0, 0), new Int2(1000, 0), new Int2(2000, 0), new Int2(3000, 0) },
+            StartingIndustrialMilli = 0,
+            MaxLiveTanksPerTeam = 1,
+            SupplyNodes = new[]
+            {
+                new RuleSupplyNode(1, 1, 0, 0, 5, 100),
+                new RuleSupplyNode(2, 2, 3000, 0, 5, 100)
+            }
+        };
+        AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
+        Check(world.LastSupplyAllocationTick == 0 && world.SupplyReallocationCount == 1,
+            "prototype did not initialize supply state at authoritative tick zero");
+
+        var unit = new PrototypeCombatUnitState
+        {
+            Id = 9001,
+            TeamId = 1,
+            X = 500,
+            Y = 0,
+            CorridorCursor = 1,
+            HoldingPosition = true
+        };
+        world.TeamA.Units.Add(unit);
+        for (int i = 0; i < 149; i++)
+            AnnihilationPrototype.Step(world);
+        Check(unit.SupplyLevel == RuleSupplyLevel.Sufficient && world.LastSupplyAllocationTick == 0,
+            "prototype supply changed before the five-second authoritative cadence");
+
+        AnnihilationPrototype.Step(world);
+        Check(world.Tick == 150 && world.LastSupplyAllocationTick == 150 && world.SupplyReallocationCount == 2,
+            "prototype did not execute supply allocation on tick 150");
+        Check(unit.SupplyLevel == RuleSupplyLevel.CutOff && unit.AllocatedSupply == 0 && unit.PrimarySupplyNodeId == -1,
+            "out-of-radius prototype unit did not become cut off");
+
+        unit.X = 0;
+        unit.Y = 0;
+        for (int i = 0; i < 150; i++)
+            AnnihilationPrototype.Step(world);
+        Check(world.Tick == 300 && world.LastSupplyAllocationTick == 300 && world.SupplyReallocationCount == 3,
+            "prototype supply cadence drifted after the second interval");
+        Check(unit.SupplyLevel == RuleSupplyLevel.Sufficient && unit.AllocatedSupply == 5 && unit.PrimarySupplyNodeId == 1,
+            "unit did not recover supply after returning inside an eligible logistics radius");
+    }
+
+    private static void VerifyBattleGroupRoutesToSupplyNode()
+    {
+        var config = new AnnihilationPrototypeConfig
+        {
+            SpawnA = new Int2(0, 0),
+            SpawnB = new Int2(3000, 0),
+            SharedCorridor = new[] { new Int2(0, 0), new Int2(1000, 0), new Int2(2000, 0), new Int2(3000, 0) },
+            StartingIndustrialMilli = 0,
+            MaxLiveTanksPerTeam = 1,
+            SupplyNodes = new[]
+            {
+                new RuleSupplyNode(11, 1, 2000, 0, 40, 900),
+                new RuleSupplyNode(21, 2, 3000, 0, 40, 900)
+            }
+        };
+        AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
+        var unit = new PrototypeCombatUnitState
+        {
+            Id = 9101,
+            TeamId = 1,
+            X = 2600,
+            Y = 0,
+            Health = 300,
+            CorridorCursor = 3,
+            ControlGroupId = 2,
+            SupplyLevel = RuleSupplyLevel.CutOff,
+            AllocatedSupply = 0,
+            PrimarySupplyNodeId = -1
+        };
+        world.TeamA.Units.Add(unit);
+
+        Check(PrototypeBattleGroupAI.TryPlan(
+                world,
+                1,
+                5,
+                2,
+                PrototypeBattleGroupStance.Balanced,
+                Array.Empty<PrototypeBattleGroupTarget>(),
+                out PrototypeBattleGroupDecision damaged),
+            "damaged battle group did not produce a resupply decision");
+        Check(damaged.Phase == PrototypeBattleGroupPhase.Resupply && damaged.WaypointIndex == 2,
+            "battle group resupply did not route to the actual logistics node");
+
+        unit.Health = 1000;
+        Check(PrototypeBattleGroupAI.TryPlan(
+                world,
+                1,
+                5,
+                2,
+                PrototypeBattleGroupStance.Balanced,
+                Array.Empty<PrototypeBattleGroupTarget>(),
+                out PrototypeBattleGroupDecision idleCutOff),
+            "cut-off idle battle group did not produce a logistics decision");
+        Check(idleCutOff.Phase == PrototypeBattleGroupPhase.Resupply && idleCutOff.WaypointIndex == 2,
+            "cut-off idle battle group ignored its nearest actual supply node");
     }
 
     private static void Check(bool condition, string message)

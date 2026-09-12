@@ -161,7 +161,12 @@ namespace ModernRA.Rules
                 SpawnB = b.Center,
                 SharedCorridor = (Int2[])center.SplinePoints.Clone(),
                 StartingIndustrialMilli = startingIndustrialMilli,
-                MaxLiveTanksPerTeam = maxLiveTanksPerTeam
+                MaxLiveTanksPerTeam = maxLiveTanksPerTeam,
+                SupplyNodes = new[]
+                {
+                    new RuleSupplyNode(1, 1, a.Center.X, a.Center.Y, PrototypeSupplyRuntime.StandardBaseSupplyCapacity, a.SafeRadiusMeters),
+                    new RuleSupplyNode(2, 2, b.Center.X, b.Center.Y, PrototypeSupplyRuntime.StandardBaseSupplyCapacity, b.SafeRadiusMeters)
+                }
             };
         }
     }

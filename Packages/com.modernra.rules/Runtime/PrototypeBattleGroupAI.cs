@@ -117,6 +117,9 @@ namespace ModernRA.Rules
             int aliveCount = 0;
             int totalHealth = 0;
             int totalCursor = 0;
+            long totalX = 0;
+            long totalY = 0;
+            bool needsSupply = false;
             for (int i = 0; i < team.Units.Count; i++)
             {
                 PrototypeCombatUnitState unit = team.Units[i];
@@ -125,6 +128,10 @@ namespace ModernRA.Rules
                 aliveCount++;
                 totalHealth += unit.Health;
                 totalCursor += unit.CorridorCursor;
+                totalX += unit.X;
+                totalY += unit.Y;
+                if (unit.SupplyLevel != RuleSupplyLevel.Sufficient)
+                    needsSupply = true;
             }
             if (aliveCount == 0)
             {
@@ -134,15 +141,29 @@ namespace ModernRA.Rules
 
             int currentWaypoint = totalCursor / aliveCount;
             int homeWaypoint = playerId == 1 ? 0 : world.SharedCorridor.Length - 1;
+            int resupplyWaypoint = homeWaypoint;
+            PrototypeSupplyRuntime.TryFindResupplyWaypoint(
+                world,
+                playerId,
+                (int)(totalX / aliveCount),
+                (int)(totalY / aliveCount),
+                out resupplyWaypoint);
+            if (resupplyWaypoint < 0)
+                resupplyWaypoint = homeWaypoint;
             if (totalHealth / aliveCount < 350)
             {
-                decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Resupply, -1, homeWaypoint, 0);
+                decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Resupply, -1, resupplyWaypoint, 0);
                 return true;
             }
 
             bool found = TrySelectTarget(visibleTargets, currentWaypoint, world.SharedCorridor.Length, out PrototypeBattleGroupTarget target, out int score);
             if (!found)
             {
+                if (needsSupply)
+                {
+                    decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Resupply, -1, resupplyWaypoint, 0);
+                    return true;
+                }
                 decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Recon, -1, currentWaypoint, 0);
                 return true;
             }

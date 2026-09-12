@@ -41,6 +41,11 @@ class UnityRuleBridgeStaticTests(unittest.TestCase):
         ):
             self.assertIn(name, text)
 
+    def test_bridge_mirrors_authoritative_supply_state(self):
+        text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
+        self.assertIn("AddComponent<SupplyState>", text)
+        self.assertIn("new SupplyState { Level = (byte)unit.SupplyLevel }", text)
+
     def test_runtime_state_blocks_rule_bridge_until_map_exists(self):
         text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
         self.assertIn("RequireForUpdate<GrayRangeRuntimeState>()", text)

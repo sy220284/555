@@ -1,0 +1,36 @@
+name: local-dev-bootstrap
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/local-dev-bootstrap.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package-local-toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Package main source snapshot
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git archive --format=tar.gz --output=/tmp/555-main.tar.gz "$BASE_SHA"
+      - name: Package resolved dotnet toolchain
+        run: tar -C /usr/share -czf /tmp/dotnet-sdk-linux-x64.tar.gz dotnet
+      - name: Upload local development bootstrap
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-dev-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/555-main.tar.gz
+            /tmp/dotnet-sdk-linux-x64.tar.gz
+          if-no-files-found: error
+          retention-days: 1

@@ -28,6 +28,12 @@ class UnityG1WorkflowTests(unittest.TestCase):
         self.assertIn("group: unity-g1-${{ github.ref }}", self.text)
         self.assertIn("cancel-in-progress: true", self.text)
 
+    def test_logs_and_results_are_uploaded_even_when_g1_fails(self):
+        self.assertIn("if: always()", self.text)
+        self.assertIn("actions/upload-artifact@v7", self.text)
+        self.assertIn("Artifacts/unity-g1/**", self.text)
+        self.assertIn("retention-days: 14", self.text)
+
 
 if __name__ == "__main__":
     unittest.main()

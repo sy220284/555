@@ -60,6 +60,7 @@ internal static class SpatialNavigationGateChecks
         VerifySharedRouteInvalidation();
         VerifyRouteCandidateSelection();
         VerifyLocalizedRouteInvalidation();
+        VerifyDeterministicLocalAvoidance();
 
         Console.WriteLine(
             $"spatial_navigation_gate=passed entities={entityCount} cells={index.OccupiedCellCount} " +
@@ -143,6 +144,39 @@ internal static class SpatialNavigationGateChecks
         Check(cache.TryGet(westKey, out _) && cache.TryGet(eastKey, out _), "unrelated route did not survive local invalidation");
         Check(!cache.TryGet(centerKey, out _), "route crossing invalidated bridge survived local invalidation");
         Check(cache.LocalInvalidationEvents == 1 && cache.RoutesInvalidated == 1, "localized invalidation counters are incorrect");
+    }
+
+    private static void VerifyDeterministicLocalAvoidance()
+    {
+        var source = new SpatialEntity(10, 1, 0, 0);
+        var overlap = new SpatialEntity(20, 1, 0, 0);
+        var close = new SpatialEntity(30, 2, 30, 0);
+        var far = new SpatialEntity(40, 2, 500, 0);
+        var forward = new DeterministicSpatialHash(64);
+        forward.Insert(source);
+        forward.Insert(overlap);
+        forward.Insert(close);
+        forward.Insert(far);
+
+        var scratch = new List<SpatialEntity>();
+        LocalAvoidanceResult first = DeterministicLocalAvoidance.Solve(forward, source, 120, 80, 20, scratch);
+        Check(first.NeighborCount == 2, "local avoidance did not use the expected close neighbors");
+        Check(first.Adjustment.X < 0, "local avoidance did not steer away from overlapping/right-side neighbors");
+        Check(Math.Abs(first.Adjustment.X) <= 20 && Math.Abs(first.Adjustment.Y) <= 20, "local avoidance exceeded adjustment budget");
+        Check(first.CandidateVisits < 4, "local avoidance query scanned unrelated far entities");
+
+        var reversed = new DeterministicSpatialHash(64);
+        reversed.Insert(far);
+        reversed.Insert(close);
+        reversed.Insert(overlap);
+        reversed.Insert(source);
+        LocalAvoidanceResult second = DeterministicLocalAvoidance.Solve(reversed, source, 120, 80, 20, scratch);
+        Check(first.Adjustment.X == second.Adjustment.X && first.Adjustment.Y == second.Adjustment.Y,
+            "local avoidance depends on spatial insertion order");
+
+        Int2 next = DeterministicLocalAvoidance.ApplyStep(new Int2(0, 0), new Int2(12, 0), first.Adjustment, 12);
+        long stepSq = (long)next.X * next.X + (long)next.Y * next.Y;
+        Check(stepSq <= 12L * 12L, "combined path and avoidance step exceeded movement budget");
     }
 
     private static void Check(bool condition, string message)

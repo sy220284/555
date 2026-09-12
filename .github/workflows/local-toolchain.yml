@@ -13,29 +13,60 @@ permissions:
 jobs:
   package-dotnet-linux-x64:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
-      - name: Record resolved .NET SDK
-        run: |
-          mkdir -p Artifacts/local-toolchain
-          dotnet --info | tee Artifacts/local-toolchain/dotnet-info.txt
-          dotnet --version | tee Artifacts/local-toolchain/dotnet-version.txt
-      - name: Package portable local .NET toolchain
+      - name: Build isolated .NET 8 toolchain directory
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${DOTNET_ROOT:-}"
-          test -x "$DOTNET_ROOT/dotnet"
-          tar -C "$DOTNET_ROOT" -czf Artifacts/local-toolchain/dotnet-8-linux-x64.tar.gz .
-          sha256sum Artifacts/local-toolchain/dotnet-8-linux-x64.tar.gz \
-            > Artifacts/local-toolchain/dotnet-8-linux-x64.tar.gz.sha256
+          OUT="$RUNNER_TEMP/dotnet-8-linux-x64"
+          META="Artifacts/local-toolchain"
+          SDK_VERSION="$(dotnet --version)"
+          RUNTIME_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^8\./ {print $2}' | sort -V | tail -1)"
+          ASPNET_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.AspNetCore.App" && $2 ~ /^8\./ {print $2}' | sort -V | tail -1)"
+          FXR_VERSION="$(find "$DOTNET_ROOT/host/fxr" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | grep '^8\.' | sort -V | tail -1)"
+          test -n "$SDK_VERSION"
+          test -n "$RUNTIME_VERSION"
+          test -n "$FXR_VERSION"
+          mkdir -p "$OUT/host/fxr" "$OUT/sdk" "$OUT/shared/Microsoft.NETCore.App" "$OUT/packs" "$META"
+          cp "$DOTNET_ROOT/dotnet" "$OUT/dotnet"
+          cp -a "$DOTNET_ROOT/host/fxr/$FXR_VERSION" "$OUT/host/fxr/"
+          cp -a "$DOTNET_ROOT/sdk/$SDK_VERSION" "$OUT/sdk/"
+          cp -a "$DOTNET_ROOT/shared/Microsoft.NETCore.App/$RUNTIME_VERSION" "$OUT/shared/Microsoft.NETCore.App/"
+          for pack in Microsoft.NETCore.App.Ref Microsoft.NETCore.App.Host.linux-x64; do
+            test -d "$DOTNET_ROOT/packs/$pack/$RUNTIME_VERSION"
+            mkdir -p "$OUT/packs/$pack"
+            cp -a "$DOTNET_ROOT/packs/$pack/$RUNTIME_VERSION" "$OUT/packs/$pack/"
+          done
+          if [ -n "$ASPNET_VERSION" ]; then
+            mkdir -p "$OUT/shared/Microsoft.AspNetCore.App" "$OUT/packs/Microsoft.AspNetCore.App.Ref"
+            cp -a "$DOTNET_ROOT/shared/Microsoft.AspNetCore.App/$ASPNET_VERSION" "$OUT/shared/Microsoft.AspNetCore.App/"
+            if [ -d "$DOTNET_ROOT/packs/Microsoft.AspNetCore.App.Ref/$ASPNET_VERSION" ]; then
+              cp -a "$DOTNET_ROOT/packs/Microsoft.AspNetCore.App.Ref/$ASPNET_VERSION" "$OUT/packs/Microsoft.AspNetCore.App.Ref/"
+            fi
+          fi
+          if [ -d "$DOTNET_ROOT/packs/NETStandard.Library.Ref" ]; then
+            cp -a "$DOTNET_ROOT/packs/NETStandard.Library.Ref" "$OUT/packs/"
+          fi
+          for manifests in "$DOTNET_ROOT"/sdk-manifests/8.0.*; do
+            [ -d "$manifests" ] || continue
+            mkdir -p "$OUT/sdk-manifests"
+            cp -a "$manifests" "$OUT/sdk-manifests/"
+          done
+          printf '%s\n' "$SDK_VERSION" | tee "$META/dotnet-version.txt"
+          dotnet --info | tee "$META/dotnet-info.txt"
+          printf 'sdk=%s\nruntime=%s\nfxr=%s\n' "$SDK_VERSION" "$RUNTIME_VERSION" "$FXR_VERSION" > "$META/toolchain-components.txt"
+          "$OUT/dotnet" --version
       - name: Upload local toolchain artifact
         uses: actions/upload-artifact@v7
         with:
           name: dotnet-8-linux-x64
-          path: Artifacts/local-toolchain/**
+          path: |
+            ${{ runner.temp }}/dotnet-8-linux-x64/**
+            Artifacts/local-toolchain/**
           if-no-files-found: error
           retention-days: 30

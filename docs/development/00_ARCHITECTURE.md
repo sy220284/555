@@ -74,7 +74,7 @@
 
 - Camera；
 - Material；
-- Audio/FM0D事件；
+- Audio/FMOD事件；
 - UI；
 - 场景GameObject表现对象；
 - VFX/Animator状态；

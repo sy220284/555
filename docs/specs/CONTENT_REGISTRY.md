@@ -11,12 +11,15 @@
 - 阵营：`FAC_`
 - 国家：`CTY_`
 - 单位：`UNIT_`
+- 编队模板：`FORM_`
 - 建筑：`BLD_`
 - 武器：`WPN_`
 - 科技：`TECH_`
 - 战略能力：`STRAT_`
 - 普通能力：`ABL_`
 - 状态：`STATUS_`
+- 老练度：`VET_`
+- 剧情角色：`CHAR_`
 - 模式：`MODE_`
 - 规则集：`RULESET_`
 - 地图：`MAP_`
@@ -90,7 +93,7 @@
 `UNIT_IL_MERKAVA_F`、`UNIT_IL_SMART_INF`、`UNIT_IL_IRONBEAM`、`BLD_IL_LAYERED_DEFENSE`、`STRAT_IL_DAVID_SHIELD`。
 
 ### 印度
-`UNIT_IN_HIGHLAND_BG`、`UNIT_IN_HIGHSPEED_STRIKE`、`UNIT_IN_HEAVY_ROCKET`、`STRAT_IN_TRI_SERVICE_FIRENET`。
+`FORM_IN_HIGHLAND_BG`、`UNIT_IN_HIGHSPEED_STRIKE`、`UNIT_IN_HEAVY_ROCKET`、`STRAT_IN_TRI_SERVICE_FIRENET`。
 
 ### 土耳其
 `UNIT_TR_BAYRAKTAR`、`UNIT_TR_KIZILELMA`、`BLD_TR_UAV_MOTHERSHIP`、`STRAT_TR_WOLFPACK`。
@@ -102,7 +105,7 @@
 `UNIT_AU_GHOSTBAT`、`UNIT_AU_GHOSTSHARK`、`UNIT_AU_ATTACK_SS`、`BLD_AU_SEABED_SENSOR`、`STRAT_AU_GHOST_SEA`。
 
 ### 波兰
-`UNIT_PL_HEAVY_ARMOR_BG`、`UNIT_PL_MASS_ARTILLERY`、`UNIT_PL_LAYERED_AA`、`BLD_PL_FIELDWORKS`、`STRAT_PL_EASTERN_SHIELD`。
+`FORM_PL_HEAVY_ARMOR_BG`、`UNIT_PL_MASS_ARTILLERY`、`UNIT_PL_LAYERED_AA`、`BLD_PL_FIELDWORKS`、`STRAT_PL_EASTERN_SHIELD`。
 
 ### 伊朗
 `BLD_IR_UNDERGROUND_MISSILE`、`UNIT_IR_MOBILE_MISSILE`、`UNIT_IR_LOW_COST_DRONE`、`UNIT_IR_DECOY`、`STRAT_IR_THOUSAND_ARROWS`。
@@ -122,15 +125,21 @@
 
 正式 `WPN_` 列表以 `WEAPONS_ARMOR_MATRIX.md` 为专项注册表；任何单位装配表引用的武器必须在那里存在。
 
-当前包括基础轻武器、坦克炮、火炮/火箭、防空/反导、航空/反舰、巡航导弹、激光、光棱、高功率电磁、磁暴、神经干扰及 `WPN_JP_RAILGUN_NAVAL`。
-
 ## 8. 普通能力与状态注册入口
 
-`ABL_` 与 `STATUS_` 以 `ABILITY_STATUS_REGISTRY.md` 为专项注册表。
+`ABL_` 与 `STATUS_` 以 `ABILITY_STATUS_REGISTRY.md` 为专项注册表。战略级能力始终使用 `STRAT_`。
 
-战略级能力始终使用 `STRAT_`，禁止与普通能力混用。
+## 9. 老练度
 
-## 9. 游戏模式与规则集
+`VET_REGULAR`、`VET_VETERAN`、`VET_ELITE`。规则见 `UNIT_LOADOUTS.md`。
+
+## 10. 剧情角色
+
+`CHAR_ALLIED_HALE`、`CHAR_CN_LIN`、`CHAR_EURASIA_VOLKOV`、`CHAR_YURI_ARCHON`、`CHAR_AI_AEGIS`、`CHAR_ANALYST_MIRA`、`CHAR_ENGINEER_KOVACS`。
+
+角色功能和叙事规则见 `CAMPAIGN_NARRATIVE_CAST.md`。
+
+## 11. 游戏模式与规则集
 
 - `MODE_ANNIHILATION`
 - `MODE_CONQUEST`
@@ -148,33 +157,35 @@
 
 执行规则见 `GAME_MODE_RULES.md`。
 
-## 10. 地图与任务 ID
+## 12. 地图与任务 ID
 
 地图：`MAP_GRAY_RANGE`、`MAP_RIFT_NODE`、`MAP_NORTHERN_PLAIN`、`MAP_DATA_CONTEST`、`MAP_DESERT_TWINS`、`MAP_POLAR_FRONT`、`MAP_STEEL_PLAIN`、`MAP_DNIEPER_LINE`、`MAP_STRAIT_BLOCKADE`、`MAP_RHINE_BELT`、`MAP_FIRST_ISLAND_CHAIN`、`MAP_DEEPBLUE_FORTRESS`、`MAP_INDIAN_OCEAN_SHIELD`、`MAP_CONTINENTAL_HEARTLAND`、`MAP_EASTERN_SHIELD`、`MAP_ORBITAL_DAWN`。
 
-任务：`MIS_01_FALSE_SIGNAL` 至 `MIS_24_ASCENSION_CITY`，具体映射见 `CAMPAIGN_MISSION_SPECS.md`。
+任务：`MIS_01_FALSE_SIGNAL` 至 `MIS_24_ASCENSION_CITY`。
 
-## 11. 音频/语音/音乐 ID
+## 13. 音频/语音/音乐 ID
 
-音效、语音、音乐采用规则化ID，不在本文件枚举数千变体。权威清单由：
+权威清单由：
 
 - `/Data/Audio/audio_registry.json`
 - `/Data/Audio/voice_registry.json`
 - `/Data/Audio/music_registry.json`
 
-生成，并由 `AUDIO_VOICE_PIPELINE.md` 约束。所有注册表必须通过CI重复/悬空检查。
+生成，并由 `AUDIO_VOICE_PIPELINE.md` 约束。
 
-## 12. 对象最低字段
+## 14. 对象最低字段
 
-所有内容对象必须至少包含：
+所有普通内容对象至少包含：
 
 `id`、`schema_version`、`display_name_key`、`faction`、`country`、`tech_tier`、`tags`、`cost`、`build_time`、`prerequisites`、`command_cost`、`compute_cost`、`power_delta`、`supply_profile`、`ai_role`、`counter_tags`、`asset_refs`、`audio_profile`、`test_profile`。
 
 单位还必须包含：`production_building, primary_weapon, secondary_weapons, abilities, veterancy_profile`。
 
-不适用字段显式写 `0`、`none` 或空集合，禁止依赖“字段缺失=某种含义”。
+编队模板 `FORM_` 必须包含：`members, queue_policy, total_cost_policy, unlocks, ai_usage, test_profile`，并且展开后成员均为真实 `UNIT_`。
 
-## 13. 生命周期
+不适用字段显式写 `0`、`none` 或空集合。
+
+## 15. 生命周期
 
 - `placeholder`：ID与结构存在，可用灰盒运行。
 - `playable`：核心玩法可用，允许内部对局。
@@ -185,14 +196,6 @@
 
 AI代理不得把 `placeholder`、`layout_defined` 或 `playable` 宣称为正式完成。
 
-## 14. CI注册完整性
+## 16. CI注册完整性
 
-必须检查：
-
-- 重复ID；
-- 非法旧前缀；
-- 悬空单位/武器/能力/建筑/科技引用；
-- 模式/规则集缺失；
-- 音频配置缺失；
-- 地图/任务ID与运行时数据不一致；
-- 删除ID无迁移/墓碑记录。
+必须检查：重复ID、非法旧前缀、悬空单位/武器/能力/建筑/科技引用、`FORM_`被错误生成为单实体、模式/规则集缺失、音频配置缺失、地图/任务ID与运行时数据不一致、删除ID无迁移/墓碑记录。

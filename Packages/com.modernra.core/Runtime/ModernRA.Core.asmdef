@@ -1,0 +1,5 @@
+{
+  "name": "ModernRA.Core",
+  "rootNamespace": "ModernRA.Core",
+  "autoReferenced": true
+}

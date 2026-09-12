@@ -1,0 +1,6 @@
+{
+  "name":"ModernRA.Combat",
+  "rootNamespace":"ModernRA.Combat",
+  "references":["ModernRA.Core","ModernRA.Simulation","Unity.Entities","Unity.Mathematics"],
+  "autoReferenced":true
+}

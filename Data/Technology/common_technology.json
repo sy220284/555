@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "technologies": [
+    {"id":"TECH_COMMON_DATALINK","tier":2,"industrial_cost":1200,"strategic_cost":100,"research_time_seconds":45,"prerequisites":["BLD_COMMON_DATACENTER"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_PRECISION_FIRE","tier":2,"industrial_cost":1400,"strategic_cost":140,"research_time_seconds":50,"prerequisites":["BLD_COMMON_DATACENTER"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_EW_BASIC","tier":2,"industrial_cost":1300,"strategic_cost":120,"research_time_seconds":45,"prerequisites":["BLD_COMMON_DATACENTER"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_AIR_NET","tier":2,"industrial_cost":1500,"strategic_cost":160,"research_time_seconds":50,"prerequisites":["BLD_COMMON_DATACENTER"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_MRAD","tier":2,"industrial_cost":1200,"strategic_cost":100,"research_time_seconds":40,"prerequisites":["BLD_COMMON_DATACENTER"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_AUTONOMY_A2","tier":3,"industrial_cost":1600,"strategic_cost":220,"research_time_seconds":55,"prerequisites":["BLD_COMMON_AI_COMMAND"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_ROBOT_COMBAT","tier":3,"industrial_cost":1800,"strategic_cost":260,"research_time_seconds":60,"prerequisites":["BLD_COMMON_AI_COMMAND"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_UGV","tier":3,"industrial_cost":1900,"strategic_cost":300,"research_time_seconds":60,"prerequisites":["BLD_COMMON_AI_COMMAND"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_CCA","tier":3,"industrial_cost":2100,"strategic_cost":350,"research_time_seconds":65,"prerequisites":["BLD_COMMON_AI_COMMAND"],"material_requirements_by_ruleset":{"RULESET_CONQUEST_STANDARD":["MAT_BATTERY_ACCESS"]}},
+    {"id":"TECH_COMMON_CYBER","tier":3,"industrial_cost":1800,"strategic_cost":300,"research_time_seconds":60,"prerequisites":["BLD_COMMON_AI_COMMAND"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_AUTONOMY_A3","tier":4,"industrial_cost":2500,"strategic_cost":500,"research_time_seconds":75,"prerequisites":["BLD_COMMON_COMPUTE"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_DIRECTED_ENERGY","tier":4,"industrial_cost":2800,"strategic_cost":600,"research_time_seconds":80,"prerequisites":["BLD_COMMON_COMPUTE"],"material_requirements_by_ruleset":{"RULESET_CONQUEST_STANDARD":["MAT_BATTERY_ACCESS"]}},
+    {"id":"TECH_COMMON_HIGHSPEED_STRIKE","tier":4,"industrial_cost":3000,"strategic_cost":700,"research_time_seconds":90,"prerequisites":["BLD_COMMON_COMPUTE"],"material_requirements_by_ruleset":{"RULESET_CONQUEST_STANDARD":["MAT_ALLOY_ACCESS"]}},
+    {"id":"TECH_COMMON_LRAD_ABM","tier":4,"industrial_cost":2600,"strategic_cost":550,"research_time_seconds":75,"prerequisites":["BLD_COMMON_COMPUTE"],"material_requirements_by_ruleset":{"RULESET_CONQUEST_STANDARD":["MAT_RARE_EARTH_ACCESS"]}},
+    {"id":"TECH_COMMON_STRATEGIC_AI","tier":4,"industrial_cost":3200,"strategic_cost":800,"research_time_seconds":90,"prerequisites":["BLD_COMMON_COMPUTE"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_SPACE_ACCESS","tier":4,"industrial_cost":3500,"strategic_cost":900,"research_time_seconds":100,"prerequisites":["BLD_COMMON_COMPUTE"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_AUTONOMY_A4","tier":5,"industrial_cost":4200,"strategic_cost":1200,"research_time_seconds":120,"prerequisites":["TECH_COMMON_AUTONOMY_A3"],"material_requirements_by_ruleset":{"RULESET_CONQUEST_STANDARD":["MAT_BATTERY_ACCESS","MAT_RARE_EARTH_ACCESS"]}},
+    {"id":"TECH_COMMON_QUANTUM_NAV","tier":5,"industrial_cost":3500,"strategic_cost":1000,"research_time_seconds":105,"prerequisites":["BLD_COMMON_SPACEOPS"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_ORBITAL_CONTROL","tier":5,"industrial_cost":4500,"strategic_cost":1400,"research_time_seconds":130,"prerequisites":["BLD_COMMON_SPACEOPS"],"material_requirements_by_ruleset":{}},
+    {"id":"TECH_COMMON_FUTURE_POWER","tier":5,"industrial_cost":5000,"strategic_cost":1500,"research_time_seconds":140,"prerequisites":["BLD_COMMON_ADV_POWER"],"material_requirements_by_ruleset":{"RULESET_CONQUEST_STANDARD":["MAT_NUCLEAR_ACCESS"]}}
+  ]
+}

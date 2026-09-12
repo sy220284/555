@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "modernra/rulesets.schema.json",
+  "type": "object",
+  "required": ["schema_version", "rulesets"],
+  "properties": {
+    "schema_version": {"type": "integer", "minimum": 1},
+    "rulesets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "mode_id", "depth_profile", "time_driven_progression", "material_tech_binding"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^RULESET_[A-Z0-9_]+$"},
+          "mode_id": {"type": "string", "pattern": "^MODE_[A-Z0-9_]+$"},
+          "depth_profile": {"enum": ["SIMPLIFIED", "MODERN_STANDARD", "FULL_WAR"]},
+          "time_driven_progression": {"const": false},
+          "material_tech_binding": {"type": "boolean"},
+          "all_tech_granted": {"type": "boolean"},
+          "starting_force_ratio": {"type": "number", "minimum": 0, "maximum": 1}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

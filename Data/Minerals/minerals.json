@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "minerals": [
+    {"id":"MIN_BASE_METALS","output_pool":"I","base_capacity":60000,"base_rate_per_minute":900,"max_groups":2,"secondary_group_efficiency":0.8,"material_access_tag":null},
+    {"id":"MIN_RARE_EARTHS","output_pool":"S","base_capacity":12000,"base_rate_per_minute":180,"max_groups":2,"secondary_group_efficiency":0.7,"material_access_tag":"MAT_RARE_EARTH_ACCESS"},
+    {"id":"MIN_BATTERY_METALS","output_pool":"S","base_capacity":12000,"base_rate_per_minute":180,"max_groups":2,"secondary_group_efficiency":0.7,"material_access_tag":"MAT_BATTERY_ACCESS"},
+    {"id":"MIN_HIGH_PERFORMANCE_ALLOYS","output_pool":"S","base_capacity":12000,"base_rate_per_minute":180,"max_groups":2,"secondary_group_efficiency":0.7,"material_access_tag":"MAT_ALLOY_ACCESS"},
+    {"id":"MIN_NUCLEAR_FUEL","output_pool":"S","base_capacity":12000,"base_rate_per_minute":180,"max_groups":2,"secondary_group_efficiency":0.7,"material_access_tag":"MAT_NUCLEAR_ACCESS"},
+    {"id":"MIN_MIXED_STRATEGIC","output_pool":"S","base_capacity":12000,"base_rate_per_minute":180,"max_groups":2,"secondary_group_efficiency":0.7,"material_access_tag":null},
+    {"id":"MIN_SALVAGE_FIELD","output_pool":"I","base_capacity":18000,"base_rate_per_minute":300,"max_groups":2,"secondary_group_efficiency":0.6,"material_access_tag":null}
+  ]
+}

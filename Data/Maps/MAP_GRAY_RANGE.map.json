@@ -1,0 +1,56 @@
+{
+  "schema_version": 4,
+  "map_id": "MAP_GRAY_RANGE",
+  "size_m": [8000, 8000],
+  "playable_bounds": [[0,0],[8000,0],[8000,8000],[0,8000]],
+  "spawn_sectors": [
+    {"spawn_id":"SPAWN_A","team_slot":1,"center":[1200,1200],"facing_deg":45,"safe_radius_m":700,"initial_build_polygon":[[500,500],[1900,500],[1900,1900],[500,1900]],"rally_points":[[2100,1800],[1800,2100]]},
+    {"spawn_id":"SPAWN_B","team_slot":2,"center":[6800,6800],"facing_deg":225,"safe_radius_m":700,"initial_build_polygon":[[6100,6100],[7500,6100],[7500,7500],[6100,7500]],"rally_points":[[5900,6200],[6200,5900]]}
+  ],
+  "quickwar_deployment_zones": [],
+  "resource_nodes": [
+    {"node_id":"RES_A_I1","resource_class":"INDUSTRIAL","mineral_id":"MIN_BASE_METALS","grade":"STANDARD","position":[800,1700],"capacity":60000,"base_income_rate":900,"extraction_slots":2,"processing_profile":"MOBILE_HARVEST","local_buffer":900,"control_region_id":"REGION_HOME_A","logistics_links":[],"material_access_tag":null,"contest_weight":1.0},
+    {"node_id":"RES_A_I2","resource_class":"INDUSTRIAL","mineral_id":"MIN_BASE_METALS","grade":"STANDARD","position":[1700,800],"capacity":60000,"base_income_rate":900,"extraction_slots":2,"processing_profile":"MOBILE_HARVEST","local_buffer":900,"control_region_id":"REGION_HOME_A","logistics_links":[],"material_access_tag":null,"contest_weight":1.0},
+    {"node_id":"RES_A_S1","resource_class":"STRATEGIC","mineral_id":"MIN_MIXED_STRATEGIC","grade":"STANDARD","position":[1900,1900],"capacity":12000,"base_income_rate":180,"extraction_slots":2,"processing_profile":"FIXED_EXTRACTION","local_buffer":180,"control_region_id":"REGION_HOME_A","logistics_links":["ROAD_WEST"],"material_access_tag":null,"contest_weight":1.2},
+    {"node_id":"RES_B_I1","resource_class":"INDUSTRIAL","mineral_id":"MIN_BASE_METALS","grade":"STANDARD","position":[7200,6300],"capacity":60000,"base_income_rate":900,"extraction_slots":2,"processing_profile":"MOBILE_HARVEST","local_buffer":900,"control_region_id":"REGION_HOME_B","logistics_links":[],"material_access_tag":null,"contest_weight":1.0},
+    {"node_id":"RES_B_I2","resource_class":"INDUSTRIAL","mineral_id":"MIN_BASE_METALS","grade":"STANDARD","position":[6300,7200],"capacity":60000,"base_income_rate":900,"extraction_slots":2,"processing_profile":"MOBILE_HARVEST","local_buffer":900,"control_region_id":"REGION_HOME_B","logistics_links":[],"material_access_tag":null,"contest_weight":1.0},
+    {"node_id":"RES_B_S1","resource_class":"STRATEGIC","mineral_id":"MIN_MIXED_STRATEGIC","grade":"STANDARD","position":[6100,6100],"capacity":12000,"base_income_rate":180,"extraction_slots":2,"processing_profile":"FIXED_EXTRACTION","local_buffer":180,"control_region_id":"REGION_HOME_B","logistics_links":["ROAD_EAST"],"material_access_tag":null,"contest_weight":1.2},
+    {"node_id":"RES_MID_I1","resource_class":"INDUSTRIAL","mineral_id":"MIN_BASE_METALS","grade":"STANDARD","position":[3400,4000],"capacity":60000,"base_income_rate":900,"extraction_slots":2,"processing_profile":"MOBILE_HARVEST","local_buffer":900,"control_region_id":"REGION_CENTER","logistics_links":["ROAD_CENTER"],"material_access_tag":null,"contest_weight":1.6},
+    {"node_id":"RES_MID_I2","resource_class":"INDUSTRIAL","mineral_id":"MIN_BASE_METALS","grade":"STANDARD","position":[4600,4000],"capacity":60000,"base_income_rate":900,"extraction_slots":2,"processing_profile":"MOBILE_HARVEST","local_buffer":900,"control_region_id":"REGION_CENTER","logistics_links":["ROAD_CENTER"],"material_access_tag":null,"contest_weight":1.6}
+  ],
+  "strategic_sites": [
+    {"site_id":"SITE_DATA_CENTER","site_type":"DATA_CENTER","position":[4000,4000],"control_region_id":"REGION_CENTER","owner":"NEUTRAL"},
+    {"site_id":"SITE_RADAR_W","site_type":"RADAR","position":[2800,4200],"control_region_id":"REGION_WEST","owner":"NEUTRAL"},
+    {"site_id":"SITE_RADAR_E","site_type":"RADAR","position":[5200,3800],"control_region_id":"REGION_EAST","owner":"NEUTRAL"}
+  ],
+  "control_regions": [
+    {"region_id":"REGION_HOME_A","polygon":[[0,0],[2600,0],[2600,2600],[0,2600]],"neighbors":["REGION_WEST","REGION_CENTER"],"strategic_weight":1.0,"control_tags":["HOME_CORE"],"contained_resource_nodes":["RES_A_I1","RES_A_I2","RES_A_S1"],"contained_strategic_sites":[]},
+    {"region_id":"REGION_WEST","polygon":[[1800,2200],[4000,2200],[4000,5200],[1800,5200]],"neighbors":["REGION_HOME_A","REGION_CENTER","REGION_HOME_B"],"strategic_weight":1.3,"control_tags":["TRANSIT","HIGH_GROUND"],"contained_resource_nodes":[],"contained_strategic_sites":["SITE_RADAR_W"]},
+    {"region_id":"REGION_CENTER","polygon":[[2600,2600],[5400,2600],[5400,5400],[2600,5400]],"neighbors":["REGION_HOME_A","REGION_WEST","REGION_EAST","REGION_HOME_B"],"strategic_weight":2.0,"control_tags":["INDUSTRIAL","DATA","TRANSIT"],"contained_resource_nodes":["RES_MID_I1","RES_MID_I2"],"contained_strategic_sites":["SITE_DATA_CENTER"]},
+    {"region_id":"REGION_EAST","polygon":[[4000,2800],[6200,2800],[6200,5800],[4000,5800]],"neighbors":["REGION_HOME_A","REGION_CENTER","REGION_HOME_B"],"strategic_weight":1.3,"control_tags":["TRANSIT","HIGH_GROUND"],"contained_resource_nodes":[],"contained_strategic_sites":["SITE_RADAR_E"]},
+    {"region_id":"REGION_HOME_B","polygon":[[5400,5400],[8000,5400],[8000,8000],[5400,8000]],"neighbors":["REGION_CENTER","REGION_EAST"],"strategic_weight":1.0,"control_tags":["HOME_CORE"],"contained_resource_nodes":["RES_B_I1","RES_B_I2","RES_B_S1"],"contained_strategic_sites":[]}
+  ],
+  "home_core_regions": [{"team_slot":1,"region_id":"REGION_HOME_A"},{"team_slot":2,"region_id":"REGION_HOME_B"}],
+  "theater_critical_regions": ["REGION_CENTER"],
+  "roads": [
+    {"road_id":"ROAD_WEST","spline_points":[[1200,1200],[2600,3000],[4000,4000],[6200,5900],[6800,6800]],"width_m":60,"terrain_cost_multiplier":0.85},
+    {"road_id":"ROAD_CENTER","spline_points":[[1200,1200],[3000,3000],[4000,4000],[5000,5000],[6800,6800]],"width_m":80,"terrain_cost_multiplier":0.8},
+    {"road_id":"ROAD_EAST","spline_points":[[1200,1200],[3000,2600],[5000,4600],[6800,6800]],"width_m":60,"terrain_cost_multiplier":0.85}
+  ],
+  "bridges": [],
+  "water_zones": [],
+  "buildable_polygons": [
+    {"build_id":"BUILD_A","team_slot":1,"polygon":[[300,300],[2300,300],[2300,2300],[300,2300]]},
+    {"build_id":"BUILD_B","team_slot":2,"polygon":[[5700,5700],[7700,5700],[7700,7700],[5700,7700]]}
+  ],
+  "terrain_regions": [
+    {"terrain_id":"TERRAIN_BASE","polygon":[[0,0],[8000,0],[8000,8000],[0,8000]],"terrain_type":"OPEN","movement_modifier":1.0,"sensor_modifier":1.0,"height_band":0}
+  ],
+  "ai_zones": [
+    {"zone_id":"AI_HOME_A","polygon":[[0,0],[2600,0],[2600,2600],[0,2600]],"tags":["ZoneResource"],"neighbors":["AI_CENTER"],"strategic_weight":1.0},
+    {"zone_id":"AI_CENTER","polygon":[[2200,2200],[5800,2200],[5800,5800],[2200,5800]],"tags":["ZoneOpen","ZoneHighValue"],"neighbors":["AI_HOME_A","AI_HOME_B"],"strategic_weight":2.0},
+    {"zone_id":"AI_HOME_B","polygon":[[5400,5400],[8000,5400],[8000,8000],[5400,8000]],"tags":["ZoneResource"],"neighbors":["AI_CENTER"],"strategic_weight":1.0}
+  ],
+  "weather_profile": "none",
+  "ruleset_compatibility": ["RULESET_ANNIHILATION_STANDARD","RULESET_CONQUEST_STANDARD"]
+}

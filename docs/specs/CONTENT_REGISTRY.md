@@ -24,6 +24,8 @@
 - 规则集：`RULESET_`
 - 地图：`MAP_`
 - 任务：`MIS_`
+- 矿产：`MIN_`
+- 材料访问：`MAT_`
 - 音效：`SFX_`
 - 语音：`VOICE_`
 - 音乐：`MUSIC_`
@@ -155,15 +157,36 @@
 - `RULESET_THEATER_STANDARD`
 - `RULESET_QUICKWAR_STANDARD`
 
-执行规则见 `GAME_MODE_RULES.md`。
+执行规则见 `GAME_MODE_RULES.md`；首批机器可读规则集位于 `/Data/Rulesets/rulesets.json`。
 
-## 12. 地图与任务 ID
+## 12. 矿产与材料访问
+
+矿产稳定ID：
+
+- `MIN_BASE_METALS`
+- `MIN_RARE_EARTHS`
+- `MIN_BATTERY_METALS`
+- `MIN_HIGH_PERFORMANCE_ALLOYS`
+- `MIN_NUCLEAR_FUEL`
+- `MIN_MIXED_STRATEGIC`
+- `MIN_SALVAGE_FIELD`
+
+材料访问稳定ID：
+
+- `MAT_RARE_EARTH_ACCESS`
+- `MAT_BATTERY_ACCESS`
+- `MAT_ALLOY_ACCESS`
+- `MAT_NUCLEAR_ACCESS`
+
+`MIN_` 表示矿产/资源类型；`MAT_` 表示产业链合法连接后获得的材料供应访问状态，不是独立货币。权威矿产数据位于 `/Data/Minerals/minerals.json`，征服绑定规则见 `CONQUEST_MINERAL_TECH_BINDING.md`。
+
+## 13. 地图与任务 ID
 
 地图：`MAP_GRAY_RANGE`、`MAP_RIFT_NODE`、`MAP_NORTHERN_PLAIN`、`MAP_DATA_CONTEST`、`MAP_DESERT_TWINS`、`MAP_POLAR_FRONT`、`MAP_STEEL_PLAIN`、`MAP_DNIEPER_LINE`、`MAP_STRAIT_BLOCKADE`、`MAP_RHINE_BELT`、`MAP_FIRST_ISLAND_CHAIN`、`MAP_DEEPBLUE_FORTRESS`、`MAP_INDIAN_OCEAN_SHIELD`、`MAP_CONTINENTAL_HEARTLAND`、`MAP_EASTERN_SHIELD`、`MAP_ORBITAL_DAWN`。
 
 任务：`MIS_01_FALSE_SIGNAL` 至 `MIS_24_ASCENSION_CITY`。
 
-## 13. 音频/语音/音乐 ID
+## 14. 音频/语音/音乐 ID
 
 权威清单由：
 
@@ -173,7 +196,7 @@
 
 生成，并由 `AUDIO_VOICE_PIPELINE.md` 约束。
 
-## 14. 对象最低字段
+## 15. 对象最低字段
 
 所有普通内容对象至少包含：
 
@@ -185,17 +208,20 @@
 
 不适用字段显式写 `0`、`none` 或空集合。
 
-## 15. 生命周期
+## 16. 生命周期
 
-- `placeholder`：ID与结构存在，可用灰盒运行。
+- `design_defined`：设计规则明确，但尚未进入机器数据/代码。
+- `data_defined`：机器可读数据和Schema存在。
+- `code_contract_ready`：对应代码边界/类型已建立。
+- `placeholder`：结构/占位可运行。
 - `playable`：核心玩法可用，允许内部对局。
 - `content_complete`：正式资源与数据齐备。
 - `ship_ready`：全部验收、性能、可复现、网络与文档门禁通过。
 
 地图额外可使用：`layout_defined`、`graybox_ready`。
 
-AI代理不得把 `placeholder`、`layout_defined` 或 `playable` 宣称为正式完成。
+AI代理不得把 `design_defined`、`data_defined`、`code_contract_ready`、`placeholder`、`layout_defined` 或 `playable` 宣称为正式完成。
 
-## 16. CI注册完整性
+## 17. CI注册完整性
 
-必须检查：重复ID、非法旧前缀、悬空单位/武器/能力/建筑/科技引用、`FORM_`被错误生成为单实体、模式/规则集缺失、音频配置缺失、地图/任务ID与运行时数据不一致、删除ID无迁移/墓碑记录。
+必须检查：重复ID、非法旧前缀、悬空单位/武器/能力/建筑/科技/矿产/材料引用、`FORM_`被错误生成为单实体、模式/规则集缺失、音频配置缺失、地图/任务ID与运行时数据不一致、删除ID无迁移/墓碑记录。

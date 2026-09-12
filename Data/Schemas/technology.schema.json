@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "modernra/technology.schema.json",
+  "type": "object",
+  "required": ["schema_version", "technologies"],
+  "properties": {
+    "schema_version": {"type": "integer", "minimum": 1},
+    "technologies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "tier", "industrial_cost", "strategic_cost", "research_time_seconds", "prerequisites", "material_requirements_by_ruleset"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^TECH_[A-Z0-9_]+$"},
+          "tier": {"type": "integer", "minimum": 1, "maximum": 5},
+          "industrial_cost": {"type": "integer", "minimum": 0},
+          "strategic_cost": {"type": "integer", "minimum": 0},
+          "research_time_seconds": {"type": "number", "minimum": 0},
+          "prerequisites": {"type": "array", "items": {"type": "string"}},
+          "material_requirements_by_ruleset": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string", "pattern": "^MAT_[A-Z0-9_]+$"}}}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

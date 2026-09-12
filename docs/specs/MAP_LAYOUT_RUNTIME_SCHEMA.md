@@ -18,7 +18,7 @@
 
 ```json
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "map_id": "MAP_GRAY_RANGE",
   "size_m": [8000, 8000],
   "playable_bounds": [],
@@ -76,15 +76,32 @@
 
 ## 5. 资源节点
 
+资源节点不再只保存抽象 `I/S` 类型。矿产执行细节统一遵循 `MINERAL_RESOURCE_SYSTEM.md`。
+
 字段：
 
-`node_id, type, position, capacity, base_income_rate, max_harvest_groups, contest_weight`
+`node_id, resource_class, mineral_id, grade, position, capacity, base_income_rate, extraction_slots, processing_profile, local_buffer, control_region_id, logistics_links, material_access_tag, contest_weight`
 
-资源类型：`I, S, D, E, R, A, P, L` 与 `MAP_SPECS.md` 一致。
+其中：
+
+- `resource_class`: `INDUSTRIAL / STRATEGIC / SALVAGE / DATA / ENERGY / RADAR / AIRFIELD / PORT / LOGISTICS`；
+- `mineral_id`: 天然/回收矿产节点使用合法 `MIN_*`，非矿产设施可为空；
+- `grade`: `LOW / STANDARD / HIGH`；
+- `material_access_tag`: 可为空，由矿种规格定义；
+- `logistics_links`: 指向合法道路、铁路、港口或其他资源网络连接；
+- `local_buffer`: 断物流时的有限本地缓存。
+
+旧地图迁移：
+
+- `I -> resource_class=INDUSTRIAL, mineral_id=MIN_BASE_METALS`；
+- `S -> resource_class=STRATEGIC, mineral_id=MIN_MIXED_STRATEGIC`；
+- `D/E/R/A/P/L` 继续迁移为对应非矿产设施类。
 
 所有资源必须有稳定 `node_id`，录像和任务脚本禁止直接引用坐标。
 
-资源产量不能根据比赛进行时间自动变化；任何变化必须来自控制、破坏、科技或明确环境状态。
+资源产量不能根据比赛进行时间自动变化；任何变化必须来自控制、矿体容量、破坏、物流连接、科技或明确环境状态。
+
+排位地图还必须比较双方 `MIN_*` 可达总价值、路径成本、产业标签获取成本和防守成本，而不只比较I/S节点数量。
 
 ## 6. 控制区域 `ControlRegion`
 
@@ -194,6 +211,8 @@
 
 每个区域包含 `zone_id, polygon, tags, neighbors, strategic_weight`。
 
+`ZoneResource` 必须能够读取 `resource_class / mineral_id / material_access_tag / logistics_links / remaining_capacity`，使AI区分普通工业矿、稀缺战略矿和已枯竭节点。
+
 AI高层区域图可以与 `ControlRegion` 对齐或建立映射，但不得使用固定时间脚本推动AI攻击。
 
 快速战争部署阶段AI可以预生成防御、机动和后勤任务，但在LIVE前不得越过部署边界执行攻击任务。
@@ -206,6 +225,8 @@ AI高层区域图可以与 `ControlRegion` 对齐或建立映射，但不得使�
 
 占领作业和稳定控制规则使用 `GAME_MODE_RULES.md`；地图只定义设施本身。
 
+矿区加工站、矿业电力和物流节点可以同时作为战略设施存在，但其资源产出仍通过对应 `resource_node` 结算。
+
 ## 15. 灰盒自动生成
 
 当正式地形/美术尚未完成时，AI代理可根据侧车数据生成确定性灰盒：
@@ -214,11 +235,11 @@ AI高层区域图可以与 `ControlRegion` 对齐或建立映射，但不得使�
 2. 生成道路/桥梁；
 3. 生成控制区域和邻接关系；
 4. 放出生区与快速战争部署区；
-5. 放资源/战略设施；
+5. 按 `mineral_id / resource_class` 放置矿区、采掘/加工占位体和其他资源设施；
 6. 应用地形区域高度带；
 7. 生成简化障碍/城区体块；
-8. 烘焙导航和区域连通层；
-9. 运行自动公平、自由路线和快速战争满编部署测试。
+8. 烘焙导航、物流和区域连通层；
+9. 运行自动公平、矿产等价值、自由路线和快速战争满编部署测试。
 
 同一 `map.json + generator_version + seed` 必须生成同一灰盒拓扑。
 
@@ -226,7 +247,8 @@ AI高层区域图可以与 `ControlRegion` 对齐或建立映射，但不得使�
 
 每次地图数据变化必须输出：
 
-- 最近I/S路径距离与抵达成本；
+- 最近工业/战略资源路径距离与抵达成本；
+- 每种 `MIN_*` 可获得总等价值、路径成本、物流脆弱性和材料标签获取成本；
 - 可建设面积；
 - 至少三条主要敌我陆路的成本差异（适用地图）；
 - 控制区域图的割点/桥接边；
@@ -245,10 +267,13 @@ AI高层区域图可以与 `ControlRegion` 对齐或建立映射，但不得使�
 
 快速战争认证图如果无法在不削减标准编制的情况下容纳双方完整战备状态，同样不通过认证。
 
+任一排位出生位若天然独占全部高价值战略矿种/材料标签，或同类战略材料获取成本明显不对称，同样不通过认证。
+
 ## 17. 性能预算
 
-- 区域图、道路图和静态传感遮挡数据构建期预烘焙；
-- 动态破坏只更新受影响区域的导航、连接和遮挡；
+- 区域图、道路图、物流图和静态传感遮挡数据构建期预烘焙；
+- 矿区剩余容量、运行状态、本地缓存只保存轻量权威数据；
+- 动态破坏只更新受影响区域的导航、物流、连接和遮挡；
 - 16x16km地图采用区域流送；
 - 服务器只加载玩法碰撞、区域、道路、资源和简化高度数据，不加载客户端高精资产；
 - 快速战争完整战备状态必须批量生成/恢复，禁止逐单位逐建筑串行生成导致长时间卡顿。
@@ -258,12 +283,14 @@ AI高层区域图可以与 `ControlRegion` 对齐或建立映射，但不得使�
 地图进入 `graybox_ready` 必须：
 
 - JSON Schema通过；
-- 无悬空 `site_id/road_id/zone_id/region_id`；
+- 无悬空 `site_id/road_id/zone_id/region_id/node_id/mineral_id`；
 - 所有出生点可到达至少一个工业资源和主要战区；
 - 控制区域邻接图有效；
+- 资源节点的矿种、品位、容量、加工与物流字段完整；
+- 矿产等价值和产业标签获取公平通过 `MINERAL_RESOURCE_SYSTEM.md` 门禁；
 - 不存在无恢复手段的单一永久锁死路线；
 - 模式要求的 `home_core_regions/theater_critical_regions` 完整；
-- AI可导航并理解动态区域控制；
+- AI可导航并理解动态区域控制、矿种价值和物流状态；
 - 自动公平与自由度门禁通过。
 
 声明兼容快速战争时还必须：

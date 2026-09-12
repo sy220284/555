@@ -55,6 +55,11 @@ namespace ModernRA.Rules
             _cursor = 0;
         }
 
+        public PrototypePlayerCommand[] ToCanonicalArray()
+        {
+            return _commands.ToArray();
+        }
+
         public ulong ComputeCanonicalHash()
         {
             ulong hash = FnvOffset;

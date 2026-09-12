@@ -56,6 +56,7 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("ValidateScenario", replay)
         self.assertIn("ValidateOutcome", replay)
         self.assertIn("ReplayRoundTrip(config, map.MapId, canonical, commanded)", runner)
+        self.assertNotIn("GrayRangeGeneratedData.MapId", replay)
         self.assertNotIn("GrayRangeGeneratedData.MapId", runner)
         self.assertIn("PlayerCommandReplayFile.ValidateScenario", runner)
         self.assertIn("PlayerCommandReplayFile.ValidateOutcome", runner)

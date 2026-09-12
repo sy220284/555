@@ -19,12 +19,19 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
+      - name: Resolve exact dotnet SDK version
+        run: echo "DOTNET_SDK_VERSION=$(dotnet --version)" >> "$GITHUB_ENV"
+      - name: Install isolated resolved dotnet SDK
+        run: |
+          curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          mkdir -p /tmp/dotnet-local
+          bash /tmp/dotnet-install.sh --version "$DOTNET_SDK_VERSION" --install-dir /tmp/dotnet-local --no-path
       - name: Package main source snapshot
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: git archive --format=tar.gz --output=/tmp/555-main.tar.gz "$BASE_SHA"
-      - name: Package resolved dotnet toolchain
-        run: tar -C /usr/share -czf /tmp/dotnet-sdk-linux-x64.tar.gz dotnet
+      - name: Package isolated dotnet toolchain
+        run: tar -C /tmp -czf /tmp/dotnet-sdk-linux-x64.tar.gz dotnet-local
       - name: Upload local development bootstrap
         uses: actions/upload-artifact@v7
         with:

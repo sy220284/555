@@ -38,9 +38,23 @@
 | ABL_CN_DRONE_HIVE | 蜂巢无人车 | 放出/回收编组无人机，受算力与库存限制 |
 | ABL_US_STEALTH_LINK | 幽灵战机 | 与预警/僚机数据链联动 |
 | ABL_US_CCA_LINK | 猎鹰CCA | 与有人机共享目标/任务 |
-| ABL_UA_FIBER_CONTROL | 光纤无人机 | 对无线通信干扰免疫，仍受传感/物理攻击影响 |
+| ABL_DE_MODULE_SWITCH | 德国模块车辆/机器人 | 仅在保障/维修点切换已解锁任务模块；切换期间不能攻击 |
+| ABL_JP_MISSION_MODE_SWITCH | 日本岛屿机动平台 | 在反舰/区域防空支援模式之间切换，切换有固定时间和冷却 |
+| ABL_TR_WOLFPACK_LINK | 土耳其无人航空 | 同一战斗群内自动分配侦察/诱饵/攻击角色，不改变玩家战略目标 |
+| ABL_UA_FIBER_CONTROL | 光纤无人机 | 对无线控制链干扰免疫，仍受传感/物理攻击影响 |
+| ABL_IR_MOBILE_LAUNCH | 伊朗机动导弹 | 发射后进入高暴露状态，必须重新部署后恢复低特征 |
 
-## 3. 状态ID
+## 3. 尤里能力
+
+| ID | 对象 | 规则 |
+|---|---|---|
+| ABL_YURI_GRAVITY_PULSE | 重力平台 | 对轻型目标施加短时位移/机动扰乱；不能移动重型战略单位，强冷却 |
+| ABL_YURI_NEURAL_FIELD | 神经控制平台 | 对人员/低自主机器累计神经/系统压力；不能永久夺取英雄/战略资产 |
+| ABL_YURI_PHANTOM_DECOY | 幻影节点 | 生成带DeceptionStrength的可侦破假目标 |
+| ABL_YURI_SWARM_DECEPTION | 幽灵蜂群 | 在侦察/欺骗姿态间切换，欺骗姿态降低直接火力能力 |
+| ABL_YURI_LOCAL_HIVE_LINK | 尤里机器军团 | 共享局部目标/威胁信息，失去神经核心时按规则降级 |
+
+## 4. 状态ID
 
 - `STATUS_SUPPRESSED`
 - `STATUS_SENSOR_DEGRADED`
@@ -59,8 +73,9 @@
 - `STATUS_SUBMERGED`
 - `STATUS_DECOY_UNVERIFIED`
 - `STATUS_DECOY_REVEALED`
+- `STATUS_HIGH_EMISSION`
 
-## 4. 能力数据字段
+## 5. 能力数据字段
 
 每项能力最低包含：
 
@@ -68,13 +83,14 @@
 
 无消耗字段显式写0。
 
-## 5. 权威规则
+## 6. 权威规则
 
 - 所有能力由服务器验证并执行权威结果；
 - 表现层VFX/音效不能决定命中、占领、干扰或状态；
 - AI只能使用其权限和预算允许的能力；
-- 战略级能力使用 `STRAT_`，不能混入普通 `ABL_`。
+- 战略级能力使用 `STRAT_`，不能混入普通 `ABL_`；
+- 模式切换/模块切换必须进入录像事件和状态哈希，禁止只存在于表现层。
 
-## 6. 验收
+## 7. 验收
 
-CI拒绝：悬空能力ID、状态ID未注册、缺少网络权威定义、能力没有AI使用策略、能力无测试配置或客户端可直接提交结果。
+CI拒绝：悬空能力ID、状态ID未注册、缺少网络权威定义、能力没有AI使用策略、能力无测试配置、客户端可直接提交结果、模式切换不进入录像/存档。

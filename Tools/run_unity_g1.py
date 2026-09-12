@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import os
 import pathlib
@@ -150,6 +151,50 @@ def snapshot_generated_project_settings(root, artifacts, names):
     return copied
 
 
+def _sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_bootstrap_manifest(root, artifacts):
+    candidates = [
+        root / "ProjectSettings" / "ProjectVersion.txt",
+        root / "Packages" / "packages-lock.json",
+    ]
+    candidates.extend(
+        root / "ProjectSettings" / name
+        for name in REQUIRED_VERSIONED_PROJECT_SETTINGS
+    )
+
+    files = []
+    for path in candidates:
+        if not path.exists():
+            continue
+        files.append(
+            {
+                "path": path.relative_to(root).as_posix(),
+                "size": path.stat().st_size,
+                "sha256": _sha256(path),
+            }
+        )
+
+    manifest = {
+        "format_version": 1,
+        "unity_editor_version": EXPECTED_EDITOR_VERSION,
+        "baseline_complete": not missing_versioned_project_settings(root)
+        and (root / "Packages" / "packages-lock.json").exists(),
+        "missing_project_settings": missing_versioned_project_settings(root),
+        "files": sorted(files, key=lambda item: item["path"]),
+    }
+    output = artifacts / "bootstrap-manifest.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
 def verify_test_results(path, required_tests=REQUIRED_EDITMODE_TESTS):
     if not path.exists():
         raise RuntimeError(f"Unity did not produce EditMode results: {path}")
@@ -175,11 +220,7 @@ def verify_test_results(path, required_tests=REQUIRED_EDITMODE_TESTS):
     missing = []
     not_passed = []
     for required in required_tests:
-        matches = [
-            (name, case_result)
-            for name, case_result in executed.items()
-            if name == required or name.endswith(required)
-        ]
+        matches = [(name, case_result) for name, case_result in executed.items() if name == required or name.endswith(required)]
         if not matches:
             missing.append(required)
             continue
@@ -258,6 +299,7 @@ def main():
             return 2
 
         verify_package_lock()
+        write_bootstrap_manifest(ROOT, artifacts)
 
         if missing_settings_before_compile:
             copied = snapshot_generated_project_settings(

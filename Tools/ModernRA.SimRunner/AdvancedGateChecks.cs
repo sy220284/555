@@ -8,6 +8,7 @@ internal static class AdvancedGateChecks
         VerifyAIAuthorityAndPlayerOverride();
         VerifyRoboticsDegradationMatrix();
         VerifyLocalAuthoritativeNetworkLoop();
+        SupplyGateChecks.Run();
     }
 
     private static void VerifyIntelPrecisionAndHiddenState()

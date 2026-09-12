@@ -18,3 +18,5 @@ jobs:
           python-version: '3.12'
       - name: Validate authoritative data
         run: python Tools/content_validator.py
+      - name: Validate embedded package structure
+        run: python Tools/project_structure_validator.py

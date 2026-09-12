@@ -144,7 +144,7 @@ internal static class PlayerCommandReplayFile
             throw new InvalidDataException("command replay ruleset mismatch");
         if (string.IsNullOrWhiteSpace(document.ScenarioId))
             throw new InvalidDataException("command replay scenario id missing");
-        if (!string.Equals(document.ScenarioId, GrayRangeGeneratedData.MapId, StringComparison.Ordinal))
+        if (!string.Equals(document.ScenarioId, GrayRangeGeneratedData.Create().MapId, StringComparison.Ordinal))
             throw new InvalidDataException("command replay scenario id mismatch");
         if (document.Commands == null || document.Commands.Length == 0)
             throw new InvalidDataException("command replay contains no commands");

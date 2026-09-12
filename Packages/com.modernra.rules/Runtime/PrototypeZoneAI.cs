@@ -94,6 +94,20 @@ namespace ModernRA.Rules
             return (int)(weighted / totalWeight);
         }
 
+        public static bool TrySelectHighestPriority(
+            IReadOnlyList<PrototypeZoneCandidate> zones,
+            out PrototypeZonePriority selected)
+        {
+            PrototypeZonePriority[] ranked = Rank(zones);
+            if (ranked.Length == 0)
+            {
+                selected = default;
+                return false;
+            }
+            selected = ranked[0];
+            return true;
+        }
+
         public static PrototypeZonePriority[] Rank(IReadOnlyList<PrototypeZoneCandidate> zones)
         {
             if (zones == null) throw new ArgumentNullException(nameof(zones));

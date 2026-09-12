@@ -1,3 +1,5 @@
+using ModernRA.Rules;
+
 internal static class Program
 {
     private static int Main(string[] args)

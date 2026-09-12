@@ -86,7 +86,10 @@ namespace ModernRA.Rules
             if (requiredWidthMeters <= 0) throw new ArgumentOutOfRangeException(nameof(requiredWidthMeters));
 
             bool found = false;
-            SharedRouteCandidate selected = default;
+            string selectedRouteId = string.Empty;
+            Int2[] selectedPoints = Array.Empty<Int2>();
+            string[] selectedDependencies = Array.Empty<string>();
+            int selectedWidthMeters = 0;
             long selectedDistance = 0;
             long selectedCost = long.MaxValue;
 
@@ -99,10 +102,13 @@ namespace ModernRA.Rules
                 long distance = ComputePolylineDistance(candidate.Points);
                 long cost = checked((distance * candidate.TerrainCostPermille + 999L) / 1000L);
                 if (!found || cost < selectedCost ||
-                    (cost == selectedCost && string.CompareOrdinal(candidate.RouteId, selected.RouteId) < 0))
+                    (cost == selectedCost && string.CompareOrdinal(candidate.RouteId, selectedRouteId) < 0))
                 {
                     found = true;
-                    selected = candidate;
+                    selectedRouteId = candidate.RouteId;
+                    selectedPoints = candidate.Points;
+                    selectedDependencies = candidate.TopologyDependencies;
+                    selectedWidthMeters = candidate.WidthMeters;
                     selectedDistance = distance;
                     selectedCost = cost;
                 }
@@ -115,12 +121,12 @@ namespace ModernRA.Rules
             }
 
             selection = new SharedRouteSelection(
-                selected.RouteId,
-                (Int2[])selected.Points.Clone(),
+                selectedRouteId,
+                (Int2[])selectedPoints.Clone(),
                 selectedDistance,
                 selectedCost,
-                selected.WidthMeters,
-                (string[])selected.TopologyDependencies.Clone());
+                selectedWidthMeters,
+                (string[])selectedDependencies.Clone());
             return true;
         }
 

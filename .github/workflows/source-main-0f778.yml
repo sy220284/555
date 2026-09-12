@@ -1,0 +1,35 @@
+name: source-main-0f778
+
+on:
+  push:
+    branches:
+      - tooling/local-dotnet-sdk-20260912
+    paths:
+      - '.github/workflows/source-main-0f778.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Archive exact main source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Artifacts/source
+          git fetch --no-tags --depth=1 origin 0f778146eef53bff62f768e4ad57704a1d6ccbbe
+          git archive --format=tar.gz --output=Artifacts/source/555-main-0f778.tar.gz FETCH_HEAD
+          sha256sum Artifacts/source/555-main-0f778.tar.gz > Artifacts/source/555-main-0f778.tar.gz.sha256
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v7
+        with:
+          name: 555-main-0f778
+          path: Artifacts/source/**
+          if-no-files-found: error
+          retention-days: 3

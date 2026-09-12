@@ -68,10 +68,11 @@ internal static class Program
     {
         return new[]
         {
-            new PrototypePlayerCommand(600, 20, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy),
-            new PrototypePlayerCommand(1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy),
-            new PrototypePlayerCommand(360, 20, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive),
-            new PrototypePlayerCommand(1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive)
+            // Permanently swap the prototype production plans at the first authoritative tick.
+            // This guarantees the command stream changes authoritative inputs instead of
+            // temporarily diverging and later returning to the baseline plans.
+            new PrototypePlayerCommand(1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive),
+            new PrototypePlayerCommand(1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy)
         };
     }
 

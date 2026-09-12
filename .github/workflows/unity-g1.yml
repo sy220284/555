@@ -2,12 +2,35 @@ name: unity-g1
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ProjectSettings/**'
+      - 'Packages/**'
+      - 'Tools/run_unity_g1.py'
+      - 'Tools/project_structure_validator.py'
+      - '.github/workflows/unity-g1.yml'
+  pull_request:
+    paths:
+      - 'ProjectSettings/**'
+      - 'Packages/**'
+      - 'Tools/run_unity_g1.py'
+      - 'Tools/project_structure_validator.py'
+      - '.github/workflows/unity-g1.yml'
 
 permissions:
   contents: read
 
+concurrency:
+  group: unity-g1-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   unity-editor-validation:
+    if: >-
+      ${{ vars.UNITY_EDITOR_PATH != '' &&
+          (github.event_name != 'pull_request' ||
+           github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: [self-hosted, unity-6000.3.24f1]
     timeout-minutes: 45
     steps:

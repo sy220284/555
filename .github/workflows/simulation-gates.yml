@@ -25,3 +25,7 @@ jobs:
         run: dotnet build Tools/ModernRA.CommandRunner/ModernRA.CommandRunner.csproj -c Release
       - name: Run deterministic player command stream gate
         run: dotnet run --project Tools/ModernRA.CommandRunner/ModernRA.CommandRunner.csproj -c Release --no-build
+      - name: Build live player command admission runner
+        run: dotnet build Tools/ModernRA.CommandInboxRunner/ModernRA.CommandInboxRunner.csproj -c Release
+      - name: Run live player command admission gate
+        run: dotnet run --project Tools/ModernRA.CommandInboxRunner/ModernRA.CommandInboxRunner.csproj -c Release --no-build

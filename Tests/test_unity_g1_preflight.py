@@ -41,6 +41,18 @@ class UnityG1PreflightTests(unittest.TestCase):
             self.assertTrue(any("ProjectVersion editor" in error for error in errors))
             self.assertTrue(any("ProjectVersion revision" in error for error in errors))
 
+    def test_authoritative_simulation_rejects_presentation_apis(self):
+        sample = "using UnityEngine; public sealed class Bad : MonoBehaviour { Camera camera; Material mat; }"
+        violations = MODULE.find_forbidden_simulation_api(sample)
+        self.assertIn("UnityEngine dependency", violations)
+        self.assertIn("MonoBehaviour", violations)
+        self.assertIn("Camera", violations)
+        self.assertIn("Material", violations)
+
+    def test_authoritative_simulation_allows_dots_apis(self):
+        sample = "using Unity.Entities; using Unity.Mathematics; public partial struct Good : ISystem { }"
+        self.assertEqual([], MODULE.find_forbidden_simulation_api(sample))
+
 
 if __name__ == "__main__":
     unittest.main()

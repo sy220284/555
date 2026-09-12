@@ -29,6 +29,16 @@ REQUIRED_G1_ASSEMBLIES = {
     "ModernRA.Tests.Editor",
 }
 FORBIDDEN_VERSION_MARKERS = ("preview", "experimental", "-pre", "-exp")
+SIMULATION_FORBIDDEN_API_PATTERNS = (
+    ("UnityEngine dependency", re.compile(r"\busing\s+UnityEngine(?:\.|\s*;)|\bUnityEngine\.")),
+    ("Camera", re.compile(r"\bCamera\b")),
+    ("Material", re.compile(r"\bMaterial\b")),
+    ("AudioSource", re.compile(r"\bAudioSource\b")),
+    ("Animator", re.compile(r"\bAnimator\b")),
+    ("GameObject", re.compile(r"\bGameObject\b")),
+    ("MonoBehaviour", re.compile(r"\bMonoBehaviour\b")),
+    ("VisualEffect", re.compile(r"\bVisualEffect\b")),
+)
 
 
 def load_json(path: pathlib.Path):
@@ -40,6 +50,10 @@ def has_forbidden_version_marker(version: object) -> bool:
         return True
     lowered = version.lower()
     return any(marker in lowered for marker in FORBIDDEN_VERSION_MARKERS)
+
+
+def find_forbidden_simulation_api(text: str):
+    return [label for label, pattern in SIMULATION_FORBIDDEN_API_PATTERNS if pattern.search(text)]
 
 
 def validate_project(root: pathlib.Path = ROOT):
@@ -229,6 +243,17 @@ def validate_project(root: pathlib.Path = ROOT):
             if forbidden.search(text):
                 errors.append(
                     f"{source.relative_to(root)}: deterministic rules kernel must not reference Unity APIs"
+                )
+
+    simulation_runtime = packages_root / "com.modernra.simulation" / "Runtime"
+    if simulation_runtime.exists():
+        for source in sorted(simulation_runtime.rglob("*.cs")):
+            text = source.read_text(encoding="utf-8", errors="ignore")
+            violations = find_forbidden_simulation_api(text)
+            if violations:
+                errors.append(
+                    f"{source.relative_to(root)}: authoritative simulation boundary uses forbidden presentation API(s): "
+                    + ", ".join(violations)
                 )
 
     simulation_rate = root / "Packages/com.modernra.simulation/Runtime/SimulationRate.cs"

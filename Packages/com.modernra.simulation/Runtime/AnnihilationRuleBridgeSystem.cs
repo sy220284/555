@@ -9,10 +9,12 @@ namespace ModernRA.Simulation
     [UpdateAfter(typeof(SimulationTickSystem))]
     public partial class AnnihilationRuleBridgeSystem : SystemBase
     {
+        private const int MaxCommandLeadTicks = 8;
         private readonly Dictionary<int, Entity> _unitEntities = new Dictionary<int, Entity>();
         private readonly Dictionary<int, Entity> _buildingEntities = new Dictionary<int, Entity>();
-        private AnnihilationPrototypeWorld _world;
+        private LiveCommandedAnnihilationSession _session;
         private Entity _matchStateEntity;
+        private Entity _commandQueueEntity;
 
         protected override void OnCreate()
         {
@@ -23,24 +25,60 @@ namespace ModernRA.Simulation
         protected override void OnStartRunning()
         {
             base.OnStartRunning();
-            if (_world != null)
+            if (_session != null)
                 return;
 
             RuntimeMapBootstrapData map = GrayRangeGeneratedData.Create();
-            _world = AnnihilationPrototype.Create(map.CreateStandardAnnihilationConfig());
+            _session = new LiveCommandedAnnihilationSession(map.CreateStandardAnnihilationConfig(), MaxCommandLeadTicks);
             _matchStateEntity = EntityManager.CreateEntity(typeof(AnnihilationMatchState));
-            SyncAll(_world);
+            _commandQueueEntity = EntityManager.CreateEntity(typeof(PlayerCommandQueueState));
+            EntityManager.AddBuffer<PlayerCommandRequest>(_commandQueueEntity);
+            SyncAll(_session.World);
         }
 
         protected override void OnUpdate()
         {
-            if (_world == null || _world.Resolved)
+            if (_session == null || _session.World.Resolved)
                 return;
 
-            AnnihilationPrototype.Step(_world);
-            SyncAll(_world);
-            if (_world.Resolved)
+            ProcessPendingPlayerCommands();
+            _session.Step();
+            SyncAll(_session.World);
+            if (_session.World.Resolved)
                 Enabled = false;
+        }
+
+        private void ProcessPendingPlayerCommands()
+        {
+            if (_commandQueueEntity == Entity.Null || !EntityManager.Exists(_commandQueueEntity))
+                return;
+
+            DynamicBuffer<PlayerCommandRequest> pending = EntityManager.GetBuffer<PlayerCommandRequest>(_commandQueueEntity);
+            if (pending.Length == 0)
+                return;
+
+            PlayerCommandQueueState queueState = EntityManager.GetComponentData<PlayerCommandQueueState>(_commandQueueEntity);
+            int executeTick = checked(_session.World.Tick + 1);
+            for (int i = 0; i < pending.Length; i++)
+            {
+                PlayerCommandRequest request = pending[i];
+                var command = new PrototypePlayerCommand(
+                    executeTick,
+                    request.Sequence,
+                    request.PlayerId,
+                    (PrototypePlayerCommandKind)request.Kind,
+                    request.IntValue);
+                PrototypeCommandAdmissionResult result = _session.Submit(command);
+                if (result == PrototypeCommandAdmissionResult.Accepted)
+                    queueState.AcceptedCount++;
+                else
+                    queueState.RejectedCount++;
+                queueState.LastSequence = request.Sequence;
+                queueState.LastAdmissionResult = (byte)result;
+            }
+
+            pending.Clear();
+            EntityManager.SetComponentData(_commandQueueEntity, queueState);
         }
 
         private void SyncAll(AnnihilationPrototypeWorld world)

@@ -1,0 +1,93 @@
+From 74e4e48779c11c6414c44184e8b258a41e2bd7f2 Mon Sep 17 00:00:00 2001
+From: OpenAI Local Worker <local-worker@example.invalid>
+Date: Sat, 12 Sep 2026 14:12:28 +0000
+Subject: [PATCH] rules: integrate supply state into annihilation runtime
+
+
+diff --git a/Packages/com.modernra.rules/Runtime/AnnihilationPrototype.cs b/Packages/com.modernra.rules/Runtime/AnnihilationPrototype.cs
+index f7dea46..ce9f5cd 100644
+--- a/Packages/com.modernra.rules/Runtime/AnnihilationPrototype.cs
++++ b/Packages/com.modernra.rules/Runtime/AnnihilationPrototype.cs
+@@ -51,6 +51,10 @@ namespace ModernRA.Rules
+         public int WeaponCooldownTicks;
+         public int CorridorCursor;
+         public int ControlGroupId;
++        public int SupplyUse = PrototypeSupplyRuntime.DefaultTankSupplyUse;
++        public int AllocatedSupply = PrototypeSupplyRuntime.DefaultTankSupplyUse;
++        public int PrimarySupplyNodeId = -1;
++        public RuleSupplyLevel SupplyLevel = RuleSupplyLevel.Sufficient;
+         public bool HoldingPosition;
+         public bool Alive = true;
+     }
+@@ -87,6 +91,7 @@ namespace ModernRA.Rules
+         };
+         public long StartingIndustrialMilli = 2500L * 1000L;
+         public int MaxLiveTanksPerTeam = 12;
++        public RuleSupplyNode[] SupplyNodes = Array.Empty<RuleSupplyNode>();
+     }
+ 
+     public sealed class AnnihilationPrototypeWorld
+@@ -102,6 +107,10 @@ namespace ModernRA.Rules
+         public int WinnerTeamId;
+         public PrototypeDefeatReason DefeatReason;
+         public int MaxLiveTanksPerTeam;
++        public RuleSupplyNode[] SupplyNodes = Array.Empty<RuleSupplyNode>();
++        public RuleSupplyNodeRemainder[] SupplyNodeRemainders = Array.Empty<RuleSupplyNodeRemainder>();
++        public int LastSupplyAllocationTick = -1;
++        public int SupplyReallocationCount;
+ 
+         public bool Resolved => WinnerTeamId != 0;
+     }
+@@ -156,8 +165,10 @@ namespace ModernRA.Rules
+                 SharedCorridor = (Int2[])config.SharedCorridor.Clone(),
+                 TeamA = CreateTeam(1, PrototypeAnnihilationPlan.Aggressive, config.SpawnA, 1, config.StartingIndustrialMilli),
+                 TeamB = CreateTeam(2, PrototypeAnnihilationPlan.Economy, config.SpawnB, -1, config.StartingIndustrialMilli),
+-                MaxLiveTanksPerTeam = config.MaxLiveTanksPerTeam
++                MaxLiveTanksPerTeam = config.MaxLiveTanksPerTeam,
++                SupplyNodes = PrototypeSupplyRuntime.CopyCanonicalNodes(config.SupplyNodes)
+             };
++            PrototypeSupplyRuntime.Reallocate(world);
+             return world;
+         }
+ 
+@@ -187,6 +198,7 @@ namespace ModernRA.Rules
+             world.Tick++;
+             StepEconomyAndProduction(world.TeamA, world.SharedCorridor.Length, world.MaxLiveTanksPerTeam);
+             StepEconomyAndProduction(world.TeamB, world.SharedCorridor.Length, world.MaxLiveTanksPerTeam);
++            PrototypeSupplyRuntime.ReallocateIfDue(world);
+             StepTeamCombat(world, world.TeamA, world.TeamB, true);
+             StepTeamCombat(world, world.TeamB, world.TeamA, false);
+             ResolveWarSystemCollapse(world);
+@@ -546,6 +558,24 @@ namespace ModernRA.Rules
+             hash = StateHash64.Add(hash, world.UnitsDestroyed);
+             hash = StateHash64.Add(hash, world.BuildingsDestroyed);
+             hash = StateHash64.Add(hash, world.MovementSteps);
++            hash = StateHash64.Add(hash, world.LastSupplyAllocationTick);
++            hash = StateHash64.Add(hash, world.SupplyReallocationCount);
++            for (int i = 0; i < world.SupplyNodes.Length; i++)
++            {
++                RuleSupplyNode node = world.SupplyNodes[i];
++                hash = StateHash64.Add(hash, node.NodeId);
++                hash = StateHash64.Add(hash, node.TeamId);
++                hash = StateHash64.Add(hash, node.X);
++                hash = StateHash64.Add(hash, node.Y);
++                hash = StateHash64.Add(hash, node.Capacity);
++                hash = StateHash64.Add(hash, node.Radius);
++                hash = StateHash64.Add(hash, node.Enabled ? 1 : 0);
++            }
++            for (int i = 0; i < world.SupplyNodeRemainders.Length; i++)
++            {
++                hash = StateHash64.Add(hash, world.SupplyNodeRemainders[i].NodeId);
++                hash = StateHash64.Add(hash, world.SupplyNodeRemainders[i].RemainingCapacity);
++            }
+             HashTeam(ref hash, world.TeamA);
+             HashTeam(ref hash, world.TeamB);
+             return hash;
+@@ -586,6 +616,10 @@ namespace ModernRA.Rules
+                 hash = StateHash64.Add(hash, unit.Health);
+                 hash = StateHash64.Add(hash, unit.WeaponCooldownTicks);
+                 hash = StateHash64.Add(hash, unit.CorridorCursor);
++                hash = StateHash64.Add(hash, unit.SupplyUse);
++                hash = StateHash64.Add(hash, unit.AllocatedSupply);
++                hash = StateHash64.Add(hash, unit.PrimarySupplyNodeId);
++                hash = StateHash64.Add(hash, (int)unit.Supply

@@ -8,7 +8,9 @@
     "com.modernra.rules": "0.1.0",
     "com.modernra.simulation": "0.1.0",
     "com.modernra.ai": "0.1.0",
+    "com.modernra.intel-ew": "0.1.0",
     "com.modernra.robotics": "0.1.0",
+    "com.modernra.network": "0.1.0",
     "com.unity.entities": "1.4.3"
   }
 }

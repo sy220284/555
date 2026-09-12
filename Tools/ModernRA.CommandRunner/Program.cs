@@ -97,6 +97,7 @@ internal static class Program
             CommandRunResult replayed = Run(config, loadedCommands);
             if (!replayed.Equals(expected))
                 throw new InvalidOperationException("persisted command replay changed authoritative result");
+            PlayerCommandReplayFile.ValidateOutcome(loaded, replayed.WinnerTeamId, replayed.ResolvedTick, replayed.StateHash);
 
             byte[] secondBytes = PlayerCommandReplayFile.Serialize(loaded);
             if (!firstBytes.AsSpan().SequenceEqual(secondBytes))

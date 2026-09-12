@@ -1,6 +1,6 @@
 {
   "name":"ModernRA.IntelEW",
   "rootNamespace":"ModernRA.IntelEW",
-  "references":["ModernRA.Simulation","Unity.Entities"],
+  "references":["ModernRA.Rules","ModernRA.Simulation","Unity.Entities"],
   "autoReferenced":true
 }

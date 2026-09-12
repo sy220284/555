@@ -40,7 +40,8 @@
 - `development/06_CONTENT_PIPELINE.md`：内容生产管线。
 - `development/07_EXECUTION_MODEL.md`：并行任务、模块所有权与门禁。
 - `development/08_IMPLEMENTATION_BOOTSTRAP.md`：当前真正已经入库的工程/数据/CI，以及尚未通过的门禁。
-- `development/09_FULL_DESIGN_IMPLEMENTATION_AUDIT.md`：本轮全设计深化、各系统实现状态、阻断项和风险驱动实现顺序。
+- `development/09_FULL_DESIGN_IMPLEMENTATION_AUDIT.md`：全设计深化、各系统实现状态、阻断项和风险驱动实现顺序。
+- `development/10_FORMAL_IMPLEMENTATION_PROGRESS.md`：正式推进后真实通过的门禁、实跑数据与下一阻断项。
 
 ## 执行规格层
 
@@ -87,6 +88,7 @@
 
 - `specs/SAVE_NETWORK_MOD_EDITOR_SCHEMA.md`
 - `specs/TEST_MATRIX.md`
+- `specs/IMPLEMENTATION_TEST_GATES.md`
 - `specs/ACCEPTANCE_CRITERIA.md`
 - `specs/SPEC_COMPLETENESS_MATRIX.md`
 
@@ -97,6 +99,7 @@
 - `ProjectSettings/ProjectVersion.txt`：当前编辑器基线。
 - `Packages/manifest.json`：正式依赖基线。
 - `Packages/com.modernra.core`
+- `Packages/com.modernra.rules`：纯C#权威规则内核，不允许引用Unity API。
 - `Packages/com.modernra.simulation`
 - `Packages/com.modernra.combat`
 - `Packages/com.modernra.navigation`
@@ -114,12 +117,17 @@
 - `/Data/Maps/MAP_GRAY_RANGE.map.json`
 - `/Data/Schemas/*.schema.json`
 
-### 自动门禁
+### 无画面运行与自动门禁
 
 - `Tools/content_validator.py`
+- `Tools/project_structure_validator.py`
+- `Tools/ModernRA.SimRunner`
 - `.github/workflows/content-validation.yml`
+- `.github/workflows/simulation-gates.yml`
 
-这些存在只代表项目已经进入实现链，不代表达到 `playable`。
+当前无画面规则运行器已经验证1000单位、10000 tick × 10确定性、经济、共享路线、直射战斗、情报过滤、AI授权、机器人降级和本机权威网络规则；详细证据见 `development/10_FORMAL_IMPLEMENTATION_PROGRESS.md`。
+
+这些通过仍不代表达到 `playable`；Unity真实编译、灰盒场景、ECS生产系统、目标硬件性能和G11完整歼灭仍是硬门禁。
 
 ## 编码前最小阅读集
 
@@ -131,10 +139,11 @@
 4. `development/00_ARCHITECTURE.md`
 5. `development/08_IMPLEMENTATION_BOOTSTRAP.md`
 6. `development/09_FULL_DESIGN_IMPLEMENTATION_AUDIT.md`
-7. `specs/CONTENT_REGISTRY.md`
-8. `specs/SYSTEM_COMPLEXITY_BUDGET.md`
-9. 当前任务对应执行规格
-10. `specs/TEST_MATRIX.md` 与 `specs/ACCEPTANCE_CRITERIA.md`
+7. `development/10_FORMAL_IMPLEMENTATION_PROGRESS.md`
+8. `specs/CONTENT_REGISTRY.md`
+9. `specs/SYSTEM_COMPLEXITY_BUDGET.md`
+10. 当前任务对应执行规格
+11. `specs/TEST_MATRIX.md`、`specs/IMPLEMENTATION_TEST_GATES.md` 与 `specs/ACCEPTANCE_CRITERIA.md`
 
 模式/经济/地图任务还必须读取 `03A_FREEDOM_WARFARE.md`、`GAME_MODE_RULES.md`、`MODE_PLAYABILITY_PROFILES.md` 和 `MODE_RESOURCE_PROFILES.md`。矿产任务再读 `MINERAL_RESOURCE_SYSTEM.md`；征服科技再读 `CONQUEST_MINERAL_TECH_BINDING.md`；快速战争再读 `QUICKWAR_FULL_READINESS.md`。
 

@@ -45,51 +45,66 @@
 
 标准现代对局目标800—1500有效活动实体、常规60FPS；大型团队1500—3000；战区扩展3000—5000。性能必须优先靠算法、数据结构、批处理、结果复用和表现批量化解决，不能靠削AI、砍单位或残缺画质。
 
-## 设计已经进入实际实现链
+## 已进入实际实现链
 
 仓库现在不再只有文档。已经实际加入：
 
 - `ProjectSettings/ProjectVersion.txt`：Unity编辑器基线；
 - `Packages/manifest.json`：核心正式包版本；
 - `com.modernra.core`：稳定ID；
-- `com.modernra.simulation`：权威热状态、30Hz模拟契约和固定步进配置；
+- `com.modernra.rules`：纯C#确定性权威规则内核；
+- `com.modernra.simulation`：30Hz实体模拟边界并引用统一规则内核；
 - `com.modernra.combat`：装甲/武器/伤害事件契约；
 - `com.modernra.navigation`：导航层、共享路径走廊和局部避障契约；
-- `com.modernra.ai`：AI权限、禁令、更新节拍、玩家覆盖代次；
-- `com.modernra.intel-ew`：六级情报、四级电子战与签名状态；
-- `com.modernra.robotics`：A1—A4自主、链路和算力分配；
-- `com.modernra.network`：命令/快照头和复制可见性边界；
-- `com.modernra.tests`：首批编辑器契约测试；
-- `/Data/Rulesets`：五种标准规则集首批权威数据；
-- `/Data/Minerals`：具体矿产权威数据；
-- `/Data/Technology`：通用科技与征服材料前置首批权威数据；
+- `com.modernra.ai`：AI权限组件与统一授权规则适配；
+- `com.modernra.intel-ew`：六级情报、四级电子战与统一情报过滤规则适配；
+- `com.modernra.robotics`：A1—A4自主状态与统一降级规则适配；
+- `com.modernra.network`：命令/快照边界、五级复制可见性；
+- `com.modernra.tests`：编辑器契约测试、确定性规则测试、规则适配测试；
+- `Tools/ModernRA.SimRunner`：不依赖渲染/UI/音频的无画面权威规则运行器；
+- `/Data/Rulesets`、`/Data/Minerals`、`/Data/Technology`：首批权威数据；
 - `/Data/Maps/MAP_GRAY_RANGE.map.json`：首张地图机器侧车；
 - `/Data/Schemas`：首批JSON Schema；
 - `Tools/content_validator.py`：独立内容验证器；
-- `.github/workflows/content-validation.yml`：数据自动门禁。
+- `.github/workflows/content-validation.yml`：数据自动门禁；
+- `.github/workflows/simulation-gates.yml`：确定性模拟/规则自动门禁。
 
-这些只说明项目从 `design_defined` 进入了 `implementation_bootstrap`，**不代表游戏已经可玩**。
+这些说明项目已经从纯 `code_contract_ready` 继续推进到部分规则可执行、可回归，但整体生命周期仍是 **`implementation_bootstrap`**，不代表游戏已经可玩。
+
+## 已实际验证
+
+当前持续集成已经真实跑过：
+
+- 纯C#权威规则运行器 `0 warning / 0 error` 构建；
+- 同一地图、种子和命令条件下 `10000 tick × 10`，最终状态哈希完全一致：`A72CA0F85058C84B`；
+- `MAP_GRAY_RANGE` 无画面模型实际生成1000个活动单位；
+- 三条道路数据被读取，双方只构建2条共享方向路径走廊，不为每单位重建全图路径；
+- 双方工业资源结果完全对称：`14999.600 / 14999.600`；
+- 主采集累计 `20000.000`，第二采集组累计 `9999.200`，80%递减及采矿单位损失均生效；
+- 第一种直射战斗发生6424次射击、636个击毁；
+- Unknown/Anomaly敌军不进入客户端状态；Detected/Classified/Confirmed/Tracked按不同精度下发；
+- AI所属玩家、授权区、权限等级、禁令和玩家覆盖代次均进入判权；
+- A1—A4机器人在断联、算力不足、重干扰/黑区下按等级降级；
+- 本机权威服务器/客户端规则回环通过内容哈希校验、命令序列防重放、客户端意图校验、情报过滤、增量快照和客户端插值。
 
 ## 当前准确状态
 
 当前生命周期：**`implementation_bootstrap`**。
 
-已完成的是：核心设计一致性、冻结技术路线、首批权威数据、核心代码边界和数据持续集成。
+已经通过的是权威规则层和无画面规则门禁的一部分。仍未通过的关键门禁：
 
-尚未通过的关键门禁：
-
-- Unity 6000.3.24f1真实打开/编译/编辑器测试；
-- 10000 tick确定性无画面模拟与状态哈希；
-- `MAP_GRAY_RANGE`灰盒生成和资源采集；
-- 正式移动/共享导航、武器伤害、战争迷雾、AI战斗群、机器人/EW和网络回环；
-- 第一局完整歼灭灰盒；
-- 正式美术、音效、配音、战役、线上服务和目标硬件实测。
+- Unity `6000.3.24f1` 在真实编辑器环境中完整解析包、编译全部程序集并运行EditMode测试；
+- `MAP_GRAY_RANGE` 实际Unity灰盒场景生成、导航烘焙、双方实体出生和可视化资源采集；
+- 正式ECS批处理移动、导航、伤害、情报、AI、机器人/EW和Unity Transport复制系统；
+- 目标硬件上的800—1500实体P50/P95/P99性能预算；
+- 第一局建设/采集/生产/移动/战斗/胜败全部闭环的歼灭灰盒；
+- 正式美术、音效、配音、战役、线上服务和发布级内容。
 
 因此不得把当前主线称为 `playable`、`content_complete` 或 `ship_ready`。
 
 ## 风险驱动实现顺序
 
-工程编译/数据CI → 10000 tick模拟 → 灰原试验场资源循环 → 共享导航 → 武器伤害 → 情报/迷雾 → AI战斗群 → 机器人/EW → 本机服务器回环 → 完整歼灭灰盒 → 征服矿产科技 → 动态前线 → 快速战争满战备 → 战区大规模 → 正式表现/音频/内容生产。
+真实Unity编译/测试 → Unity灰原试验场生成 → ECS批处理接入统一规则内核 → 目标硬件性能 → 完整歼灭灰盒 → 征服矿产科技 → 动态前线 → 快速战争满战备 → 战区大规模 → 正式表现/音频/内容生产。
 
 每一步必须有自动测试、状态哈希和性能数据后再继续扩张。
 
@@ -98,6 +113,7 @@
 - [文档与实现总索引](docs/INDEX.md)
 - [母设计](docs/design/00_MASTER_GDD.md)
 - [全设计深化与实现审计](docs/development/09_FULL_DESIGN_IMPLEMENTATION_AUDIT.md)
+- [正式实现推进记录](docs/development/10_FORMAL_IMPLEMENTATION_PROGRESS.md)
 - [实现主干状态](docs/development/08_IMPLEMENTATION_BOOTSTRAP.md)
 - [最终技术栈](docs/technical/TECH_STACK.md)
 - [系统复杂度预算](docs/specs/SYSTEM_COMPLEXITY_BUDGET.md)

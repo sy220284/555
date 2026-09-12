@@ -3,5 +3,5 @@
   "version":"0.1.0",
   "displayName":"ModernRA Network",
   "unity":"6000.3",
-  "dependencies":{"com.modernra.core":"0.1.0","com.unity.transport":"2.6.0"}
+  "dependencies":{"com.modernra.core":"0.1.0","com.modernra.rules":"0.1.0","com.unity.transport":"2.6.0"}
 }

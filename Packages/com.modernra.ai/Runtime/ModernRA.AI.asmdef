@@ -1,6 +1,6 @@
 {
   "name":"ModernRA.AI",
   "rootNamespace":"ModernRA.AI",
-  "references":["ModernRA.Core","ModernRA.Simulation","Unity.Entities"],
+  "references":["ModernRA.Core","ModernRA.Rules","ModernRA.Simulation","Unity.Entities"],
   "autoReferenced":true
 }

@@ -1,0 +1,7 @@
+{
+  "name": "com.modernra.rules",
+  "version": "0.1.0",
+  "displayName": "ModernRA Deterministic Rules",
+  "unity": "6000.3",
+  "description": "Pure C# deterministic authoritative rules shared by Unity simulation and headless verification."
+}

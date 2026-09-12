@@ -11,7 +11,8 @@ namespace ModernRA.Rules
         TickTooFarFuture = 3,
         DuplicateSequence = 4,
         SequenceTooOld = 5,
-        MatchResolved = 6
+        MatchResolved = 6,
+        InvalidTarget = 7
     }
 
     public sealed class PrototypeCommandInbox

@@ -6,7 +6,9 @@ namespace ModernRA.Rules
     public enum PrototypePlayerCommandKind : byte
     {
         SetPlan = 1,
-        SetTeamRallyWaypoint = 2
+        SetTeamRallyWaypoint = 2,
+        HoldUnit = 3,
+        ResumeUnit = 4
     }
 
     public readonly struct PrototypePlayerCommand
@@ -149,6 +151,11 @@ namespace ModernRA.Rules
                     if (command.IntValue < 0 || command.IntValue > 64)
                         throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid rally waypoint index");
                     break;
+                case PrototypePlayerCommandKind.HoldUnit:
+                case PrototypePlayerCommandKind.ResumeUnit:
+                    if (command.IntValue <= 0)
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "unit id must be positive");
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "unsupported prototype command kind");
             }
@@ -172,9 +179,30 @@ namespace ModernRA.Rules
                             unit.CorridorCursor = command.IntValue;
                     }
                     break;
+                case PrototypePlayerCommandKind.HoldUnit:
+                    SetUnitHoldingState(team, command.IntValue, true);
+                    break;
+                case PrototypePlayerCommandKind.ResumeUnit:
+                    SetUnitHoldingState(team, command.IntValue, false);
+                    break;
                 default:
                     throw new InvalidOperationException($"unsupported prototype command kind {command.Kind}");
             }
+        }
+
+        private static void SetUnitHoldingState(PrototypeAnnihilationTeamState team, int unitId, bool holding)
+        {
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (unit.Id != unitId)
+                    continue;
+                if (!unit.Alive)
+                    throw new InvalidOperationException($"unit {unitId} is destroyed");
+                unit.HoldingPosition = holding;
+                return;
+            }
+            throw new InvalidOperationException($"unit {unitId} is not owned by player {team.TeamId}");
         }
 
         private static void HashInt(ref ulong hash, int value)

@@ -38,6 +38,8 @@ class PlayerCommandInboxStaticTests(unittest.TestCase):
         self.assertIn("PrototypeCommandAdmissionResult.SequenceTooOld", text)
         self.assertIn("PrototypeCommandAdmissionResult.TickTooFarFuture", text)
         self.assertIn("PrototypeCommandAdmissionResult.InvalidCommand", text)
+        self.assertIn("PrototypeCommandAdmissionResult.InvalidTarget", text)
+        self.assertIn("PrototypePlayerCommandKind.HoldUnit", text)
 
     def test_runner_compiles_all_rules_and_is_wired_to_simulation_gate(self):
         project = PROJECT.read_text(encoding="utf-8")

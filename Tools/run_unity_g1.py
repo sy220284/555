@@ -27,7 +27,29 @@ def require_editor():
     editor = pathlib.Path(raw)
     if not editor.exists():
         raise RuntimeError(f"UNITY_EDITOR_PATH does not exist: {editor}")
+    if not editor.is_file():
+        raise RuntimeError(f"UNITY_EDITOR_PATH is not a file: {editor}")
     return editor
+
+
+def verify_editor_binary(editor):
+    result = subprocess.run(
+        [str(editor), "-version"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+    output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Unity -version failed with exit code {result.returncode}: {output or '<no output>'}"
+        )
+    if EXPECTED_EDITOR_VERSION not in output:
+        raise RuntimeError(
+            f"UNITY_EDITOR_PATH resolves to wrong editor; expected {EXPECTED_EDITOR_VERSION}, got: {output or '<no output>'}"
+        )
+    print(f"UNITY EDITOR VERIFIED: {EXPECTED_EDITOR_VERSION}")
 
 
 def verify_project_version():
@@ -48,12 +70,18 @@ def verify_test_results(path):
         raise RuntimeError(f"EditMode tests failed: failed={failed} result={result}")
 
 
+def remove_stale_artifact(path):
+    if path.exists():
+        path.unlink()
+
+
 def base_editor_command(editor):
     return [
         str(editor),
         "-batchmode",
         "-nographics",
         "-accept-apiupdate",
+        "-timestamps",
         "-projectPath",
         str(ROOT),
     ]
@@ -63,11 +91,15 @@ def main():
     try:
         verify_project_version()
         editor = require_editor()
+        verify_editor_binary(editor)
+
         artifacts = ROOT / "Artifacts" / "unity-g1"
         artifacts.mkdir(parents=True, exist_ok=True)
         compile_log = artifacts / "compile.log"
         test_log = artifacts / "editmode.log"
         test_results = artifacts / "editmode-results.xml"
+        for artifact in (compile_log, test_log, test_results):
+            remove_stale_artifact(artifact)
 
         compile_command = base_editor_command(editor) + [
             "-quit",

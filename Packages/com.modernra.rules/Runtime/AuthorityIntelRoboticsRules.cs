@@ -20,8 +20,9 @@ namespace ModernRA.Rules
         public readonly int Y;
         public readonly int UnitClass;
         public readonly int Health;
+        public readonly bool Friendly;
 
-        public VisibleEntityState(int contactId, RuleReplicationDetail detail, int x, int y, int unitClass, int health)
+        public VisibleEntityState(int contactId, RuleReplicationDetail detail, int x, int y, int unitClass, int health, bool friendly = false)
         {
             ContactId = contactId;
             Detail = detail;
@@ -29,12 +30,13 @@ namespace ModernRA.Rules
             Y = y;
             UnitClass = unitClass;
             Health = health;
+            Friendly = friendly;
         }
     }
 
     public static class IntelReplicationRules
     {
-        public static bool TryBuildVisibleState(int contactId, int x, int y, int unitClass, int health, RuleIntelLevel intel, out VisibleEntityState state)
+        public static bool TryBuildVisibleState(int contactId, int x, int y, int unitClass, int health, RuleIntelLevel intel, out VisibleEntityState state, bool friendly = false)
         {
             switch (intel)
             {
@@ -43,16 +45,16 @@ namespace ModernRA.Rules
                     state = default;
                     return false;
                 case RuleIntelLevel.Detected:
-                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Contact, Quantize(x, 500), Quantize(y, 500), -1, -1);
+                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Contact, Quantize(x, 500), Quantize(y, 500), -1, -1, friendly);
                     return true;
                 case RuleIntelLevel.Classified:
-                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Class, Quantize(x, 250), Quantize(y, 250), unitClass, -1);
+                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Class, Quantize(x, 250), Quantize(y, 250), unitClass, -1, friendly);
                     return true;
                 case RuleIntelLevel.Confirmed:
-                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Confirmed, Quantize(x, 50), Quantize(y, 50), unitClass, Quantize(Math.Max(0, health), 250));
+                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Confirmed, Quantize(x, 50), Quantize(y, 50), unitClass, Quantize(Math.Max(0, health), 250), friendly);
                     return true;
                 case RuleIntelLevel.Tracked:
-                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Full, x, y, unitClass, Math.Max(0, health));
+                    state = new VisibleEntityState(contactId, RuleReplicationDetail.Full, x, y, unitClass, Math.Max(0, health), friendly);
                     return true;
                 default:
                     state = default;

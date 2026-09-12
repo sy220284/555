@@ -58,6 +58,8 @@ internal static class SpatialNavigationGateChecks
             Check(radiusResults[i - 1].EntityId < radiusResults[i].EntityId, "radius query output is not stable by entity id");
 
         VerifySharedRouteInvalidation();
+        VerifyRouteCandidateSelection();
+        VerifyLocalizedRouteInvalidation();
 
         Console.WriteLine(
             $"spatial_navigation_gate=passed entities={entityCount} cells={index.OccupiedCellCount} " +
@@ -86,6 +88,61 @@ internal static class SpatialNavigationGateChecks
         cache.Store(key, rebuilt);
         Check(cache.BuildCount == 2, "route rebuild counter invalid after topology change");
         Check(cache.TryGet(key, out Int2[] second) && second[1].Y == 50, "rebuilt route was not returned");
+    }
+
+    private static void VerifyRouteCandidateSelection()
+    {
+        var west = new SharedRouteCandidate(
+            "ROAD_WEST",
+            new[] { new Int2(1200, 1200), new Int2(2600, 3000), new Int2(4000, 4000), new Int2(6200, 5900), new Int2(6800, 6800) },
+            60,
+            850,
+            new[] { "ROAD_WEST" });
+        var center = new SharedRouteCandidate(
+            "ROAD_CENTER",
+            new[] { new Int2(1200, 1200), new Int2(3000, 3000), new Int2(4000, 4000), new Int2(5000, 5000), new Int2(6800, 6800) },
+            80,
+            800,
+            new[] { "ROAD_CENTER" });
+        var east = new SharedRouteCandidate(
+            "ROAD_EAST",
+            new[] { new Int2(1200, 1200), new Int2(3000, 2600), new Int2(5000, 4600), new Int2(6800, 6800) },
+            60,
+            850,
+            new[] { "ROAD_EAST" });
+        var candidates = new[] { west, center, east };
+
+        Check(SharedRouteSelector.TrySelect(candidates, 60, out SharedRouteSelection standard), "route selector rejected all Gray Range roads");
+        Check(standard.RouteId == "ROAD_CENTER", "route selector did not choose the lowest deterministic traversal cost");
+        Check(standard.DistanceMeters > 0 && standard.TraversalCost > 0, "route selector returned invalid route cost");
+
+        Check(SharedRouteSelector.TrySelect(candidates, 70, out SharedRouteSelection wide), "wide formation failed to find eligible route");
+        Check(wide.RouteId == "ROAD_CENTER" && wide.WidthMeters == 80, "wide formation was assigned to an undersized road");
+        Check(!SharedRouteSelector.TrySelect(candidates, 90, out _), "oversized formation should not fit any Gray Range road");
+
+        var tieB = new SharedRouteCandidate("ROAD_B", new[] { new Int2(0, 0), new Int2(100, 0) }, 60, 1000, Array.Empty<string>());
+        var tieA = new SharedRouteCandidate("ROAD_A", new[] { new Int2(0, 0), new Int2(100, 0) }, 60, 1000, Array.Empty<string>());
+        Check(SharedRouteSelector.TrySelect(new[] { tieB, tieA }, 35, out SharedRouteSelection tie), "tie route selection failed");
+        Check(tie.RouteId == "ROAD_A", "route tie-break is not stable by route id");
+    }
+
+    private static void VerifyLocalizedRouteInvalidation()
+    {
+        var cache = new LocalizedSharedRouteCache();
+        var westKey = new SharedRouteKey(1, 5, 1);
+        var centerKey = new SharedRouteKey(1, 5, 2);
+        var eastKey = new SharedRouteKey(1, 5, 3);
+        cache.Store(westKey, new[] { new Int2(0, 0), new Int2(100, 100) }, new[] { "ROAD_WEST" });
+        cache.Store(centerKey, new[] { new Int2(0, 0), new Int2(100, 0) }, new[] { "ROAD_CENTER", "BRIDGE_CENTER" });
+        cache.Store(eastKey, new[] { new Int2(0, 0), new Int2(100, -100) }, new[] { "ROAD_EAST" });
+        Check(cache.Count == 3, "localized route cache did not store all candidates");
+
+        int removed = cache.InvalidateDependency("BRIDGE_CENTER");
+        Check(removed == 1, "bridge invalidation removed the wrong number of shared routes");
+        Check(cache.Count == 2, "local topology change cleared unrelated routes");
+        Check(cache.TryGet(westKey, out _) && cache.TryGet(eastKey, out _), "unrelated route did not survive local invalidation");
+        Check(!cache.TryGet(centerKey, out _), "route crossing invalidated bridge survived local invalidation");
+        Check(cache.LocalInvalidationEvents == 1 && cache.RoutesInvalidated == 1, "localized invalidation counters are incorrect");
     }
 
     private static void Check(bool condition, string message)

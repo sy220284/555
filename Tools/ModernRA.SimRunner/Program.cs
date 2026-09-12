@@ -46,6 +46,7 @@ internal static class Program
                 throw new InvalidOperationException("simulation did not run");
             VerifySimulation(finalWorld);
             AdvancedGateChecks.Run();
+            SpatialNavigationGateChecks.Run();
 
             Console.WriteLine("SIMULATION GATES PASSED");
             Console.WriteLine($"hash={expectedHash:X16}");
@@ -54,7 +55,7 @@ internal static class Program
             Console.WriteLine($"industrial_team_a={finalWorld.TeamA.IndustrialMilli / 1000.0:F3} industrial_team_b={finalWorld.TeamB.IndustrialMilli / 1000.0:F3}");
             Console.WriteLine($"primary_mined={finalWorld.PrimaryMinedMilli / 1000.0:F3} secondary_mined={finalWorld.SecondaryMinedMilli / 1000.0:F3} harvester_failures={finalWorld.ScheduledFailuresApplied}");
             Console.WriteLine($"shots={finalWorld.ShotsFired} destroyed={finalWorld.UnitsDestroyed}");
-            Console.WriteLine("advanced_gates=intel+ai+robotics+local_network_passed");
+            Console.WriteLine("advanced_gates=intel+ai+robotics+local_network+spatial_navigation_passed");
             return 0;
         }
         catch (Exception ex)

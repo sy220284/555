@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - tooling/local-dotnet8-artifact-20260912
+  pull_request:
 
 permissions:
   contents: read

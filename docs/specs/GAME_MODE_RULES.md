@@ -1,6 +1,6 @@
 # 游戏模式执行规则
 
-本文件把 `design/03_GAMEPLAY_LOOP_MODES.md` 和 `design/04_FREEDOM_WARFARE.md` 转成可直接编码的五种标准规则集。模式通过稳定 `ruleset_id` 驱动，禁止地图脚本复制另一套胜负逻辑。
+本文件把 `design/03_GAMEPLAY_LOOP_MODES.md` 和 `design/03A_FREEDOM_WARFARE.md` 转成可直接编码的五种标准规则集。模式通过稳定 `ruleset_id` 驱动，禁止地图脚本复制另一套胜负逻辑。
 
 ## 1. 稳定ID
 

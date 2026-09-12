@@ -8,6 +8,7 @@
 - `design/01_WORLD_LORE.md`：2037世界观、时间线、尤里/升格线索。
 - `design/02_FACTIONS_COUNTRIES.md`：四大基础体系与15国特色。
 - `design/03_GAMEPLAY_LOOP_MODES.md`：对局循环与五种模式定位。
+- `design/03A_FREEDOM_WARFARE.md`：高自由度战争、动态控制、无时间驱动节奏原则。
 - `design/04_TECH_ECONOMY_BALANCE.md`：五级科技、分叉、经济与平衡。
 - `design/05_UNITS_BUILDINGS.md`：兵种、机器人、建筑与防御总览。
 - `design/06_AI_ROBOTICS_EW.md`：AI、机器人、电子战、情报总览。
@@ -51,21 +52,21 @@
 - `specs/WEAPONS_ARMOR_MATRIX.md`：伤害、装甲、武器、命中、主动防护。
 - `specs/ABILITY_STATUS_REGISTRY.md`：普通能力与状态ID。
 - `specs/BUILDING_CATALOG.md`：建筑、防御与特色建筑。
-- `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉。
+- `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁。
 - `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给公式。
-- `specs/GAME_MODE_RULES.md`：五种模式胜负、占领、投降、友军和异常结算。
-- `specs/BALANCE_BASELINES.md`：总体节奏与平衡基线。
+- `specs/GAME_MODE_RULES.md`：五种模式战争状态胜负、动态控制、投降、友军和异常结算。
+- `specs/BALANCE_BASELINES.md`：总体平衡基线；时长只作遥测，不作规则触发。
 
 ### AI、机器人与多域战争
 
-- `specs/AI_ROBOTICS_EW_STATE_MACHINES.md`：AI权限、频率、状态机、机器人自主、EW/网络战。
+- `specs/AI_ROBOTICS_EW_STATE_MACHINES.md`：AI权限、频率、状态机、机器人自主、EW/网络战及无时间导演约束。
 - `specs/AIR_NAVAL_ORBITAL_RULES.md`：航空、海军、潜艇、无人海战与轨道执行规则。
 - `specs/SUPERWEAPONS_STRATEGIC_ABILITIES.md`：超级武器和战略能力。
 
 ### 地图、战役与玩家体验
 
 - `specs/MAP_SPECS.md`：16张地图设计规格。
-- `specs/MAP_LAYOUT_RUNTIME_SCHEMA.md`：地图精确运行时侧车数据与灰盒生成契约。
+- `specs/MAP_LAYOUT_RUNTIME_SCHEMA.md`：地图精确运行时侧车、ControlRegion、动态前线与灰盒生成契约。
 - `specs/CAMPAIGN_MISSION_SPECS.md`：24关逐关目标与机制。
 - `specs/CAMPAIGN_NARRATIVE_CAST.md`：人物、叙事分幕、默认任务契约、对白与过场。
 - `specs/UI_ART_AUDIO_ACCESSIBILITY.md`：UI、输入、美术预算、无障碍硬规格。
@@ -75,7 +76,7 @@
 ### 数据、工具与质量门禁
 
 - `specs/SAVE_NETWORK_MOD_EDITOR_SCHEMA.md`：服务器权威存档/网络/录像/重连/模组/编辑器数据规格。
-- `specs/TEST_MATRIX.md`：自动测试、性能、AI、地图、网络和平衡测试矩阵。
+- `specs/TEST_MATRIX.md`：自动测试、自由战争规则、性能、AI、地图、网络和平衡测试矩阵。
 - `specs/ACCEPTANCE_CRITERIA.md`：完成验收条件。
 - `specs/SPEC_COMPLETENESS_MATRIX.md`：文档完整性和剩余生产资产状态。
 
@@ -91,6 +92,8 @@
 6. 当前任务对应执行规格
 7. `specs/TEST_MATRIX.md`
 8. `specs/ACCEPTANCE_CRITERIA.md`
+
+模式、经济、地图、AI战略和胜负相关任务还必须读取 `design/03A_FREEDOM_WARFARE.md`。
 
 ## 唯一优先级
 

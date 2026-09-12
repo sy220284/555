@@ -40,6 +40,26 @@ namespace ModernRA.Rules
                 }
                 return IsOwnedAliveUnit(command.PlayerId, unitId);
             }
+            if (command.Kind == PrototypePlayerCommandKind.AssignUnitToControlGroup)
+            {
+                return PrototypeControlGroupPayload.TryDecodeUnitGroup(command.IntValue, out int unitId, out _) &&
+                    IsOwnedAliveUnit(command.PlayerId, unitId);
+            }
+            if (command.Kind == PrototypePlayerCommandKind.SetControlGroupWaypoint)
+            {
+                if (!PrototypeControlGroupPayload.TryDecodeGroupWaypoint(command.IntValue, out int groupId, out int waypointIndex) ||
+                    waypointIndex >= World.SharedCorridor.Length)
+                {
+                    return false;
+                }
+                return PrototypeControlGroupRules.HasAliveMember(GetTeam(command.PlayerId), groupId);
+            }
+            if (command.Kind == PrototypePlayerCommandKind.HoldControlGroup ||
+                command.Kind == PrototypePlayerCommandKind.ResumeControlGroup)
+            {
+                return PrototypeControlGroupPayload.IsValidGroupId(command.IntValue) &&
+                    PrototypeControlGroupRules.HasAliveMember(GetTeam(command.PlayerId), command.IntValue);
+            }
             if (command.Kind != PrototypePlayerCommandKind.HoldUnit &&
                 command.Kind != PrototypePlayerCommandKind.ResumeUnit)
             {
@@ -51,7 +71,7 @@ namespace ModernRA.Rules
 
         private bool IsOwnedAliveUnit(int playerId, int unitId)
         {
-            PrototypeAnnihilationTeamState team = playerId == 1 ? World.TeamA : World.TeamB;
+            PrototypeAnnihilationTeamState team = GetTeam(playerId);
             for (int i = 0; i < team.Units.Count; i++)
             {
                 PrototypeCombatUnitState unit = team.Units[i];
@@ -59,6 +79,11 @@ namespace ModernRA.Rules
                     return unit.Alive;
             }
             return false;
+        }
+
+        private PrototypeAnnihilationTeamState GetTeam(int playerId)
+        {
+            return playerId == 1 ? World.TeamA : World.TeamB;
         }
 
         public void Step()

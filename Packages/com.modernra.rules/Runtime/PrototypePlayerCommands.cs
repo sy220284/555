@@ -9,7 +9,11 @@ namespace ModernRA.Rules
         SetTeamRallyWaypoint = 2,
         HoldUnit = 3,
         ResumeUnit = 4,
-        SetUnitWaypoint = 5
+        SetUnitWaypoint = 5,
+        AssignUnitToControlGroup = 6,
+        SetControlGroupWaypoint = 7,
+        HoldControlGroup = 8,
+        ResumeControlGroup = 9
     }
 
     public static class PrototypeUnitWaypointPayload
@@ -184,6 +188,19 @@ namespace ModernRA.Rules
                     if (!PrototypeUnitWaypointPayload.TryDecode(command.IntValue, out _, out _))
                         throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid unit waypoint payload");
                     break;
+                case PrototypePlayerCommandKind.AssignUnitToControlGroup:
+                    if (!PrototypeControlGroupPayload.TryDecodeUnitGroup(command.IntValue, out _, out _))
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid unit control-group payload");
+                    break;
+                case PrototypePlayerCommandKind.SetControlGroupWaypoint:
+                    if (!PrototypeControlGroupPayload.TryDecodeGroupWaypoint(command.IntValue, out _, out _))
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid control-group waypoint payload");
+                    break;
+                case PrototypePlayerCommandKind.HoldControlGroup:
+                case PrototypePlayerCommandKind.ResumeControlGroup:
+                    if (!PrototypeControlGroupPayload.IsValidGroupId(command.IntValue))
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "invalid control-group id");
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(command), command.Kind, "unsupported prototype command kind");
             }
@@ -206,6 +223,7 @@ namespace ModernRA.Rules
                         if (unit.Alive)
                             unit.CorridorCursor = command.IntValue;
                     }
+                    PrototypeControlGroupRules.MarkPlayerOverride(team);
                     break;
                 case PrototypePlayerCommandKind.HoldUnit:
                     SetUnitHoldingState(team, command.IntValue, true);
@@ -220,6 +238,24 @@ namespace ModernRA.Rules
                         throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "unit waypoint is outside the shared corridor");
                     }
                     SetUnitWaypoint(team, unitId, waypointIndex);
+                    break;
+                case PrototypePlayerCommandKind.AssignUnitToControlGroup:
+                    PrototypeControlGroupPayload.TryDecodeUnitGroup(command.IntValue, out int assignedUnitId, out int assignedGroupId);
+                    PrototypeControlGroupRules.AssignUnit(team, assignedUnitId, assignedGroupId);
+                    break;
+                case PrototypePlayerCommandKind.SetControlGroupWaypoint:
+                    if (!PrototypeControlGroupPayload.TryDecodeGroupWaypoint(command.IntValue, out int groupId, out int groupWaypoint) ||
+                        groupWaypoint >= world.SharedCorridor.Length)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(command), command.IntValue, "control-group waypoint is outside the shared corridor");
+                    }
+                    PrototypeControlGroupRules.SetGroupWaypoint(team, groupId, groupWaypoint);
+                    break;
+                case PrototypePlayerCommandKind.HoldControlGroup:
+                    PrototypeControlGroupRules.SetGroupHolding(team, command.IntValue, true);
+                    break;
+                case PrototypePlayerCommandKind.ResumeControlGroup:
+                    PrototypeControlGroupRules.SetGroupHolding(team, command.IntValue, false);
                     break;
                 default:
                     throw new InvalidOperationException($"unsupported prototype command kind {command.Kind}");
@@ -237,6 +273,7 @@ namespace ModernRA.Rules
                     throw new InvalidOperationException($"unit {unitId} is destroyed");
                 unit.CorridorCursor = waypointIndex;
                 unit.HoldingPosition = false;
+                PrototypeControlGroupRules.MarkPlayerOverride(team);
                 return;
             }
             throw new InvalidOperationException($"unit {unitId} is not owned by player {team.TeamId}");
@@ -252,6 +289,7 @@ namespace ModernRA.Rules
                 if (!unit.Alive)
                     throw new InvalidOperationException($"unit {unitId} is destroyed");
                 unit.HoldingPosition = holding;
+                PrototypeControlGroupRules.MarkPlayerOverride(team);
                 return;
             }
             throw new InvalidOperationException($"unit {unitId} is not owned by player {team.TeamId}");

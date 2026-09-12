@@ -28,7 +28,7 @@
 
 涉及游戏模式、经济、地图、AI战略或胜负逻辑还必须读取：
 
-- `docs/design/04_FREEDOM_WARFARE.md`
+- `docs/design/03A_FREEDOM_WARFARE.md`
 - `docs/specs/GAME_MODE_RULES.md`
 - `docs/specs/ECONOMY_FORMULAS.md`
 

@@ -41,6 +41,9 @@ class PlayerCommandInboxStaticTests(unittest.TestCase):
         self.assertIn("PrototypeCommandAdmissionResult.InvalidTarget", text)
         self.assertIn("PrototypePlayerCommandKind.HoldUnit", text)
         self.assertIn("PrototypePlayerCommandKind.SetUnitWaypoint", text)
+        self.assertIn("PrototypePlayerCommandKind.AssignUnitToControlGroup", text)
+        self.assertIn("PrototypePlayerCommandKind.SetControlGroupWaypoint", text)
+        self.assertIn("stale AI order survived", text)
 
     def test_runner_compiles_all_rules_and_is_wired_to_simulation_gate(self):
         project = PROJECT.read_text(encoding="utf-8")

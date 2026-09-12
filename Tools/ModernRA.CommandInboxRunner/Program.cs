@@ -78,8 +78,30 @@ internal static class Program
         while (session.World.Tick < 500)
             session.Step();
 
-        var invalidEnemyHold = new PrototypePlayerCommand(501, 21, 1, PrototypePlayerCommandKind.HoldUnit, 2000);
-        Expect(session.Submit(invalidEnemyHold), PrototypeCommandAdmissionResult.InvalidTarget);
+        uint staleAIOrderGeneration = session.World.TeamB.PlayerOverrideGeneration;
+        int assignFirst = PrototypeControlGroupPayload.EncodeUnitGroup(2000, 1);
+        int assignSecond = PrototypeControlGroupPayload.EncodeUnitGroup(2001, 1);
+        Expect(session.Submit(new PrototypePlayerCommand(501, 30, 1, PrototypePlayerCommandKind.AssignUnitToControlGroup, assignFirst)), PrototypeCommandAdmissionResult.InvalidTarget);
+        Expect(session.Submit(new PrototypePlayerCommand(501, 30, 2, PrototypePlayerCommandKind.AssignUnitToControlGroup, assignFirst)), PrototypeCommandAdmissionResult.Accepted);
+        Expect(session.Submit(new PrototypePlayerCommand(501, 31, 2, PrototypePlayerCommandKind.AssignUnitToControlGroup, assignSecond)), PrototypeCommandAdmissionResult.Accepted);
+        session.Step();
+
+        Expect(session.Submit(new PrototypePlayerCommand(502, 32, 2, PrototypePlayerCommandKind.HoldControlGroup, 1)), PrototypeCommandAdmissionResult.Accepted);
+        session.Step();
+        int heldGroupMembers = session.World.TeamB.Units.Count(unit => unit.Alive && unit.ControlGroupId == 1 && unit.HoldingPosition);
+        if (heldGroupMembers != 2)
+            throw new InvalidOperationException("control-group hold did not affect both assigned units");
+        if (PrototypeControlGroupRules.TryApplyAIWaypoint(session.World, 2, staleAIOrderGeneration, 1, 0))
+            throw new InvalidOperationException("stale AI order survived a direct player group command");
+
+        int groupWaypoint = PrototypeControlGroupPayload.EncodeGroupWaypoint(1, 4);
+        Expect(session.Submit(new PrototypePlayerCommand(503, 33, 2, PrototypePlayerCommandKind.SetControlGroupWaypoint, groupWaypoint)), PrototypeCommandAdmissionResult.Accepted);
+        session.Step();
+        if (session.World.TeamB.Units.Count(unit => unit.Alive && unit.ControlGroupId == 1 && !unit.HoldingPosition) != 2)
+            throw new InvalidOperationException("control-group waypoint did not resume both assigned units");
+
+        var currentInvalidEnemyHold = new PrototypePlayerCommand(504, 21, 1, PrototypePlayerCommandKind.HoldUnit, 2000);
+        Expect(session.Submit(currentInvalidEnemyHold), PrototypeCommandAdmissionResult.InvalidTarget);
         var hold = new PrototypePlayerCommand(600, 21, 2, PrototypePlayerCommandKind.HoldUnit, 2000);
         Expect(session.Submit(hold), PrototypeCommandAdmissionResult.Accepted);
         while (session.World.Tick < 600)
@@ -92,7 +114,7 @@ internal static class Program
         var unitWaypoint = new PrototypePlayerCommand(601, 22, 2, PrototypePlayerCommandKind.SetUnitWaypoint, waypointPayload);
         Expect(session.Submit(unitWaypoint), PrototypeCommandAdmissionResult.Accepted);
         AnnihilationPrototypeResult result = session.RunUntilResolved(60000);
-        if (session.ExecutedCommandCount != 5 || session.PendingCommandCount != 0)
+        if (session.ExecutedCommandCount != 9 || session.PendingCommandCount != 0)
             throw new InvalidOperationException("live session command accounting drifted");
 
         PrototypePlayerCommand[] executed = session.GetExecutedCommands();
@@ -108,7 +130,7 @@ internal static class Program
             throw new InvalidOperationException("live admitted command stream did not replay to the authoritative result");
 
         Expect(session.Submit(Plan(result.ResolvedTick + 1, 21, 1, PrototypeAnnihilationPlan.Aggressive)), PrototypeCommandAdmissionResult.MatchResolved);
-        Console.WriteLine($"live_match winner={result.WinnerTeamId} tick={result.ResolvedTick} hash={result.StateHash:X16} commands={executed.Length} unit_hold=true unit_waypoint=true");
+        Console.WriteLine($"live_match winner={result.WinnerTeamId} tick={result.ResolvedTick} hash={result.StateHash:X16} commands={executed.Length} control_group=true stale_ai_rejected=true");
     }
 
     private static PrototypePlayerCommand Plan(int tick, int sequence, int playerId, PrototypeAnnihilationPlan plan)

@@ -50,6 +50,7 @@ namespace ModernRA.Rules
         public int Health = 1000;
         public int WeaponCooldownTicks;
         public int CorridorCursor;
+        public int ControlGroupId;
         public bool HoldingPosition;
         public bool Alive = true;
     }
@@ -69,6 +70,7 @@ namespace ModernRA.Rules
         public int UnitsProduced;
         public int BuildingsCompleted;
         public PrototypeDefeatReason DefeatReason;
+        public uint PlayerOverrideGeneration;
     }
 
     public sealed class AnnihilationPrototypeConfig
@@ -560,6 +562,11 @@ namespace ModernRA.Rules
             hash = StateHash64.Add(hash, team.UnitsProduced);
             hash = StateHash64.Add(hash, team.BuildingsCompleted);
             hash = StateHash64.Add(hash, (int)team.DefeatReason);
+            if (team.PlayerOverrideGeneration != 0)
+            {
+                hash = StateHash64.Add(hash, 0x4F565244);
+                hash = StateHash64.Add(hash, (ulong)team.PlayerOverrideGeneration);
+            }
 
             for (int i = 0; i < team.Buildings.Count; i++)
             {
@@ -579,6 +586,11 @@ namespace ModernRA.Rules
                 hash = StateHash64.Add(hash, unit.Health);
                 hash = StateHash64.Add(hash, unit.WeaponCooldownTicks);
                 hash = StateHash64.Add(hash, unit.CorridorCursor);
+                if (unit.ControlGroupId != 0)
+                {
+                    hash = StateHash64.Add(hash, 0x47525049);
+                    hash = StateHash64.Add(hash, unit.ControlGroupId);
+                }
                 if (unit.HoldingPosition)
                     hash = StateHash64.Add(hash, 0x484F4C44);
                 hash = StateHash64.Add(hash, unit.Alive ? 1 : 0);

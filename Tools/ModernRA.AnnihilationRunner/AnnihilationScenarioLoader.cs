@@ -9,6 +9,10 @@ internal static class AnnihilationScenarioLoader
         JsonElement root = document.RootElement;
         mapId = root.GetProperty("map_id").GetString() ?? throw new InvalidOperationException("map_id missing");
 
+        RuntimeMapBootstrapData generated = GrayRangeGeneratedData.Create();
+        if (!string.Equals(mapId, generated.MapId, StringComparison.Ordinal))
+            throw new InvalidOperationException($"generated runtime map {generated.MapId} does not match source map {mapId}");
+
         bool supportsAnnihilation = false;
         foreach (JsonElement ruleset in root.GetProperty("ruleset_compatibility").EnumerateArray())
         {
@@ -18,7 +22,7 @@ internal static class AnnihilationScenarioLoader
                 break;
             }
         }
-        if (!supportsAnnihilation)
+        if (!supportsAnnihilation || !generated.SupportsRuleset("RULESET_ANNIHILATION_STANDARD"))
             throw new InvalidOperationException($"map {mapId} does not support standard annihilation");
 
         Int2? spawnA = null;
@@ -46,13 +50,20 @@ internal static class AnnihilationScenarioLoader
         if (corridor.Count < 2)
             throw new InvalidOperationException("annihilation prototype requires ROAD_CENTER with at least two spline points");
 
-        return new AnnihilationPrototypeConfig
-        {
-            SpawnA = spawnA.Value,
-            SpawnB = spawnB.Value,
-            SharedCorridor = corridor.ToArray(),
-            StartingIndustrialMilli = 12000L * 1000L,
-            MaxLiveTanksPerTeam = 12
-        };
+        AnnihilationPrototypeConfig config = generated.CreateStandardAnnihilationConfig();
+        EnsureSamePoint(spawnA.Value, config.SpawnA, "team 1 spawn");
+        EnsureSamePoint(spawnB.Value, config.SpawnB, "team 2 spawn");
+        if (corridor.Count != config.SharedCorridor.Length)
+            throw new InvalidOperationException("generated ROAD_CENTER point count does not match source map");
+        for (int i = 0; i < corridor.Count; i++)
+            EnsureSamePoint(corridor[i], config.SharedCorridor[i], $"ROAD_CENTER point {i}");
+
+        return config;
+    }
+
+    private static void EnsureSamePoint(Int2 source, Int2 generated, string label)
+    {
+        if (source.X != generated.X || source.Y != generated.Y)
+            throw new InvalidOperationException($"generated runtime {label} does not match source map");
     }
 }

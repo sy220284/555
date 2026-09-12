@@ -83,6 +83,13 @@ namespace ModernRA.Rules
             else throw new ArgumentOutOfRangeException(nameof(playerId));
         }
 
+        public void ApplyIntelSnapshot(int playerId, PrototypeBattleGroupIntelAdapter adapter, AuthoritativeSnapshot snapshot)
+        {
+            if (adapter == null) throw new ArgumentNullException(nameof(adapter));
+            adapter.Apply(snapshot);
+            SetVisibleTargets(playerId, adapter.BuildTargets());
+        }
+
         public void RefreshAuthorization(AnnihilationPrototypeWorld world, int playerId, int groupId)
         {
             PrototypeBattleGroupRuntimeState state = Find(playerId, groupId) ??

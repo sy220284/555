@@ -42,6 +42,7 @@ namespace ModernRA.Rules
         public ulong ContentHash;
         public bool IsDelta;
         public VisibleEntityState[] Entities = Array.Empty<VisibleEntityState>();
+        public int[] RemovedContactIds = Array.Empty<int>();
     }
 
     public sealed class LocalAuthoritativeServer
@@ -129,17 +130,21 @@ namespace ModernRA.Rules
         public AuthoritativeSnapshot BuildSnapshot(int observerTeam, uint baselineTick)
         {
             var visible = new List<VisibleEntityState>(_entities.Length);
+            var removed = new List<int>();
             for (int i = 0; i < _entities.Length; i++)
             {
                 ServerEntityState entity = _entities[i];
-                RuleIntelLevel level = entity.TeamId == observerTeam ? RuleIntelLevel.Tracked : GetIntel(observerTeam, entity.EntityId);
+                bool friendly = entity.TeamId == observerTeam;
+                RuleIntelLevel level = friendly ? RuleIntelLevel.Tracked : GetIntel(observerTeam, entity.EntityId);
                 long intelKey = IntelKey(observerTeam, entity.EntityId);
                 uint intelChanged = _intelChangedTick.TryGetValue(intelKey, out uint changed) ? changed : 0;
                 if (baselineTick > 0 && entity.LastChangedTick <= baselineTick && intelChanged <= baselineTick)
                     continue;
                 int contactId = unchecked(entity.EntityId * 31 + observerTeam);
-                if (IntelReplicationRules.TryBuildVisibleState(contactId, entity.X, entity.Y, entity.UnitClass, entity.Health, level, out VisibleEntityState view))
+                if (IntelReplicationRules.TryBuildVisibleState(contactId, entity.X, entity.Y, entity.UnitClass, entity.Health, level, out VisibleEntityState view, friendly))
                     visible.Add(view);
+                else if (baselineTick > 0 && intelChanged > baselineTick)
+                    removed.Add(contactId);
             }
 
             return new AuthoritativeSnapshot
@@ -148,7 +153,8 @@ namespace ModernRA.Rules
                 BaselineTick = baselineTick,
                 ContentHash = ContentHash,
                 IsDelta = baselineTick > 0,
-                Entities = visible.ToArray()
+                Entities = visible.ToArray(),
+                RemovedContactIds = removed.ToArray()
             };
         }
 
@@ -188,6 +194,12 @@ namespace ModernRA.Rules
             {
                 _current.Clear();
                 _previous.Clear();
+            }
+            for (int i = 0; i < snapshot.RemovedContactIds.Length; i++)
+            {
+                int contactId = snapshot.RemovedContactIds[i];
+                _current.Remove(contactId);
+                _previous.Remove(contactId);
             }
             for (int i = 0; i < snapshot.Entities.Length; i++)
             {

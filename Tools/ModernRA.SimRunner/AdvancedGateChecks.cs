@@ -101,6 +101,26 @@ internal static class AdvancedGateChecks
         client.Apply(trackedDelta);
         Check(client.TryGet(enemyContact, out VisibleEntityState trackedEnemy) && trackedEnemy.Detail == RuleReplicationDetail.Full && trackedEnemy.X == 1234 && trackedEnemy.Y == 876, "tracked enemy did not receive exact authorized state");
         Check(trackedDelta.ContentHash == contentHash, "snapshot content hash changed");
+
+        var intelAdapter = new PrototypeBattleGroupIntelAdapter(
+            new[] { new Int2(0, 0), new Int2(1000, 1000), new Int2(1500, 1000) },
+            new[] { new PrototypeBattleGroupTargetProfile(2, 700, 800, 500, 600, 900) });
+        intelAdapter.Apply(initial);
+        intelAdapter.Apply(delta);
+        intelAdapter.Apply(trackedDelta);
+        PrototypeBattleGroupTarget[] aiTargets = intelAdapter.BuildTargets();
+        Check(aiTargets.Length == 1 && aiTargets[0].TargetId == enemyContact && aiTargets[0].Intel == RuleIntelLevel.Tracked,
+            "battle-group AI adapter did not consume the filtered enemy snapshot");
+
+        server.SetIntel(1, 20, RuleIntelLevel.Unknown);
+        server.AdvanceOneTick();
+        AuthoritativeSnapshot hiddenDelta = server.BuildSnapshot(1, trackedDelta.Tick);
+        Check(hiddenDelta.RemovedContactIds.Length == 1 && hiddenDelta.RemovedContactIds[0] == enemyContact,
+            "lost intelligence did not emit a contact tombstone");
+        client.Apply(hiddenDelta);
+        intelAdapter.Apply(hiddenDelta);
+        Check(!client.ContainsContact(enemyContact), "client retained a hidden enemy after the tombstone");
+        Check(intelAdapter.BuildTargets().Length == 0, "battle-group AI retained a hidden target after the tombstone");
     }
 
     private static void Check(bool condition, string message)

@@ -4,17 +4,18 @@
 
 ## 设计层
 
-- `design/00_MASTER_GDD.md`：母设计、产品边界、规则深度预设、复杂度红线。
+- `design/00_MASTER_GDD.md`：母设计、产品边界、产品核心层级、征服母玩法、规则深度预设、复杂度红线与分阶段生产顺序。
 - `design/01_WORLD_LORE.md`：2037世界观、时间线、尤里/升格线索。
-- `design/02_FACTIONS_COUNTRIES.md`：四大基础体系与15国特色。
-- `design/03_GAMEPLAY_LOOP_MODES.md`：五种模式定位与玩家路径。
+- `design/02_FACTIONS_COUNTRIES.md`：四大基础体系、15国特色与6国→10国→15国内容生产分层。
 - `design/03A_FREEDOM_WARFARE.md`：高自由度战争、动态控制、无时间导演原则。
-- `design/04_TECH_ECONOMY_BALANCE.md`：五级科技、分叉、经济与平衡。
-- `design/05_UNITS_BUILDINGS.md`：兵种、机器人、建筑与防御总览。
-- `design/06_AI_ROBOTICS_EW.md`：AI、机器人、电子战、情报总览。
+- `design/03_GAMEPLAY_LOOP_MODES.md`：五种模式定位、征服母玩法、模式继承关系、AI六维指令与玩家路径。
+- `design/03B_COMBAT_PACING_FEEDBACK.md`：局部战斗节拍、反制窗口、机动/撤退、战斗手感与反馈上位标准。
+- `design/04_TECH_ECONOMY_BALANCE.md`：五级科技、分叉、经济、体系贡献值与多维平衡框架。
+- `design/05_UNITS_BUILDINGS.md`：兵种、机器人、建筑、战略设施四段状态与内容角色门槛。
+- `design/06_AI_ROBOTICS_EW.md`：AI六维指挥、解释反馈、机器人、电子战、情报总览。
 - `design/07_AIR_NAVAL_ORBITAL.md`：空海轨道总览。
-- `design/08_MAPS_CAMPAIGN.md`：16张多人地图、24关战役总览。
-- `design/09_ART_UI_AUDIO.md`：美术、界面、特效、音频总览。
+- `design/08_MAPS_CAMPAIGN.md`：16张多人地图、24关战役、`MAP_GRAY_RANGE`/`MIS_01`优先生产路径。
+- `design/09_ART_UI_AUDIO.md`：美术、三级信息架构、战斗反馈、特效与音频总览。
 
 ## 技术上位层
 
@@ -142,8 +143,10 @@
 7. `development/10_FORMAL_IMPLEMENTATION_PROGRESS.md`
 8. `specs/CONTENT_REGISTRY.md`
 9. `specs/SYSTEM_COMPLEXITY_BUDGET.md`
-10. 当前任务对应执行规格
+10. 当前任务对应专项设计/执行规格
 11. `specs/TEST_MATRIX.md`、`specs/IMPLEMENTATION_TEST_GATES.md` 与 `specs/ACCEPTANCE_CRITERIA.md`
+
+涉及战斗、单位克制、战斗反馈或AI战斗群行为时，还必须读取 `design/03B_COMBAT_PACING_FEEDBACK.md`。
 
 模式/经济/地图任务还必须读取 `03A_FREEDOM_WARFARE.md`、`GAME_MODE_RULES.md`、`MODE_PLAYABILITY_PROFILES.md` 和 `MODE_RESOURCE_PROFILES.md`。矿产任务再读 `MINERAL_RESOURCE_SYSTEM.md`；征服科技再读 `CONQUEST_MINERAL_TECH_BINDING.md`；快速战争再读 `QUICKWAR_FULL_READINESS.md`。
 

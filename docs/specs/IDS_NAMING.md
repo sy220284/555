@@ -27,6 +27,7 @@
 - 规则集：`RULESET_<名称>`
 - 地图：`MAP_<名称>`
 - 任务：`MIS_<两位编号>_<名称>`
+- 矿产/材料资源类型：`MIN_<名称>`
 - 音效：`SFX_<范围>_<对象>_<事件>_<三位变体>`
 - 语音：`VOICE_<语言或阵营>_<角色或兵种>_<事件>_<三位变体>`
 - 音乐：`MUSIC_<阵营或场景>_<状态>`
@@ -34,6 +35,8 @@
 - 本地化键：`LOC_<域>_<名称>`
 
 `FORM_` 只描述编队/批量生产模板，运行时展开为多个真实 `UNIT_` 实体；禁止给 `FORM_` 自己创建碰撞、HP或单实体网络状态。
+
+`MIN_` 描述矿产/材料资源类别，不代表某张地图上的具体矿点实例。地图矿点仍使用自身 `node_id`，并通过 `mineral_id` 引用 `MIN_*`。
 
 ## 3. 禁止继续使用的历史前缀
 
@@ -56,6 +59,9 @@ UNIT_CN_DRAGON_MBT
   -> WPN_TANK_120
   -> SFX_CN_DRAGON_MBT_FIRE_001
   -> VOICE_CN_ARMOR_ATTACK_001
+
+MAP_GRAY_RANGE resource node
+  -> MIN_BASE_METALS
 ```
 
 资产数据库负责把稳定 ID 映射到 Unity 资源、FMOD 事件、VFX、模型与本地化键。

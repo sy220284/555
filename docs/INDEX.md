@@ -54,6 +54,7 @@
 - `specs/BUILDING_CATALOG.md`：建筑、防御与特色建筑。
 - `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁；快速战争全科技预置。
 - `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给通用公式。
+- `specs/MINERAL_RESOURCE_SYSTEM.md`：具体矿种、采矿/精炼、战略材料标签、运输、枯竭、模式配置与地图公平。
 - `specs/GAME_MODE_RULES.md`：五种模式权威胜负、动态控制、投降、友军和异常结算。
 - `specs/MODE_PLAYABILITY_PROFILES.md`：五种模式开局战备、核心决策、翻盘、地图、AI职责和可玩性门禁。
 - `specs/MODE_RESOURCE_PROFILES.md`：五种模式开局库存、安全/争夺经济、战略资源、数据、电力、算力、补给和长期经济结构。
@@ -68,7 +69,7 @@
 
 ### 地图、战役与玩家体验
 
-- `specs/MAP_SPECS.md`：16张地图设计规格。
+- `specs/MAP_SPECS.md`：16张地图设计规格与具体矿产主题。
 - `specs/MAP_LAYOUT_RUNTIME_SCHEMA.md`：地图精确运行时侧车、ControlRegion、动态前线与灰盒生成契约。
 - `specs/CAMPAIGN_MISSION_SPECS.md`：24关逐关目标与机制。
 - `specs/CAMPAIGN_NARRATIVE_CAST.md`：人物、叙事分幕、默认任务契约、对白与过场。
@@ -102,6 +103,8 @@
 - `specs/GAME_MODE_RULES.md`
 - `specs/MODE_PLAYABILITY_PROFILES.md`
 - `specs/MODE_RESOURCE_PROFILES.md`
+
+涉及矿产、资源节点、采集、精炼、产业材料标签或地图经济时还必须读取 `specs/MINERAL_RESOURCE_SYSTEM.md`。
 
 涉及快速战争开局、科技、编制、地图部署或平衡时还必须读取 `specs/QUICKWAR_FULL_READINESS.md`。
 

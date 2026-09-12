@@ -36,6 +36,15 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("command stream did not affect authoritative match result", text)
         self.assertIn("DeterministicCommandTimeline.StepWithCommands", text)
 
+    def test_gate_scenario_permanently_swaps_baseline_plans(self):
+        text = RUNNER.read_text(encoding="utf-8")
+        create = text[text.index("private static PrototypePlayerCommand[] CreateCommands()"):text.index("private static void AssertInvalidCommandsAreRejected")]
+        self.assertEqual(2, create.count("new PrototypePlayerCommand("))
+        self.assertIn("1, 10, 1, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Economy", create)
+        self.assertIn("1, 10, 2, PrototypePlayerCommandKind.SetPlan, (int)PrototypeAnnihilationPlan.Aggressive", create)
+        self.assertNotIn("360", create)
+        self.assertNotIn("600", create)
+
     def test_command_runner_compiles_all_rule_sources_and_is_in_simulation_gate(self):
         project = PROJECT.read_text(encoding="utf-8")
         workflow = WORKFLOW.read_text(encoding="utf-8")

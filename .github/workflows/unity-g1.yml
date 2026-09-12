@@ -44,11 +44,13 @@ jobs:
         env:
           UNITY_EDITOR_PATH: ${{ vars.UNITY_EDITOR_PATH }}
         run: python Tools/run_unity_g1.py
-      - name: Upload Unity G1 logs and test results
+      - name: Upload Unity G1 logs, test results and resolved package lock
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: unity-g1-${{ github.run_id }}-${{ github.run_attempt }}
-          path: Artifacts/unity-g1/**
+          path: |
+            Artifacts/unity-g1/**
+            Packages/packages-lock.json
           if-no-files-found: warn
           retention-days: 14

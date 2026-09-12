@@ -85,7 +85,7 @@
 
 ## 6. 国家特色单位基线
 
-规则：特色单位必须声明最近通用模板；未列字段继承模板。若为“预编战斗群”，它是生产模板，不生成新的万能单实体。
+规则：特色单位必须声明最近通用模板；未列字段继承模板。编队预设使用 `FORM_`，不生成万能单实体。
 
 ### 中国
 - `UNIT_CN_DRAGON_MBT`：模板MBT；T2；HP1950，Speed11.5，Sensor550，成本2500/120；联网且目标Confirmed以上时首轮火控+15%。
@@ -128,7 +128,7 @@
 ### 日本
 - `UNIT_JP_ISLAND_MOBILE`：模板MLRS；T3；3400/260；HP900，Sensor800；可切换反舰/区域防空支援模式，切换25秒。
 - `UNIT_JP_AEGIS_SHIP`：模板DESTROYER；T3；9800/1000；Sensor2100，防空/反导弹药容量+20%。
-- `UNIT_JP_RAILGUN_SHIP`：模板DESTROYER；T4；11800/1500；HP3600；高能耗远程直射，主武器 `WPN_JP_RAILGUN_NAVAL`。
+- `UNIT_JP_RAILGUN_SHIP`：模板DESTROYER；T4；11800/1500；HP3600；高能耗远程直射，主武器`WPN_JP_RAILGUN_NAVAL`。
 - `UNIT_JP_ASW_UNMANNED`：模板USV；T3；1500/180；Sensor950；反潜搜索半径+25%。
 
 ### 韩国
@@ -142,7 +142,7 @@
 - `UNIT_IL_IRONBEAM`：模板SHORAD；T3；2800/340；激光反无人/巡飞弹，恶劣天气效率下降。
 
 ### 印度
-- `UNIT_IN_HIGHLAND_BG`：预编战斗群模板；T2；由1 IFV+2 RIFLE+1 AT组成，单项价格总和不打折；复杂地形移动惩罚降低15%。
+- `FORM_IN_HIGHLAND_BG`：编队模板；T2；1×IFV+2×RIFLE+1×AT；总价不打折；复杂地形移动惩罚降低15%由战斗群模板修正实现。
 - `UNIT_IN_HIGHSPEED_STRIKE`：模板SPG；T4；4300/700；HP700，远程高速打击，单发成本高，必须Confirmed以上目标。
 - `UNIT_IN_HEAVY_ROCKET`：模板MLRS；T3；3500/220；区域齐射弹量+20%，装填时间+15%。
 
@@ -161,12 +161,12 @@
 - `UNIT_AU_ATTACK_SS`：模板SS_ATTACK；T3；9000/900；Sensor1250；与海底传感器联网时目标确认+15%。
 
 ### 波兰
-- `UNIT_PL_HEAVY_ARMOR_BG`：预编战斗群模板；T2；1 MBT+1 IFV+1 SHORAD，价格为单项总和，无折扣；生成后仍是独立单位。
+- `FORM_PL_HEAVY_ARMOR_BG`：编队模板；T2；1×MBT+1×IFV+1×SHORAD；总价不打折，完成后自动建立同一战斗群。
 - `UNIT_PL_MASS_ARTILLERY`：模板SPG；T2；2650/90；建造时间-15%，HP-10%，适合数量化炮兵。
 - `UNIT_PL_LAYERED_AA`：模板MRAD；T3；2800/150；与SHORAD编组时目标分配效率+15%。
 
 ### 伊朗
-- `UNIT_IR_MOBILE_MISSILE`：模板MLRS；T3；3300/250；远程单发/小齐射模式，发射后暴露提高，必须机动转移。
+- `UNIT_IR_MOBILE_MISSILE`：模板MLRS；T3；3300/250；远程单发/小齐射，发射后高暴露，需机动转移。
 - `UNIT_IR_LOW_COST_DRONE`：模板DRONE_ATTACK；T2；成本-35%，HP-30%，用于饱和。
 - `UNIT_IR_DECOY`：模板DRONE_RECON；T2；350/20；无武器，生成高DeceptionStrength假目标并消耗少量算力。
 
@@ -183,15 +183,15 @@
 - `UNIT_YURI_AUTONOMOUS_FIGHTER`：T4，5600/850，Compute6；完全无人空战。
 - `UNIT_YURI_ABYSS_UUV`：T4，3200/450，Compute4；深海渗透。
 
-尤里单位装配和能力必须同样进入 `UNIT_LOADOUTS.md`，不能因为是剧情阵营绕过注册体系。
+尤里单位装配和能力同样进入 `UNIT_LOADOUTS.md`，不能绕过注册体系。
 
 ## 8. 单位通用规则
 
 1. 人员单位是主要建筑占领与复杂目标执行者，机器人不能完全替代。
 2. 重型平台不能进入全部城市狭窄通道。
 3. 所有远程单位近距离存在最低射程或展开惩罚。
-4. 防空弹药采用 `ReadyShots` 与保障恢复规则，不是无限弹药。
+4. 防空弹药采用`ReadyShots`与保障恢复规则，不是无限弹药。
 5. 机器人/无人单位在算力过载和网络受扰时按自主等级降级。
 6. 所有国家独占单位至少有两个明确反制标签。
-7. “预编战斗群”只是一条生产/编组宏，不允许成为拥有多倍能力却只占一个碰撞实体的超级单位。
-8. 特色单位数值继承链必须能被内容验证器解析；模板不存在即构建失败。
+7. `FORM_`只是一条生产/编组宏，展开后全部为独立真实单位。
+8. 特色单位继承链必须能被内容验证器解析；模板不存在即构建失败。

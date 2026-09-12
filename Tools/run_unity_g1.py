@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import os
 import pathlib
 import subprocess
@@ -58,6 +59,46 @@ def verify_project_version():
     expected = f"m_EditorVersion: {EXPECTED_EDITOR_VERSION}"
     if expected not in text:
         raise RuntimeError(f"project editor version is not {EXPECTED_EDITOR_VERSION}")
+
+
+def verify_package_lock(root=ROOT):
+    manifest_path = root / "Packages" / "manifest.json"
+    lock_path = root / "Packages" / "packages-lock.json"
+    if not lock_path.exists():
+        raise RuntimeError(
+            "Unity Package Manager did not produce Packages/packages-lock.json; "
+            "G1 requires the resolved dependency graph before it can be closed"
+        )
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    requested = manifest.get("dependencies", {})
+    resolved = lock.get("dependencies", {})
+    if not isinstance(resolved, dict):
+        raise RuntimeError("Packages/packages-lock.json dependencies must be an object")
+
+    problems = []
+    for package_name, requested_version in sorted(requested.items()):
+        entry = resolved.get(package_name)
+        if not isinstance(entry, dict):
+            problems.append(f"missing direct dependency {package_name}")
+            continue
+        resolved_version = entry.get("version")
+        if resolved_version != requested_version:
+            problems.append(
+                f"{package_name}: manifest={requested_version!r} lock={resolved_version!r}"
+            )
+        depth = entry.get("depth")
+        if depth != 0:
+            problems.append(f"{package_name}: direct dependency depth must be 0, got {depth!r}")
+
+    if problems:
+        raise RuntimeError("package lock mismatch: " + "; ".join(problems))
+
+    print(
+        "UNITY PACKAGE LOCK VERIFIED: "
+        f"{len(requested)} direct dependencies, {len(resolved)} total resolved packages"
+    )
 
 
 def verify_test_results(path):
@@ -128,6 +169,8 @@ def main():
             print("Unity compile log contains compiler errors")
             print_log_tail(compile_log)
             return 2
+
+        verify_package_lock()
 
         # Unity Test Framework exits after -runTests completes. Do not add -quit here;
         # an explicit early quit can terminate the process before the test runner flushes results.

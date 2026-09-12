@@ -1,14 +1,14 @@
-# 文档总索引
+# 文档与实现总索引
 
-本仓库文档分为设计层、技术上位层、开发层、执行规格层。编码时优先读取当前对象对应的执行规格；发生冲突时按本文优先级处理，禁止代理自行择一执行。
+本仓库已经从“纯设计文档”进入 `implementation_bootstrap`。编码时必须同时读取设计/规格和对应机器数据、代码契约；禁止继续把文档完成度当成实现完成度。
 
 ## 设计层
 
-- `design/00_MASTER_GDD.md`：母设计文档、产品边界、核心玩法。
+- `design/00_MASTER_GDD.md`：母设计、产品边界、规则深度预设、复杂度红线。
 - `design/01_WORLD_LORE.md`：2037世界观、时间线、尤里/升格线索。
 - `design/02_FACTIONS_COUNTRIES.md`：四大基础体系与15国特色。
-- `design/03_GAMEPLAY_LOOP_MODES.md`：对局循环、五种模式定位、玩家进入路径。
-- `design/03A_FREEDOM_WARFARE.md`：高自由度战争、动态控制、无时间驱动节奏原则。
+- `design/03_GAMEPLAY_LOOP_MODES.md`：五种模式定位与玩家路径。
+- `design/03A_FREEDOM_WARFARE.md`：高自由度战争、动态控制、无时间导演原则。
 - `design/04_TECH_ECONOMY_BALANCE.md`：五级科技、分叉、经济与平衡。
 - `design/05_UNITS_BUILDINGS.md`：兵种、机器人、建筑与防御总览。
 - `design/06_AI_ROBOTICS_EW.md`：AI、机器人、电子战、情报总览。
@@ -26,64 +26,100 @@
 - `technical/ONLINE_SERVICES_MATCHMAKING_LIVEOPS.md`：在线服务、匹配、排位、赛季、灰度和回滚。
 - `technical/ONLINE_SECURITY_PRIVACY.md`：账号、传输、反作弊、安全、隐私与供应链。
 - `technical/SAVE_REPLAY_MODS_EDITOR.md`：存档、录像、模组、编辑器技术总览。
-- `technical/SECURITY_ANTICHEAT.md`：安全边界摘要；详细规则见ONLINE_SECURITY_PRIVACY。
+- `technical/SECURITY_ANTICHEAT.md`：安全边界摘要。
 - `technical/OBSERVABILITY_CI.md`：日志、指标、持续集成和性能回归。
-- `technical/README.md`：技术文档索引。
 
-## 开发层
+## 开发与落地层
 
 - `development/00_ARCHITECTURE.md`：总体代码架构。
 - `development/01_DATA_DRIVEN.md`：数据驱动与内容定义。
 - `development/02_AI_AUTODEV.md`：AI全量自动开发模式。
-- `development/03_NETWORK_DETERMINISM.md`：服务器权威网络、可复现录像与重连。
-- `development/04_PERFORMANCE_NAVIGATION.md`：当前性能、导航和大规模单位执行策略。
-- `development/05_TEST_QA_BALANCE.md`：测试、AI对战农场和平衡闭环。
+- `development/03_NETWORK_DETERMINISM.md`：服务器权威网络、录像与重连。
+- `development/04_PERFORMANCE_NAVIGATION.md`：性能、导航和大规模实体策略。
+- `development/05_TEST_QA_BALANCE.md`：测试、AI农场和平衡闭环。
 - `development/06_CONTENT_PIPELINE.md`：内容生产管线。
-- `development/07_EXECUTION_MODEL.md`：并行任务图、模块所有权与门禁。
+- `development/07_EXECUTION_MODEL.md`：并行任务、模块所有权与门禁。
+- `development/08_IMPLEMENTATION_BOOTSTRAP.md`：当前真正已经入库的工程/数据/CI，以及尚未通过的门禁。
+- `development/09_FULL_DESIGN_IMPLEMENTATION_AUDIT.md`：本轮全设计深化、各系统实现状态、阻断项和风险驱动实现顺序。
 
 ## 执行规格层
 
-### 注册、单位、武器与规则
+### 注册、单位、武器、科技与经济
 
-- `specs/IDS_NAMING.md`：唯一稳定ID命名规范。
-- `specs/CONTENT_REGISTRY.md`：全局稳定ID入口。
+- `specs/IDS_NAMING.md`：唯一稳定ID，包括 `MIN_` / `MAT_`。
+- `specs/CONTENT_REGISTRY.md`：全局稳定ID入口与生命周期。
 - `specs/UNIT_CATALOG.md`：单位数值基线。
-- `specs/UNIT_LOADOUTS.md`：单位生产建筑、武器、能力、老练度、驻军与友军规则。
-- `specs/WEAPONS_ARMOR_MATRIX.md`：伤害、装甲、武器、命中、主动防护。
-- `specs/ABILITY_STATUS_REGISTRY.md`：普通能力与状态ID。
-- `specs/BUILDING_CATALOG.md`：建筑、防御与特色建筑。
-- `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁；快速战争全科技预置。
-- `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给通用公式。
-- `specs/MINERAL_RESOURCE_SYSTEM.md`：具体矿种、采矿/精炼、战略材料标签、运输、枯竭、模式配置与地图公平。
-- `specs/CONQUEST_MINERAL_TECH_BINDING.md`：征服模式专属矿产—科技绑定、材料访问、断供降级、替代路线与公平门禁。
-- `specs/GAME_MODE_RULES.md`：五种模式权威胜负、动态控制、投降、友军和异常结算。
-- `specs/MODE_PLAYABILITY_PROFILES.md`：五种模式开局战备、核心决策、翻盘、地图、AI职责和可玩性门禁。
-- `specs/MODE_RESOURCE_PROFILES.md`：五种模式开局库存、安全/争夺经济、战略资源、数据、电力、算力、补给和长期经济结构。
-- `specs/QUICKWAR_FULL_READINESS.md`：快速战争满科技、完整建筑、初始联合编制、资源储备和公平性执行规格。
-- `specs/BALANCE_BASELINES.md`：总体平衡基线；时长只作遥测，不作规则触发。
+- `specs/UNIT_LOADOUTS.md`：生产建筑、武器、能力、老练度、驻军和友军规则。
+- `specs/WEAPONS_ARMOR_MATRIX.md`：伤害、装甲、命中和主动防护。
+- `specs/ABILITY_STATUS_REGISTRY.md`：能力与状态。
+- `specs/BUILDING_CATALOG.md`：建筑、防御和特色建筑。
+- `specs/TECH_TREE_CATALOG.md`：T1—T5、分叉、征服材料前置、快速战争全科技。
+- `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给公式。
+- `specs/MINERAL_RESOURCE_SYSTEM.md`：矿种、采集、精炼、运输、枯竭和材料访问。
+- `specs/CONQUEST_MINERAL_TECH_BINDING.md`：征服模式专属矿产—科技绑定与断供降级。
+- `specs/SYSTEM_COMPLEXITY_BUDGET.md`：玩家操作、界面、CPU、网络、AI和资产六维预算。
+
+### 游戏模式
+
+- `specs/GAME_MODE_RULES.md`：五种模式权威胜负、动态控制、投降、友军与异常结算。
+- `specs/MODE_PLAYABILITY_PROFILES.md`：五模式开局战备、核心决策、翻盘、地图和AI职责。
+- `specs/MODE_RESOURCE_PROFILES.md`：五模式开局库存、地图经济和保障结构。
+- `specs/QUICKWAR_FULL_READINESS.md`：快速战争满科技、完整建筑和65%—70%现役编制。
+- `specs/BALANCE_BASELINES.md`：总体平衡基线。
 
 ### AI、机器人与多域战争
 
-- `specs/AI_ROBOTICS_EW_STATE_MACHINES.md`：AI权限、频率、状态机、机器人自主、EW/网络战及无时间导演约束。
-- `specs/AIR_NAVAL_ORBITAL_RULES.md`：航空、海军、潜艇、无人海战与轨道执行规则。
-- `specs/SUPERWEAPONS_STRATEGIC_ABILITIES.md`：超级武器和战略能力。
+- `specs/AI_ROBOTICS_EW_STATE_MACHINES.md`
+- `specs/AIR_NAVAL_ORBITAL_RULES.md`
+- `specs/SUPERWEAPONS_STRATEGIC_ABILITIES.md`
 
 ### 地图、战役与玩家体验
 
-- `specs/MAP_SPECS.md`：16张地图设计规格与具体矿产主题。
-- `specs/MAP_LAYOUT_RUNTIME_SCHEMA.md`：地图精确运行时侧车、ControlRegion、动态前线与灰盒生成契约。
-- `specs/CAMPAIGN_MISSION_SPECS.md`：24关逐关目标与机制。
-- `specs/CAMPAIGN_NARRATIVE_CAST.md`：人物、叙事分幕、默认任务契约、对白与过场。
-- `specs/UI_ART_AUDIO_ACCESSIBILITY.md`：UI、输入、美术预算、无障碍硬规格。
-- `specs/AUDIO_VOICE_PIPELINE.md`：FMOD/WarAudioDirector、音效语音生成、混音、来源追溯。
-- `specs/DIFFICULTY_TUTORIAL_LOCALIZATION.md`：难度、教学、本地化与输入默认规则。
+- `specs/MAP_SPECS.md`：16图设计与矿产主题。
+- `specs/MAP_LAYOUT_RUNTIME_SCHEMA.md`：地图侧车、ControlRegion、动态前线与灰盒契约。
+- `specs/CAMPAIGN_MISSION_SPECS.md`
+- `specs/CAMPAIGN_NARRATIVE_CAST.md`
+- `specs/UI_ART_AUDIO_ACCESSIBILITY.md`
+- `specs/AUDIO_VOICE_PIPELINE.md`
+- `specs/DIFFICULTY_TUTORIAL_LOCALIZATION.md`
 
 ### 数据、工具与质量门禁
 
-- `specs/SAVE_NETWORK_MOD_EDITOR_SCHEMA.md`：服务器权威存档/网络/录像/重连/模组/编辑器数据规格。
-- `specs/TEST_MATRIX.md`：自动测试、自由战争规则、快速战争满战备、性能、AI、地图、网络和平衡测试矩阵。
-- `specs/ACCEPTANCE_CRITERIA.md`：完成验收条件。
-- `specs/SPEC_COMPLETENESS_MATRIX.md`：文档完整性和剩余生产资产状态。
+- `specs/SAVE_NETWORK_MOD_EDITOR_SCHEMA.md`
+- `specs/TEST_MATRIX.md`
+- `specs/ACCEPTANCE_CRITERIA.md`
+- `specs/SPEC_COMPLETENESS_MATRIX.md`
+
+## 已实际入库的实现入口
+
+### Unity/包
+
+- `ProjectSettings/ProjectVersion.txt`：当前编辑器基线。
+- `Packages/manifest.json`：正式依赖基线。
+- `Packages/com.modernra.core`
+- `Packages/com.modernra.simulation`
+- `Packages/com.modernra.combat`
+- `Packages/com.modernra.navigation`
+- `Packages/com.modernra.ai`
+- `Packages/com.modernra.intel-ew`
+- `Packages/com.modernra.robotics`
+- `Packages/com.modernra.network`
+- `Packages/com.modernra.tests`
+
+### 权威机器数据
+
+- `/Data/Rulesets/rulesets.json`
+- `/Data/Minerals/minerals.json`
+- `/Data/Technology/common_technology.json`
+- `/Data/Maps/MAP_GRAY_RANGE.map.json`
+- `/Data/Schemas/*.schema.json`
+
+### 自动门禁
+
+- `Tools/content_validator.py`
+- `.github/workflows/content-validation.yml`
+
+这些存在只代表项目已经进入实现链，不代表达到 `playable`。
 
 ## 编码前最小阅读集
 
@@ -93,26 +129,17 @@
 2. `technical/TECH_STACK.md`
 3. `design/00_MASTER_GDD.md`
 4. `development/00_ARCHITECTURE.md`
-5. `specs/CONTENT_REGISTRY.md`
-6. 当前任务对应执行规格
-7. `specs/TEST_MATRIX.md`
-8. `specs/ACCEPTANCE_CRITERIA.md`
+5. `development/08_IMPLEMENTATION_BOOTSTRAP.md`
+6. `development/09_FULL_DESIGN_IMPLEMENTATION_AUDIT.md`
+7. `specs/CONTENT_REGISTRY.md`
+8. `specs/SYSTEM_COMPLEXITY_BUDGET.md`
+9. 当前任务对应执行规格
+10. `specs/TEST_MATRIX.md` 与 `specs/ACCEPTANCE_CRITERIA.md`
 
-模式、经济、地图、AI战略和胜负相关任务必须同时读取：
-
-- `design/03A_FREEDOM_WARFARE.md`
-- `specs/GAME_MODE_RULES.md`
-- `specs/MODE_PLAYABILITY_PROFILES.md`
-- `specs/MODE_RESOURCE_PROFILES.md`
-
-涉及矿产、资源节点、采集、精炼、产业材料标签或地图经济时还必须读取 `specs/MINERAL_RESOURCE_SYSTEM.md`。
-
-涉及征服模式的矿产、科技、材料供应、关键矿争夺或高阶生产限制时，必须额外读取 `specs/CONQUEST_MINERAL_TECH_BINDING.md`；该文件作为征服模式专项规则覆盖通用矿产规则中“具体矿种不硬锁科技”的默认约束。
-
-涉及快速战争开局、科技、编制、地图部署或平衡时还必须读取 `specs/QUICKWAR_FULL_READINESS.md`。
+模式/经济/地图任务还必须读取 `03A_FREEDOM_WARFARE.md`、`GAME_MODE_RULES.md`、`MODE_PLAYABILITY_PROFILES.md` 和 `MODE_RESOURCE_PROFILES.md`。矿产任务再读 `MINERAL_RESOURCE_SYSTEM.md`；征服科技再读 `CONQUEST_MINERAL_TECH_BINDING.md`；快速战争再读 `QUICKWAR_FULL_READINESS.md`。
 
 ## 唯一优先级
 
-`MASTER_GDD（产品原则） > TECH_STACK（技术选型） > 专项设计（系统定位） > 执行规格（具体参数/状态机） > DEVELOPMENT架构（代码组织） > 单项实现配置`。
+`MASTER_GDD（产品原则） > TECH_STACK（技术选型） > 专项设计 > 执行规格 > 权威机器数据 > DEVELOPMENT代码边界 > 单项实现配置`。
 
-若执行规格与上位文档冲突，先修文档再编码。不同执行规格彼此冲突时，以更具体对象的专项规格为准，但必须同步修正其他文档，不能长期保留双口径。
+若执行规格、数据与实现互相冲突，先停止功能扩展并统一三者；禁止长期保留双口径。

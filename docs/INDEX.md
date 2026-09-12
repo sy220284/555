@@ -52,9 +52,10 @@
 - `specs/WEAPONS_ARMOR_MATRIX.md`：伤害、装甲、武器、命中、主动防护。
 - `specs/ABILITY_STATUS_REGISTRY.md`：普通能力与状态ID。
 - `specs/BUILDING_CATALOG.md`：建筑、防御与特色建筑。
-- `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁。
+- `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁；快速战争全科技预置。
 - `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给公式。
 - `specs/GAME_MODE_RULES.md`：五种模式战争状态胜负、动态控制、投降、友军和异常结算。
+- `specs/QUICKWAR_FULL_READINESS.md`：快速战争满科技、完整建筑、初始联合编制、资源储备和公平性执行规格。
 - `specs/BALANCE_BASELINES.md`：总体平衡基线；时长只作遥测，不作规则触发。
 
 ### AI、机器人与多域战争
@@ -76,7 +77,7 @@
 ### 数据、工具与质量门禁
 
 - `specs/SAVE_NETWORK_MOD_EDITOR_SCHEMA.md`：服务器权威存档/网络/录像/重连/模组/编辑器数据规格。
-- `specs/TEST_MATRIX.md`：自动测试、自由战争规则、性能、AI、地图、网络和平衡测试矩阵。
+- `specs/TEST_MATRIX.md`：自动测试、自由战争规则、快速战争满战备、性能、AI、地图、网络和平衡测试矩阵。
 - `specs/ACCEPTANCE_CRITERIA.md`：完成验收条件。
 - `specs/SPEC_COMPLETENESS_MATRIX.md`：文档完整性和剩余生产资产状态。
 
@@ -93,7 +94,7 @@
 7. `specs/TEST_MATRIX.md`
 8. `specs/ACCEPTANCE_CRITERIA.md`
 
-模式、经济、地图、AI战略和胜负相关任务还必须读取 `design/03A_FREEDOM_WARFARE.md`。
+模式、经济、地图、AI战略和胜负相关任务还必须读取 `design/03A_FREEDOM_WARFARE.md`。涉及快速战争开局、科技、编制、地图部署或平衡时必须同时读取 `specs/QUICKWAR_FULL_READINESS.md`。
 
 ## 唯一优先级
 

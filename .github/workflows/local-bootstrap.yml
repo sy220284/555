@@ -17,36 +17,19 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
-      - name: Package source and minimal local .NET toolchain
+      - name: Package latest .NET 8 runtime patch
         run: |
-          SDK_VERSION="$(dotnet --list-sdks | awk '/^8\./ {print $1; exit}')"
-          RUNTIME_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^8\./ {print $2; exit}')"
-          REF_VERSION="$(basename "$(find /usr/share/dotnet/packs/Microsoft.NETCore.App.Ref -mindepth 1 -maxdepth 1 -type d -name '8.*' | sort -V | tail -1)")"
-          HOST_VERSION="$(basename "$(find /usr/share/dotnet/packs/Microsoft.NETCore.App.Host.linux-x64 -mindepth 1 -maxdepth 1 -type d -name '8.*' | sort -V | tail -1)")"
-          test -n "$SDK_VERSION"
+          RUNTIME_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^8\./ {print $2}' | sort -V | tail -1)"
           test -n "$RUNTIME_VERSION"
-          test -n "$REF_VERSION"
-          test -n "$HOST_VERSION"
-          mkdir -p /tmp/dotnet8/sdk /tmp/dotnet8/shared/Microsoft.NETCore.App /tmp/dotnet8/host/fxr
-          mkdir -p /tmp/dotnet8/packs/Microsoft.NETCore.App.Ref /tmp/dotnet8/packs/Microsoft.NETCore.App.Host.linux-x64
-          cp /usr/share/dotnet/dotnet /tmp/dotnet8/
-          cp -a "/usr/share/dotnet/sdk/$SDK_VERSION" /tmp/dotnet8/sdk/
-          cp -a "/usr/share/dotnet/shared/Microsoft.NETCore.App/$RUNTIME_VERSION" /tmp/dotnet8/shared/Microsoft.NETCore.App/
-          cp -a "/usr/share/dotnet/host/fxr/$RUNTIME_VERSION" /tmp/dotnet8/host/fxr/
-          cp -a "/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/$REF_VERSION" /tmp/dotnet8/packs/Microsoft.NETCore.App.Ref/
-          cp -a "/usr/share/dotnet/packs/Microsoft.NETCore.App.Host.linux-x64/$HOST_VERSION" /tmp/dotnet8/packs/Microsoft.NETCore.App.Host.linux-x64/
-          if [ -d /usr/share/dotnet/packs/NETStandard.Library.Ref/2.1.0 ]; then
-            mkdir -p /tmp/dotnet8/packs/NETStandard.Library.Ref
-            cp -a /usr/share/dotnet/packs/NETStandard.Library.Ref/2.1.0 /tmp/dotnet8/packs/NETStandard.Library.Ref/
-          fi
-          tar -C /tmp -cf /tmp/dotnet8-toolchain.tar dotnet8
-          tar --exclude=.git -czf /tmp/555-source.tar.gz .
+          mkdir -p /tmp/dotnet-runtime8/shared/Microsoft.NETCore.App /tmp/dotnet-runtime8/host/fxr
+          cp -a "/usr/share/dotnet/shared/Microsoft.NETCore.App/$RUNTIME_VERSION" /tmp/dotnet-runtime8/shared/Microsoft.NETCore.App/
+          cp -a "/usr/share/dotnet/host/fxr/$RUNTIME_VERSION" /tmp/dotnet-runtime8/host/fxr/
+          printf '%s\n' "$RUNTIME_VERSION" > /tmp/dotnet-runtime8/runtime-version.txt
+          tar -C /tmp -czf /tmp/dotnet8-runtime-patch.tar.gz dotnet-runtime8
       - uses: actions/upload-artifact@v7
         with:
-          name: local-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            /tmp/dotnet8-toolchain.tar
-            /tmp/555-source.tar.gz
+          name: dotnet8-runtime-patch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/dotnet8-runtime-patch.tar.gz
           if-no-files-found: error
           compression-level: 1
           retention-days: 1

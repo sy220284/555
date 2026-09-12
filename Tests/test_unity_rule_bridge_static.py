@@ -6,13 +6,21 @@ SIM = ROOT / "Packages/com.modernra.simulation/Runtime"
 
 
 class UnityRuleBridgeStaticTests(unittest.TestCase):
-    def test_bridge_calls_authoritative_rule_step(self):
+    def test_bridge_calls_authoritative_live_session_step(self):
         text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
-        self.assertIn("AnnihilationPrototype.Step(_world);", text)
+        self.assertIn("LiveCommandedAnnihilationSession", text)
+        self.assertIn("_session.Step();", text)
         self.assertIn("GrayRangeGeneratedData.Create()", text)
         self.assertNotIn("TankCost", text)
         self.assertNotIn("RawDamage", text)
         self.assertNotIn("MiningPerTick", text)
+
+    def test_bridge_admits_player_commands_before_authoritative_step(self):
+        text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
+        self.assertIn("PlayerCommandRequest", text)
+        self.assertIn("_session.Submit(command)", text)
+        self.assertIn("executeTick", text)
+        self.assertIn("pending.Clear()", text)
 
     def test_bridge_mirrors_buildings_units_and_match_state(self):
         text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")

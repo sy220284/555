@@ -48,6 +48,17 @@ def verify_test_results(path):
         raise RuntimeError(f"EditMode tests failed: failed={failed} result={result}")
 
 
+def base_editor_command(editor):
+    return [
+        str(editor),
+        "-batchmode",
+        "-nographics",
+        "-accept-apiupdate",
+        "-projectPath",
+        str(ROOT),
+    ]
+
+
 def main():
     try:
         verify_project_version()
@@ -58,12 +69,7 @@ def main():
         test_log = artifacts / "editmode.log"
         test_results = artifacts / "editmode-results.xml"
 
-        compile_command = [
-            str(editor),
-            "-batchmode",
-            "-nographics",
-            "-projectPath",
-            str(ROOT),
+        compile_command = base_editor_command(editor) + [
             "-quit",
             "-logFile",
             str(compile_log),
@@ -77,18 +83,14 @@ def main():
             print("Unity compile log contains compiler errors")
             return 2
 
-        test_command = [
-            str(editor),
-            "-batchmode",
-            "-nographics",
-            "-projectPath",
-            str(ROOT),
+        # Unity Test Framework exits after -runTests completes. Do not add -quit here;
+        # an explicit early quit can terminate the process before the test runner flushes results.
+        test_command = base_editor_command(editor) + [
             "-runTests",
             "-testPlatform",
             "EditMode",
             "-testResults",
             str(test_results),
-            "-quit",
             "-logFile",
             str(test_log),
         ]

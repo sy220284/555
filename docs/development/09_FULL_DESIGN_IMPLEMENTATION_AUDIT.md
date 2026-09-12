@@ -8,11 +8,11 @@
 
 本轮最大问题不是缺创意，而是此前仓库只有文档，没有可编译工程、机器可读数据和持续集成。该问题已经开始修复：Unity工程骨架、核心程序集、权威数据、Schema、内容验证器和自动门禁已实际进入仓库。
 
-生命周期统一改为：
+生命周期统一为：
 
-`design_defined -> data_defined -> code_contract_ready -> prototype_playable -> validated -> content_complete -> ship_ready`
+`design_defined -> data_defined -> code_contract_ready -> placeholder -> playable -> validated -> content_complete -> ship_ready`
 
-任何系统没有进入至少 `data_defined + code_contract_ready`，不得再称为“已落地”。
+任何系统没有进入至少 `data_defined + code_contract_ready`，不得再称为“已落地”；只有达到对应后续门禁才能升级生命周期状态。
 
 ## 2. 产品与模式
 
@@ -93,7 +93,7 @@ AI是产品核心卖点，但最大风险是越权和“替玩家玩”。
 
 ### 实现
 
-`ModernRA.Navigation` 已建立导航层、路径走廊、目标和局部避障状态。下一门禁是 `MAP_GRAY_RANGE` 区域图和1000单位共享路径压力测试。
+`ModernRA.Navigation` 已建立导航层、路径走廊、目标和局部避障状态。下一门禁是 `MAP_GRAY_RANGE` 区域图驱动的1000单位共享路径压力测试。
 
 ## 7. 情报、电子战与网络战
 
@@ -141,15 +141,23 @@ A1—A4保持，通信断联和算力不足只降级自主，不直接让单位�
 
 ### 结论
 
-16张地图设计足够，当前真正缺的是16份精确 `.map.json` 和灰盒生成结果。
+16张地图设计足够；首张 `MAP_GRAY_RANGE` 已有机器侧车，但其余15张仍缺精确 `.map.json`，且所有地图都还缺实际灰盒生成/导航烘焙结果。
 
 ### 深化
 
 地图完成度不再按文字描述判断。每张图必须经过：Schema -> 区域图 -> 资源/矿产 -> 道路/桥梁 -> 动态前线 -> AI可达 -> 模式兼容 -> 1000场换边公平测试。
 
-### 实现门禁
+### 已实现
 
-首张只做 `MAP_GRAY_RANGE`，完成后把生成器和验证器复用于其余15图，禁止16图人工各写一套逻辑。
+- `/Data/Maps/MAP_GRAY_RANGE.map.json` 已进入主线；
+- `/Data/Schemas/map.schema.json` 已建立；
+- 内容验证器已检查首张地图的资源、区域、矿产和规则集引用以及近家资源数量对称。
+
+当前 `MAP_GRAY_RANGE` 只能标记为 `layout_defined`，尚未达到 `graybox_ready`。
+
+### 下一门禁
+
+根据首张侧车生成确定性灰盒、导航区域和双方初始实体；通过后再把同一生成器/验证器复用于其余15图，禁止16图人工各写一套逻辑。
 
 ## 11. 战役
 
@@ -209,11 +217,11 @@ Unity 6 + DOTS/Burst路线保留。最大的工程风险是同时自研过多核
 
 ### 已实施
 
-- 编辑器版本锁定 `6000.3.24f1`；
+- 编辑器精确版本锁定 `6000.3.24f1 (4e7b9b5b6244)`；
 - 非预览核心依赖进入 `Packages/manifest.json`；
 - 核心、模拟、战斗、AI、导航、情报/EW、机器人、网络程序集已建；
-- 权威tick常量固定30Hz；
-- 内容验证CI已建。
+- 权威模拟常量和 `FixedStepSimulationSystemGroup` 均配置为30Hz；
+- 权威数据内容验证持续集成已建并通过。
 
 ### 下一性能门禁
 
@@ -234,9 +242,9 @@ Unity 6 + DOTS/Burst路线保留。最大的工程风险是同时自研过多核
 当前不存在设计方向级 `BLOCKED`，但仍有工程阻断：
 
 1. 尚未用真实Unity编辑器验证当前包和程序集编译；
-2. 尚无基础场景和首张地图侧车；
-3. 尚无10000 tick状态哈希Runner；
-4. 战斗/导航/AI只有代码契约，没有完整系统；
+2. 尚无10000 tick状态哈希 `SimRunner`；
+3. `MAP_GRAY_RANGE` 已有侧车，但尚无实际灰盒生成、导航烘焙和实体出生；
+4. 战斗/导航/AI/EW/机器人/网络目前主要处于 `code_contract_ready`，没有完整玩法系统；
 5. 正式内容资产仍未生产。
 
 因此当前项目状态只能标记 `implementation_bootstrap`，不能标记 `playable`。
@@ -245,7 +253,7 @@ Unity 6 + DOTS/Burst路线保留。最大的工程风险是同时自研过多核
 
 不按“文档章节”开发，按风险闭环开发：
 
-1. 工程编译 + 数据CI；
+1. 工程编译 + 数据持续集成；
 2. 10000 tick确定性SimRunner；
 3. MAP_GRAY_RANGE灰盒 + 资源采集；
 4. 移动/共享导航；

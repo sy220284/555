@@ -7,6 +7,7 @@ namespace ModernRA.Rules
     {
         private readonly PrototypeCommandInbox _inbox;
         private readonly List<PrototypePlayerCommand> _executedCommands = new List<PrototypePlayerCommand>();
+        private PrototypeBattleGroupScheduler? _battleGroupScheduler;
 
         public LiveCommandedAnnihilationSession(AnnihilationPrototypeConfig config, int maxCommandLeadTicks)
         {
@@ -17,6 +18,15 @@ namespace ModernRA.Rules
         public AnnihilationPrototypeWorld World { get; }
         public int PendingCommandCount => _inbox.PendingCount;
         public int ExecutedCommandCount => _executedCommands.Count;
+
+        public void AttachBattleGroupScheduler(PrototypeBattleGroupScheduler scheduler)
+        {
+            if (scheduler == null)
+                throw new ArgumentNullException(nameof(scheduler));
+            if (_battleGroupScheduler != null)
+                throw new InvalidOperationException("a battle-group scheduler is already attached");
+            _battleGroupScheduler = scheduler;
+        }
 
         public PrototypeCommandAdmissionResult Submit(PrototypePlayerCommand command)
         {
@@ -93,15 +103,14 @@ namespace ModernRA.Rules
 
             int nextTick = checked(World.Tick + 1);
             PrototypePlayerCommand[] commands = _inbox.DrainForTick(nextTick);
-            if (commands.Length == 0)
+            if (commands.Length > 0)
             {
-                AnnihilationPrototype.Step(World);
-                return;
+                var timeline = new DeterministicCommandTimeline(commands);
+                timeline.ApplyForNextTick(World);
+                _executedCommands.AddRange(commands);
             }
-
-            var timeline = new DeterministicCommandTimeline(commands);
-            DeterministicCommandTimeline.StepWithCommands(World, timeline);
-            _executedCommands.AddRange(commands);
+            _battleGroupScheduler?.Step(World, nextTick);
+            AnnihilationPrototype.Step(World);
         }
 
         public AnnihilationPrototypeResult RunUntilResolved(int watchdogTicks)

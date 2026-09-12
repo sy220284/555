@@ -47,6 +47,9 @@ class PlayerCommandInboxStaticTests(unittest.TestCase):
         self.assertIn("PrototypeBattleGroupAI.TryPlan", text)
         self.assertIn("battle-group AI did not take control", text)
         self.assertIn("stale battle-group AI decision survived player takeover", text)
+        self.assertIn("PrototypeBattleGroupScheduler", text)
+        self.assertIn("scheduled stale AI task survived same-tick player takeover", text)
+        self.assertIn("dynamic intelligence removal did not transition", text)
 
     def test_runner_compiles_all_rules_and_is_wired_to_simulation_gate(self):
         project = PROJECT.read_text(encoding="utf-8")

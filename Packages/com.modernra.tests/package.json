@@ -5,6 +5,7 @@
   "unity": "6000.3",
   "dependencies": {
     "com.modernra.core": "0.1.0",
+    "com.modernra.rules": "0.1.0",
     "com.modernra.simulation": "0.1.0",
     "com.modernra.ai": "0.1.0",
     "com.modernra.robotics": "0.1.0",

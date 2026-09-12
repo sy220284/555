@@ -53,12 +53,23 @@ internal static class AnnihilationGateChecks
         Check(replay.FinalStateHash == expectedHash, "replay final hash does not match deterministic gate");
         Check(replay.Checkpoints.Count >= 10, "replay checkpoint coverage is too sparse");
 
+        string replayJson = AnnihilationReplayFile.Write(replay, scenarioId, GrayRangeGeneratedData.SourceMapSha256, replayCheckpointIntervalTicks);
+        string replayPath = Path.Combine(Path.GetTempPath(), "modernra-annihilation-replay.json");
+        File.WriteAllText(replayPath, replayJson);
+        string persistedReplayJson = File.ReadAllText(replayPath);
+        File.Delete(replayPath);
+        AnnihilationReplayFileData replayFile = AnnihilationReplayFile.Read(persistedReplayJson, scenarioId, GrayRangeGeneratedData.SourceMapSha256);
+        AnnihilationReplayVerifier.Verify(config, replayFile.Tape, watchdogTicks);
+        string replayRoundTrip = AnnihilationReplayFile.Write(replayFile.Tape, replayFile.ScenarioId, replayFile.SourceMapSha256, replayFile.CheckpointIntervalTicks);
+        Check(string.Equals(replayJson, replayRoundTrip, StringComparison.Ordinal), "replay file round-trip changed canonical content");
+        string replayFileSha256 = AnnihilationReplayFile.ComputeSha256(replayJson);
+
         Console.WriteLine(
             $"annihilation_gate=passed scenario={scenarioId} winner={verified.WinnerTeamId} tick={verified.Tick} hash={expectedHash:X16} " +
             $"mined_a={verified.TeamA.MinedMilli / 1000.0:F3} mined_b={verified.TeamB.MinedMilli / 1000.0:F3} " +
             $"produced_a={verified.TeamA.UnitsProduced} produced_b={verified.TeamB.UnitsProduced} " +
             $"shots={verified.ShotsFired} buildings_destroyed={verified.BuildingsDestroyed} loser_buildings_remaining={AnnihilationPrototype.CountAliveBuildings(loser)} " +
-            $"replay_checkpoints={replay.Checkpoints.Count} replay_final_hash={replay.FinalStateHash:X16}");
+            $"replay_checkpoints={replay.Checkpoints.Count} replay_final_hash={replay.FinalStateHash:X16} replay_file_bytes={System.Text.Encoding.UTF8.GetByteCount(replayJson)} replay_file_sha256={replayFileSha256}");
     }
 
     private static void Check(bool condition, string message)

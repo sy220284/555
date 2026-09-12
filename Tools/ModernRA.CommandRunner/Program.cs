@@ -37,7 +37,7 @@ internal static class Program
                 throw new InvalidOperationException("command stream did not affect authoritative match result");
 
             AssertInvalidCommandsAreRejected();
-            ReplayRoundTrip(map.MapId, config, canonical, commanded);
+            ReplayRoundTrip(config, map.MapId, canonical, commanded);
 
             Console.WriteLine("PLAYER COMMAND GATE PASSED");
             Console.WriteLine($"commands={commands.Length} command_hash={canonical.ComputeCanonicalHash():X16}");
@@ -77,7 +77,7 @@ internal static class Program
         };
     }
 
-    private static void ReplayRoundTrip(string scenarioId, AnnihilationPrototypeConfig config, DeterministicCommandTimeline canonical, CommandRunResult expected)
+    private static void ReplayRoundTrip(AnnihilationPrototypeConfig config, string scenarioId, DeterministicCommandTimeline canonical, CommandRunResult expected)
     {
         PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
             scenarioId,
@@ -93,6 +93,7 @@ internal static class Program
             PlayerCommandReplayFile.Write(path, document);
             byte[] firstBytes = File.ReadAllBytes(path);
             PlayerCommandReplayDocument loaded = PlayerCommandReplayFile.Read(path);
+            PlayerCommandReplayFile.ValidateScenario(loaded, scenarioId);
             PrototypePlayerCommand[] loadedCommands = PlayerCommandReplayFile.ToCommands(loaded);
             CommandRunResult replayed = Run(config, loadedCommands);
             if (!replayed.Equals(expected))

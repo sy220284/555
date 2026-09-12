@@ -13,6 +13,7 @@
 |---|---|---|---|
 | 世界观/时间线 | COMPLETE | design/01_WORLD_LORE.md | 否 |
 | 四大体系/15国 | COMPLETE | design/02_FACTIONS_COUNTRIES.md + CONTENT_REGISTRY.md | 否 |
+| 高自由度战争原则 | COMPLETE | design/03A_FREEDOM_WARFARE.md + GAME_MODE_RULES.md | 否 |
 | 稳定ID命名 | COMPLETE | IDS_NAMING.md | 否 |
 | 全局注册入口 | COMPLETE | CONTENT_REGISTRY.md | 否 |
 | 单位数值 | COMPLETE | UNIT_CATALOG.md | 否，允许平衡调参 |
@@ -24,6 +25,7 @@
 | 经济/维修/补给 | COMPLETE | ECONOMY_FORMULAS.md | 否 |
 | 指挥/算力/电力 | COMPLETE | ECONOMY_FORMULAS.md | 否 |
 | 五种游戏模式 | COMPLETE | GAME_MODE_RULES.md | 否 |
+| 动态控制/前线 | COMPLETE | MAP_LAYOUT_RUNTIME_SCHEMA.md + GAME_MODE_RULES.md | 否 |
 | AI指挥状态机 | COMPLETE | AI_ROBOTICS_EW_STATE_MACHINES.md | 否 |
 | 敌方AI规则 | COMPLETE | AI_ROBOTICS_EW_STATE_MACHINES.md | 否 |
 | 机器人自主 | COMPLETE | AI_ROBOTICS_EW_STATE_MACHINES.md | 否 |
@@ -58,7 +60,7 @@
 | Unity工程骨架/包结构 | PARTIAL | 实际仓库工程可编译、启动、跑基础局 |
 | 权威模拟核心 | PARTIAL | 30Hz模拟、回放哈希和测试通过 |
 | 单位/建筑运行数据 | PARTIAL | 所有注册ID生成正式数据并通过引用检查 |
-| 16张地图侧车 `.map.json` | PARTIAL | 16/16均存在并达到graybox_ready |
+| 16张地图侧车 `.map.json` | PARTIAL | 16/16均存在、ControlRegion完整并达到graybox_ready |
 | 地图正式美术 | PARTIAL | 排位/战役地图正式资产通过性能与可读性 |
 | 24关可通关灰盒 | PARTIAL | 24/24从开场到胜败可跑通 |
 | 最终对白/配音/过场 | PARTIAL | 正式脚本、字幕、语音、过场资产完成 |
@@ -78,13 +80,13 @@
 - 依据既有公式生成数据文件和Schema。
 - 依据稳定ID生成代码骨架、占位资产引用和测试。
 - 在不改变阵营哲学的前提下依据自动对战提出平衡调参。
-- 为16图生成 `.map.json` 初稿、灰盒、导航区、资源点和公平测试，再由门禁决定是否合格。
+- 为16图生成 `.map.json` 初稿、ControlRegion、灰盒、导航区、资源点和公平/自由度测试，再由门禁决定是否合格。
 - 依据任务书和叙事默认契约生成任务状态机、触发器、占位对白键。
 - 依据音频规格生成候选音效/占位语音，但必须保留来源/许可元数据并进入人工质量门禁。
 
 ## 4. 必须升级为设计变更
 
-以下不能由编程代理自行决定：新增/删除国家；改变四大体系定位；改变五级科技结构；把轨道改成完整太空RTS；取消AI权限红线；让机器人淘汰人类单位；改动核心资源种类；引入无反制超级武器；显著改变标准对局时长；更换冻结技术栈核心；提高最低硬件来掩盖性能问题。
+以下不能由编程代理自行决定：新增/删除国家；改变四大体系定位；改变五级科技结构；把轨道改成完整太空RTS；取消AI权限红线；让机器人淘汰人类单位；改动核心资源种类；引入无反制超级武器；在标准模式加入时间驱动资源/伤害/积分/科技机制；恢复固定前线节点链；更换冻结技术栈核心；提高最低硬件来掩盖性能问题。
 
 ## 5. COMPLETE的含义
 

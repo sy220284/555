@@ -17,3 +17,7 @@ jobs:
         run: dotnet build Tools/ModernRA.SimRunner/ModernRA.SimRunner.csproj -c Release
       - name: Run 10x10000-tick gates
         run: dotnet run --project Tools/ModernRA.SimRunner/ModernRA.SimRunner.csproj -c Release --no-build -- --map Data/Maps/MAP_GRAY_RANGE.map.json --ticks 10000 --repetitions 10 --units 1000
+      - name: Build annihilation gameplay runner
+        run: dotnet build Tools/ModernRA.AnnihilationRunner/ModernRA.AnnihilationRunner.csproj -c Release
+      - name: Run deterministic annihilation gameplay closure
+        run: dotnet run --project Tools/ModernRA.AnnihilationRunner/ModernRA.AnnihilationRunner.csproj -c Release --no-build -- --map Data/Maps/MAP_GRAY_RANGE.map.json

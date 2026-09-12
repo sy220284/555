@@ -1,22 +1,34 @@
 # 全量内容注册表与稳定 ID
 
-本文件把母设计转换为可直接由代码、数据、地图、战役和测试共同引用的稳定对象。除非执行正式迁移，ID 一经进入主分支不得改名。
+本文件是项目稳定 ID 的总入口。具体武器、能力、模式、音频等可在专项注册表展开，但必须从本文件可追溯。除非执行正式迁移，ID 一经进入主分支不得改名。
 
 ## 1. 命名规则
 
-格式：`TYPE_SCOPE_NAME_VARIANT`。
+唯一命名规则以 `IDS_NAMING.md` 为准。
 
-- 阵营：`FAC_ALLIED`、`FAC_CHINA`、`FAC_EURASIA`、`FAC_YURI`。
-- 国家：`CTY_CN`、`CTY_US`、`CTY_RU`、`CTY_UK`、`CTY_FR`、`CTY_DE`、`CTY_JP`、`CTY_KR`、`CTY_IL`、`CTY_IN`、`CTY_TR`、`CTY_UA`、`CTY_AU`、`CTY_PL`、`CTY_IR`。
-- 单位：`UNIT_<阵营/国家>_<用途>`。
-- 建筑：`BLD_<阵营/国家/COMMON>_<用途>`。
-- 武器：`WPN_<类别>_<用途>`。
-- 科技：`TECH_<阵营/国家>_<主题>`。
-- 战略能力：`STRAT_<国家/阵营>_<名称>`。
-- 地图：`MAP_<名称>`。
-- 任务：`MIS_<编号>_<名称>`。
+主要前缀：
 
-代码、数据、资源、测试、录像只存稳定 ID，不以显示名称作为引用键。
+- 阵营：`FAC_`
+- 国家：`CTY_`
+- 单位：`UNIT_`
+- 编队模板：`FORM_`
+- 建筑：`BLD_`
+- 武器：`WPN_`
+- 科技：`TECH_`
+- 战略能力：`STRAT_`
+- 普通能力：`ABL_`
+- 状态：`STATUS_`
+- 老练度：`VET_`
+- 剧情角色：`CHAR_`
+- 模式：`MODE_`
+- 规则集：`RULESET_`
+- 地图：`MAP_`
+- 任务：`MIS_`
+- 音效：`SFX_`
+- 语音：`VOICE_`
+- 音乐：`MUSIC_`
+
+代码、数据、资源、测试、录像只存稳定ID，不以显示名称作为引用键。
 
 ## 2. 基础阵营
 
@@ -27,7 +39,11 @@
 | FAC_EURASIA | 欧亚体系 | 火力密度、电子压制、持续战争 |
 | FAC_YURI | 尤里体系 | AI、认知战、机器军团、神经网络 |
 
-## 3. 通用基础单位 ID
+## 3. 国家
+
+`CTY_CN`、`CTY_US`、`CTY_RU`、`CTY_UK`、`CTY_FR`、`CTY_DE`、`CTY_JP`、`CTY_KR`、`CTY_IL`、`CTY_IN`、`CTY_TR`、`CTY_UA`、`CTY_AU`、`CTY_PL`、`CTY_IR`。
+
+## 4. 通用基础单位
 
 ### 步兵
 `UNIT_COMMON_RIFLE`、`UNIT_COMMON_AT`、`UNIT_COMMON_AA`、`UNIT_COMMON_RECON`、`UNIT_COMMON_ENGINEER`、`UNIT_COMMON_EW_INF`、`UNIT_COMMON_SPECOPS`。
@@ -47,7 +63,7 @@
 ### 轨道
 `UNIT_ORBIT_RECON`、`UNIT_ORBIT_COMMS`、`UNIT_ORBIT_NAV`、`UNIT_ORBIT_EARLYWARN`、`UNIT_ORBIT_SIGINT`、`UNIT_ORBIT_INSPECTOR`、`UNIT_ORBIT_REPAIR`、`UNIT_ORBIT_EW`、`UNIT_ORBIT_INTERCEPTOR`。
 
-## 4. 国家特色稳定 ID
+## 5. 国家特色稳定 ID
 
 ### 中国
 `UNIT_CN_DRAGON_MBT`、`UNIT_CN_HIVE_UGV`、`UNIT_CN_XUANWU_HEAVY_ROBOT`、`UNIT_CN_THUNDER_MLRS`、`UNIT_CN_AEGIS_DESTROYER`、`BLD_CN_SKYNET_DATACENTER`、`TECH_CN_CROSSDOMAIN_SWARM`、`STRAT_CN_SKYDOME`。
@@ -77,7 +93,7 @@
 `UNIT_IL_MERKAVA_F`、`UNIT_IL_SMART_INF`、`UNIT_IL_IRONBEAM`、`BLD_IL_LAYERED_DEFENSE`、`STRAT_IL_DAVID_SHIELD`。
 
 ### 印度
-`UNIT_IN_HIGHLAND_BG`、`UNIT_IN_HIGHSPEED_STRIKE`、`UNIT_IN_HEAVY_ROCKET`、`STRAT_IN_TRI_SERVICE_FIRENET`。
+`FORM_IN_HIGHLAND_BG`、`UNIT_IN_HIGHSPEED_STRIKE`、`UNIT_IN_HEAVY_ROCKET`、`STRAT_IN_TRI_SERVICE_FIRENET`。
 
 ### 土耳其
 `UNIT_TR_BAYRAKTAR`、`UNIT_TR_KIZILELMA`、`BLD_TR_UAV_MOTHERSHIP`、`STRAT_TR_WOLFPACK`。
@@ -89,7 +105,7 @@
 `UNIT_AU_GHOSTBAT`、`UNIT_AU_GHOSTSHARK`、`UNIT_AU_ATTACK_SS`、`BLD_AU_SEABED_SENSOR`、`STRAT_AU_GHOST_SEA`。
 
 ### 波兰
-`UNIT_PL_HEAVY_ARMOR_BG`、`UNIT_PL_MASS_ARTILLERY`、`UNIT_PL_LAYERED_AA`、`BLD_PL_FIELDWORKS`、`STRAT_PL_EASTERN_SHIELD`。
+`FORM_PL_HEAVY_ARMOR_BG`、`UNIT_PL_MASS_ARTILLERY`、`UNIT_PL_LAYERED_AA`、`BLD_PL_FIELDWORKS`、`STRAT_PL_EASTERN_SHIELD`。
 
 ### 伊朗
 `BLD_IR_UNDERGROUND_MISSILE`、`UNIT_IR_MOBILE_MISSILE`、`UNIT_IR_LOW_COST_DRONE`、`UNIT_IR_DECOY`、`STRAT_IR_THOUSAND_ARROWS`。
@@ -97,7 +113,7 @@
 ### 尤里
 `UNIT_YURI_NEURAL_INF`、`UNIT_YURI_BIOMECH`、`UNIT_YURI_HUNTER_ROBOT`、`UNIT_YURI_GATLING2`、`UNIT_YURI_GRAVITY_PLATFORM`、`UNIT_YURI_NEURAL_CONTROL`、`UNIT_YURI_PHANTOM_NODE`、`UNIT_YURI_GHOST_SWARM`、`UNIT_YURI_AUTONOMOUS_FIGHTER`、`UNIT_YURI_ABYSS_UUV`、`BLD_YURI_NEURAL_CORE`、`BLD_YURI_SWARM_HIVE`、`STRAT_YURI_ASCENSION`。
 
-## 5. 建筑稳定 ID
+## 6. 建筑稳定 ID
 
 `BLD_COMMON_COMMAND`、`BLD_COMMON_PERSONNEL`、`BLD_COMMON_VEHICLE_FACTORY`、`BLD_COMMON_DRONE_CENTER`、`BLD_COMMON_ROBOT_FACTORY`、`BLD_COMMON_HEAVY_ROBOT_FACTORY`、`BLD_COMMON_AIRBASE`、`BLD_COMMON_NAVAL_BASE`、`BLD_COMMON_POWER`、`BLD_COMMON_ADV_POWER`、`BLD_COMMON_RADAR`、`BLD_COMMON_DATACENTER`、`BLD_COMMON_AI_COMMAND`、`BLD_COMMON_COMPUTE`、`BLD_COMMON_SATCOM`、`BLD_COMMON_LOGISTICS`、`BLD_COMMON_FORWARD_LOGISTICS`、`BLD_COMMON_SPACEOPS`、`BLD_COMMON_LAUNCHSITE`、`BLD_COMMON_ROBOT_REPAIR`。
 
@@ -105,28 +121,81 @@
 
 未来科技：`BLD_FUTURE_PRISM`、`BLD_FUTURE_TESLA`、`BLD_FUTURE_IRONCURTAIN`、`BLD_YURI_NEURAL_TOWER`。
 
-## 6. 地图与任务 ID
+## 7. 武器注册入口
+
+正式 `WPN_` 列表以 `WEAPONS_ARMOR_MATRIX.md` 为专项注册表；任何单位装配表引用的武器必须在那里存在。
+
+## 8. 普通能力与状态注册入口
+
+`ABL_` 与 `STATUS_` 以 `ABILITY_STATUS_REGISTRY.md` 为专项注册表。战略级能力始终使用 `STRAT_`。
+
+## 9. 老练度
+
+`VET_REGULAR`、`VET_VETERAN`、`VET_ELITE`。规则见 `UNIT_LOADOUTS.md`。
+
+## 10. 剧情角色
+
+`CHAR_ALLIED_HALE`、`CHAR_CN_LIN`、`CHAR_EURASIA_VOLKOV`、`CHAR_YURI_ARCHON`、`CHAR_AI_AEGIS`、`CHAR_ANALYST_MIRA`、`CHAR_ENGINEER_KOVACS`。
+
+角色功能和叙事规则见 `CAMPAIGN_NARRATIVE_CAST.md`。
+
+## 11. 游戏模式与规则集
+
+- `MODE_ANNIHILATION`
+- `MODE_CONQUEST`
+- `MODE_FRONTLINE`
+- `MODE_THEATER`
+- `MODE_QUICKWAR`
+
+默认规则集：
+
+- `RULESET_ANNIHILATION_STANDARD`
+- `RULESET_CONQUEST_STANDARD`
+- `RULESET_FRONTLINE_STANDARD`
+- `RULESET_THEATER_STANDARD`
+- `RULESET_QUICKWAR_STANDARD`
+
+执行规则见 `GAME_MODE_RULES.md`。
+
+## 12. 地图与任务 ID
 
 地图：`MAP_GRAY_RANGE`、`MAP_RIFT_NODE`、`MAP_NORTHERN_PLAIN`、`MAP_DATA_CONTEST`、`MAP_DESERT_TWINS`、`MAP_POLAR_FRONT`、`MAP_STEEL_PLAIN`、`MAP_DNIEPER_LINE`、`MAP_STRAIT_BLOCKADE`、`MAP_RHINE_BELT`、`MAP_FIRST_ISLAND_CHAIN`、`MAP_DEEPBLUE_FORTRESS`、`MAP_INDIAN_OCEAN_SHIELD`、`MAP_CONTINENTAL_HEARTLAND`、`MAP_EASTERN_SHIELD`、`MAP_ORBITAL_DAWN`。
 
-任务：`MIS_01_FALSE_SIGNAL` 至 `MIS_24_ASCENSION_CITY`，具体映射见 `CAMPAIGN_MISSION_SPECS.md`。
+任务：`MIS_01_FALSE_SIGNAL` 至 `MIS_24_ASCENSION_CITY`。
 
-## 7. 对象最低字段
+## 13. 音频/语音/音乐 ID
 
-所有内容对象必须至少包含：
+权威清单由：
 
-`id`、`schema_version`、`display_name_key`、`faction`、`country`、`tech_tier`、`tags`、`cost`、`build_time`、`prerequisites`、`command_cost`、`compute_cost`、`power_delta`、`supply_profile`、`ai_role`、`counter_tags`、`asset_refs`、`test_profile`。
+- `/Data/Audio/audio_registry.json`
+- `/Data/Audio/voice_registry.json`
+- `/Data/Audio/music_registry.json`
 
-不适用字段显式写 `0`、`none` 或空集合，禁止依赖“字段缺失=某种含义”。
+生成，并由 `AUDIO_VOICE_PIPELINE.md` 约束。
 
-## 8. 生命周期
+## 14. 对象最低字段
 
-`placeholder`：ID 与结构存在，可用灰盒运行。
+所有普通内容对象至少包含：
 
-`playable`：核心玩法可用，允许内部对局。
+`id`、`schema_version`、`display_name_key`、`faction`、`country`、`tech_tier`、`tags`、`cost`、`build_time`、`prerequisites`、`command_cost`、`compute_cost`、`power_delta`、`supply_profile`、`ai_role`、`counter_tags`、`asset_refs`、`audio_profile`、`test_profile`。
 
-`content_complete`：正式资源与数据齐备。
+单位还必须包含：`production_building, primary_weapon, secondary_weapons, abilities, veterancy_profile`。
 
-`ship_ready`：全部验收、性能、确定性、网络与文档门禁通过。
+编队模板 `FORM_` 必须包含：`members, queue_policy, total_cost_policy, unlocks, ai_usage, test_profile`，并且展开后成员均为真实 `UNIT_`。
 
-AI 代理不得把 `placeholder` 或 `playable` 宣称为正式完成。
+不适用字段显式写 `0`、`none` 或空集合。
+
+## 15. 生命周期
+
+- `placeholder`：ID与结构存在，可用灰盒运行。
+- `playable`：核心玩法可用，允许内部对局。
+- `content_complete`：正式资源与数据齐备。
+- `ship_ready`：全部验收、性能、可复现、网络与文档门禁通过。
+
+地图额外可使用：`layout_defined`、`graybox_ready`。
+
+AI代理不得把 `placeholder`、`layout_defined` 或 `playable` 宣称为正式完成。
+
+## 16. CI注册完整性
+
+必须检查：重复ID、非法旧前缀、悬空单位/武器/能力/建筑/科技引用、`FORM_`被错误生成为单实体、模式/规则集缺失、音频配置缺失、地图/任务ID与运行时数据不一致、删除ID无迁移/墓碑记录。

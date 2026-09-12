@@ -1,78 +1,104 @@
 # AGENT.md — AI 自动开发总规则
 
-本文件是所有编程代理、评审代理、测试代理和内容代理的强制执行规则。
+本文件是所有编程代理、评审代理、测试代理、内容代理和资产代理的强制执行规则。
 
-## 1. 最高优先级
+## 1. 文档优先级
 
-1. `docs/design/00_MASTER_GDD.md`：产品与玩法上位约束。
-2. `docs/technical/TECH_STACK.md`：冻结技术栈与生产实现边界。
-3. `docs/development/00_ARCHITECTURE.md`：代码架构上位约束。
-4. `docs/specs/CONTENT_REGISTRY.md`：稳定 ID 与对象最低字段。
-5. `docs/specs/*`：单位、建筑、武器、科技、经济、AI、地图、战役、网络、测试执行规格。
+1. `docs/design/00_MASTER_GDD.md`：产品原则。
+2. `docs/technical/TECH_STACK.md`：冻结技术栈。
+3. 专项设计文档：系统定位。
+4. `docs/specs/*`：具体参数、状态机、ID、规则与验收。
+5. `docs/development/*`：代码组织、开发流程。
+6. 单项实现配置。
 
-如文档冲突：先修订文档，再修改代码；禁止私自忽略冲突。
+发生冲突：先修文档，再编码；禁止代理自行选择更方便的一套。
 
 ## 2. 编码前强制阅读
 
-任何任务必须读取：
+任何任务至少读取：
 
-- 本文件；
-- `docs/technical/TECH_STACK.md`；
-- `docs/design/00_MASTER_GDD.md`；
-- `docs/development/00_ARCHITECTURE.md`；
-- `docs/specs/CONTENT_REGISTRY.md`；
-- 当前任务对应执行规格；
-- `docs/specs/TEST_MATRIX.md`；
-- `docs/specs/ACCEPTANCE_CRITERIA.md`。
+- `AGENT.md`
+- `docs/technical/TECH_STACK.md`
+- `docs/design/00_MASTER_GDD.md`
+- `docs/development/00_ARCHITECTURE.md`
+- `docs/specs/CONTENT_REGISTRY.md`
+- 当前任务对应专项规格
+- `docs/specs/TEST_MATRIX.md`
+- `docs/specs/ACCEPTANCE_CRITERIA.md`
 
-涉及性能、寻路、AI、机器人、大规模单位、渲染、网络或硬件还必须读取：
+涉及性能/导航/大规模实体还读：
 
-- `docs/development/03_NETWORK_DETERMINISM.md`；
-- `docs/development/04_PERFORMANCE_NAVIGATION.md`；
-- `docs/technical/PERFORMANCE_ARCHITECTURE.md`；
-- `docs/technical/HARDWARE_PERFORMANCE_TARGETS.md`。
+- `docs/development/04_PERFORMANCE_NAVIGATION.md`
+- `docs/technical/PERFORMANCE_ARCHITECTURE.md`
+- `docs/technical/HARDWARE_PERFORMANCE_TARGETS.md`
 
-对象若没有稳定 ID、精确参数、状态机/公式或验收用例，禁止凭经验编码，先补规格。
+涉及网络/存档/录像还读：
+
+- `docs/development/03_NETWORK_DETERMINISM.md`
+- `docs/specs/SAVE_NETWORK_MOD_EDITOR_SCHEMA.md`
+
+涉及音频/语音还读：
+
+- `docs/specs/AUDIO_VOICE_PIPELINE.md`
+
+涉及地图还读：
+
+- `docs/specs/MAP_SPECS.md`
+- `docs/specs/MAP_LAYOUT_RUNTIME_SCHEMA.md`
+
+涉及战役/对白还读：
+
+- `docs/specs/CAMPAIGN_MISSION_SPECS.md`
+- `docs/specs/CAMPAIGN_NARRATIVE_CAST.md`
+
+涉及后台/排位/运营/安全还读：
+
+- `docs/technical/ONLINE_SERVICES_MATCHMAKING_LIVEOPS.md`
+- `docs/technical/ONLINE_SECURITY_PRIVACY.md`
+
+对象若没有稳定ID、参数、公式/状态机、引用链或验收用例，禁止凭经验编码，先补规格。
 
 ## 3. 冻结技术栈
 
-生产主线采用：
+生产主线：
 
-- Unity 6.3 LTS 当前基线；
+- Unity 6.3 LTS当前基线；
 - C#；
 - Entities/DOTS；
 - Burst；
 - Job System；
 - URP；
-- Entities Graphics + GPU 批量表现；
-- Unity Transport + 自研 RTS 权威复制层；
+- Entities Graphics + GPU批量表现；
+- Unity Transport + 自研RTS权威复制层；
 - Unity Dedicated Server / Linux；
 - Addressables；
-- 项目自研 AI、寻路、空间索引、战斗物理、情报/EW、机器人和网络相关性算法。
+- FMOD Studio + `WarAudioDirector`；
+- 自研AI、寻路、空间索引、2.5D战斗物理、情报/EW、机器人和网络相关性算法。
 
 禁止代理自行：
 
-- 切换到 Unreal/Godot/自研引擎；
-- 引入独立 C++ 权威战争核心；
-- 将 HDRP 改成默认基础管线；
-- 把 Netcode for Entities 变成不可替换正式核心；
-- 升级 Unity/核心包到预览、实验或新大版本；
+- 切换Unreal/Godot/自研引擎；
+- 引入独立C++权威战争核心；
+- 将HDRP改成默认管线；
+- 把Netcode for Entities变成不可替换生产核心；
+- 将Wwise或其他音频中间件直接替换FMOD；
+- 升级Unity/核心包到预览、实验或新大版本；
 - 用第三方插件替代项目自研关键战争算法而不经过架构评审。
 
-## 4. 工作模式
+## 4. 开发模式
 
 采用**全量并行、接口优先、持续集成、自动闭环**。
 
-- 所有核心模块和内容 ID 从第一天建立；
-- 未完成能力必须有可运行占位实现；
+- 系统接口和稳定ID从第一天建立；
+- 未完成能力必须有可运行占位；
 - 每个任务独立分支/worktree；
 - 主分支始终可编译、启动、跑基础对局；
 - 不允许“以后补测试/优化/文档”作为完成条件；
-- 重复任务沿用验证过的正确路径。
+- 重复任务沿用已验证路径。
 
 ## 5. 模块所有权
 
-建议项目包：
+建议包：
 
 - `com.modernra.core`
 - `com.modernra.simulation`
@@ -86,192 +112,173 @@
 - `com.modernra.orbital`
 - `com.modernra.network`
 - `com.modernra.presentation`
+- `com.modernra.audio`
+- `com.modernra.online`
 - `com.modernra.tools`
 - `com.modernra.tests`
 
-跨模块修改优先通过接口变更，禁止为了方便直接重写他人模块。
+跨模块修改优先通过接口变更，禁止为方便直接重写其他模块。
 
-## 6. 稳定 ID 与数据
+## 6. 稳定ID与数据
 
-- 代码、地图、战役、资源、测试统一使用稳定 ID；
-- 显示名称/本地化不得作为键；
-- 国家差异必须数据化，禁止大量 `if (country == X)`；
-- 权威玩法数据以 JSON + Schema + 稳定 ID 为源，构建时烘焙为 Blob/紧凑运行时数据；
-- ScriptableObject 只能作为编辑器/资源桥接，不能成为竞技数值唯一真相源；
-- 平衡修改必须同步文档并有测试依据。
+- 命名只允许 `IDS_NAMING.md` 当前前缀；
+- 禁止新增 `FACTION_`、`COUNTRY_`、`BLDG_`、`ABILITY_`、`MISSION_` 旧格式；
+- 单位必须显式关联生产建筑、武器、能力和音频配置；
+- 代码、地图、战役、音频、测试统一使用稳定ID；
+- 国家差异数据化，禁止大量 `if (country == X)`；
+- 权威数据源：JSON + Schema + 稳定ID；构建时烘焙为Blob/紧凑数据；
+- ScriptableObject只能作为编辑器/资源桥接；
+- 平衡修改必须同步规格和测试依据。
 
-## 7. C# / DOTS / Burst 编码规则
+## 7. C# / DOTS / Burst
 
-核心模拟优先数据导向。
+普通作战单位严禁：
 
-严禁普通作战单位使用：
-
-- 每单位 MonoBehaviour `Update()`；
-- 复杂 GameObject 作为权威状态；
-- 高频托管对象层级；
-- 热路径 LINQ；
-- 热路径字符串；
-- 热路径反射；
-- 热路径 GC 分配；
+- 每单位MonoBehaviour `Update()`；
+- 复杂GameObject作为权威状态；
+- 热路径LINQ/字符串/反射/GC；
 - 无界容器增长；
 - 全局锁；
-- 每帧大量 Entity 结构变更。
+- 每帧大量Entity结构变更。
 
-高频计算应尽量：
-
-- Burst 可编译；
-- 使用 Native 容器/Entities Chunk；
-- 批处理；
-- 适合向量化；
-- 可拆 Job；
-- 无托管依赖。
+高频计算应Burst可编译、批处理、可向量化、可拆Job、无托管依赖。
 
 表现层不得反向决定模拟结果。
 
-## 8. 性能优化最高规则
+## 8. 性能最高规则
 
-最低完整体验基线：
+最低完整体验：
 
-- 现代 6 核 12 线程级 CPU；
-- 16GB 双通道内存；
-- RTX 3060 / RTX 4060 / RTX 5060 / RX 7600 或同级 8GB+ 独显；
+- 现代6核12线程级CPU；
+- 16GB双通道；
+- RTX 3060/4060/5060、RX7600同级8GB+；
 - NVMe SSD；
-- 1080P 标准画质；
-- 标准现代模式 800—1500 有效活动实体；
-- 常规目标 60FPS。
+- 1080P标准画质；
+- 现代模式800—1500有效活动实体；
+- 常规60FPS目标。
 
-性能优化顺序：
+优化顺序：删除无效工作 → 事件/脏区 → 降复杂度 → 空间索引 → 结果共享 → ECS布局 → Burst/向量化 → Job并行 → 减同步/结构变更 → 表现批量化。
 
-1. 删除无效轮询和重复计算；
-2. 事件驱动/脏区更新；
-3. 降低算法复杂度；
-4. 空间索引收敛候选；
-5. 战斗群/路径/感知/威胁结果共享；
-6. ECS 数据布局与热冷分离；
-7. Burst/批处理/向量化；
-8. Job 并行；
-9. 减少结构变更和主线程同步；
-10. 实例化、遮挡、LOD、动画/VFX 批量化；
-11. 全部不足后才允许提出设计预算变更。
+严禁为了性能：降低AI、减少同模式单位、降低机器人自主、改伤害/情报/EW、缩地图、降低权威30Hz、把标准画质降成残缺模式、提高最低配置掩盖实现问题。
 
-严禁为了性能：
+## 9. AI与机器人
 
-- 降低 AI 能力；
-- 降低机器人自主等级；
-- 减少同模式实际单位；
-- 改变伤害/命中/情报/EW规则；
-- 缩小地图；
-- 降低权威30Hz；
-- 把最低档变成明显残缺画质；
-- 向不同硬件提供不同比赛逻辑。
+运行时竞技AI使用效用评分、状态机、任务规划和事件驱动，不使用大语言模型实时控制战斗。
 
-## 9. AI 与机器人红线
+固定频率：战略1—2Hz、战区2—5Hz、战斗群5—10Hz、单位10—15Hz、局部避障10—20Hz。
 
-运行时竞技 AI 使用效用评分、状态机、任务规划和事件驱动，不使用大语言模型实时控制战斗。
+未经玩家授权不得使用终极能力、战略储备、改主科技、拆核心基地、全面撤退、改变总主攻。
 
-默认 AI 可执行：队形、局部避障、反击、维修、补给、无人侦察、战斗群路线、授权战区防守/有限反击。
+机器人受资源、电力、指挥容量和算力约束；失联按自主等级降级。
 
-未经玩家明确授权不得：
-
-- 使用核武/国家终极能力；
-- 动用保留战略资源；
-- 改主科技路线；
-- 拆核心基地；
-- 全面撤退或改变总主攻；
-- 自动生产超级单位。
-
-机器人必须受资源、电力、指挥容量和算力约束；失联按自主等级降级，不得全体停机。
-
-## 10. 寻路规则
-
-正式结构：
+## 10. 寻路
 
 ```text
 战略区域图
 → 道路/桥梁/山口图
-→ 战斗群共享路径
+→ 战斗群共享路径走廊
 → 局部流场
 → 空间哈希局部避障
 ```
 
-禁止每单位独立全地图 A*。
-
-地图局部改变只允许使相关缓存失效，禁止触发全军路径重算风暴。
+禁止每单位独立全地图A*。地图局部改变只使相关缓存失效。
 
 ## 11. 权威战斗物理
 
-战斗判定使用自研轻量 2.5D 几何/弹道。
-
-PhysX 只用于残骸、碎片和非权威视觉碰撞。
-
-逻辑弹道与视觉弹道可解耦。禁止因为视觉粒子/刚体结果改变权威伤害。
+自研轻量2.5D几何/弹道为权威；PhysX仅用于非权威残骸、碎片和视觉碰撞。逻辑弹道与视觉弹道允许解耦。
 
 ## 12. 网络、安全、录像
 
 正式联网：专用服务器权威模拟。
 
-- Unity Transport 是传输层；
-- 自研相关性/快照/压缩是复制层；
-- 未侦察真实敌军不得发送给客户端；
+- Unity Transport为传输层；
+- 自研相关性/快照/压缩为复制层；
+- 未侦察真实敌军不得发送给无权限客户端；
 - 潜艇、隐身、假目标必须服务器过滤；
-- 大量单位走批量增量和量化，不逐实体高频 RPC；
+- 批量增量和量化，禁止逐实体逐帧高层RPC；
 - 录像/存档/模组带版本与内容哈希；
-- 联网模组内容哈希必须一致；
 - 排位只加载官方模拟数据。
 
-Netcode for Entities 只能作为可替换参考/原型，未经基准评审不得成为正式核心依赖。
+客户端提交的伤害、资源、位置和胜负不得成为权威真相。
 
-## 13. 地图与战役
+## 13. 游戏模式
 
-- 16张地图规格以 `MAP_SPECS.md` 为准；
-- 24关主线以 `CAMPAIGN_MISSION_SPECS.md` 为准；
-- 关键脚本必须有状态条件、幂等性和超时兜底；
-- 排位地图必须通过出生位/资源/路线自动公平测试。
+胜负、占领、前线、战区、快速战争、投降和友军规则统一由 `GAME_MODE_RULES.md` 驱动。禁止地图脚本复制另一套胜负算法。
 
-## 14. 完成定义
+## 14. 地图
 
-功能只有同时满足以下条件才算完成：
+16张地图设计意图以 `MAP_SPECS.md` 为准；每张实际实现必须存在 `/Data/Maps/<MAP_ID>.map.json` 并符合 `MAP_LAYOUT_RUNTIME_SCHEMA.md`。
+
+没有侧车数据的地图最多是 `layout_defined`，不能宣称 `graybox_ready`。
+
+## 15. 战役
+
+24关以 `CAMPAIGN_MISSION_SPECS.md` 为准；缺省初始部队、AI姿态、增援、对白/过场遵循 `CAMPAIGN_NARRATIVE_CAST.md` 的默认契约。
+
+关键脚本必须状态条件+超时兜底；跳过过场不能改变任务结果。
+
+## 16. 音频/语音
+
+所有声音通过 `AudioEventBus -> WarAudioDirector -> FMOD`，游戏逻辑不得直接散落调用FMOD。
+
+AI生成音效/合成语音必须记录生成来源、模型/服务、许可和人工审批。未经授权不得克隆现实人物/演员声线。
+
+## 17. 在线服务与安全
+
+在线结果只接受权威服务器签名；排位/匹配/赛季/灰度/回滚按 `ONLINE_SERVICES_MATCHMAKING_LIVEOPS.md`；认证、秘密、限流、战争迷雾防泄露、反作弊和隐私按 `ONLINE_SECURITY_PRIVACY.md`。
+
+## 18. 完成状态
+
+必须区分：
+
+- `规格COMPLETE`：规则足够实现；
+- `placeholder/layout_defined/playable`：仍是开发状态；
+- `content_complete`：正式资产和数据齐备；
+- `ship_ready`：代码+数据+资产+测试+性能+网络+安全+文档+可玩性全部通过。
+
+禁止把“文档写完”或“占位能跑”冒充正式完成。
+
+## 19. 完成定义
+
+功能只有同时满足以下条件才算对应阶段完成：
 
 - 代码/数据完成；
-- 单元/集成测试完成；
-- `TEST_MATRIX.md` 相关用例通过；
-- 可复现/状态哈希门禁通过；
-- 最低/推荐性能无回退；
+- 单元/集成测试；
+- `TEST_MATRIX.md`相关用例通过；
+- 可复现/状态哈希门禁；
+- 最低目标机性能无回退；
 - 网络/录像需要时可复现；
 - 文档同步；
-- AI 能正确使用或明确不可用；
-- 有明确反制与错误降级路径。
+- AI正确使用或明确不可用；
+- 有反制与错误降级；
+- 涉及资产时来源/许可元数据完整。
 
-不存在“差不多完成”。
-
-## 15. 自动修复流程
+## 20. 自动修复
 
 失败 → 最小复现 → 根因定位 → 最小修改 → 回归 → 可复现/性能复测。
 
 修复必须补回归用例。除非证明结构不可维护，否则禁止先重写整个模块。
 
-## 16. 主分支门禁
+## 21. 主分支门禁
 
 主分支必须始终：
 
-- Unity 批处理编译成功；
+- Unity批处理编译成功；
 - 客户端可启动；
-- Dedicated Server 可构建；
+- Dedicated Server可构建；
 - 测试地图可加载；
 - 无画面模拟可运行；
-- 数据无悬空 ID；
+- 数据无悬空ID；
 - 自动测试通过；
 - 基础录像/重连可用；
 - 性能回归通过。
 
-破坏主线立即回滚并开独立修复任务。
+破坏主线立即回滚并建立独立修复任务。
 
-## 17. 开发决策原则
+## 22. 决策原则
 
 新增单位必须回答：解决什么问题、为何现有单位不可替代、玩家能否一眼理解、什么能反制。
 
 新增系统至少满足：增加战略选择、增加爽感、降低微操、强化阵营特色、强化世界辨识度之一，否则删除。
 
-不得自行改变四大体系、15国结构、五级科技、核心资源、AI权限、轨道战略层、机器人与有人部队共存原则。
-
-最终判断：**好玩优先于写实，清晰优先于复杂；技术必须服从冻结栈，性能优先靠架构/算法解决，不能把优化成本转嫁给玩家硬件和正常画质。**
+最终原则：**好玩优先于写实，清晰优先于复杂；技术服从冻结栈，性能靠架构/算法解决，任何状态必须如实汇报。**

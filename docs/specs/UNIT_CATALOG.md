@@ -6,12 +6,14 @@
 
 - `HP`：结构/生命值。
 - `Armor`：INF/LIGHT/MEDIUM/HEAVY/AIR/NAVAL/STRUCT/ORBIT。
-- `Speed`：地面 m/s、空中/海上采用游戏化等效速度。
+- `Speed`：地面m/s、空中/海上采用游戏化等效速度。
 - `Sensor`：基础探测半径（米）。
 - `Command`：指挥容量。
 - `Compute`：算力占用。
 - `Supply`：每分钟补给负担基数。
 - `Tier`：T1—T5。
+
+生产建筑、武器、能力和音频引用统一见 `UNIT_LOADOUTS.md`。
 
 ## 2. 通用地面单位
 
@@ -28,7 +30,7 @@
 | UNIT_COMMON_IFV | T1 | 1450/0 | 20 | 850 | MEDIUM | 13 | 450 | 3 | 0 | 3 | 运兵/伴随火力 |
 | UNIT_COMMON_MBT | T1 | 2300/80 | 28 | 1800 | HEAVY | 11 | 450 | 4 | 0 | 5 | 正面装甲主力 |
 | UNIT_COMMON_SPG | T2 | 2800/100 | 30 | 900 | MEDIUM | 9 | 500 | 4 | 0 | 5 | 远程炮击 |
-| UNIT_COMMON_MLRS | T2 | 3100/140 | 32 | 800 | MEDIUM | 9 | 500 | 4 | 0 | 6 | 区域火力/反集结 |
+| UNIT_COMMON_MLRS | T2 | 3100/140 | 32 | 800 | MEDIUM | 9 | 500 | 4 | 0 | 6 | 区域火力 |
 | UNIT_COMMON_SHORAD | T1 | 1850/60 | 24 | 700 | MEDIUM | 11 | 700 | 4 | 0 | 4 | 反无人/低空 |
 | UNIT_COMMON_MRAD | T2 | 2600/120 | 28 | 700 | MEDIUM | 9 | 1000 | 4 | 0 | 5 | 中程防空 |
 | UNIT_COMMON_EW_VEH | T2 | 2200/150 | 28 | 650 | MEDIUM | 10 | 700 | 4 | 1 | 4 | 电子压制 |
@@ -39,15 +41,15 @@
 
 | ID | Tier | 工业/战略 | 时间s | HP | Armor | Speed | Sensor | Cmd | Compute | 说明 |
 |---|---:|---:|---:|---:|---|---:|---:|---:|---:|---|
-| UNIT_COMMON_DRONE_RECON | T1 | 400/20 | 8 | 80 | AIR | 35 | 850 | 1 | 1 | 低成本侦察，易受干扰 |
+| UNIT_COMMON_DRONE_RECON | T1 | 400/20 | 8 | 80 | AIR | 35 | 850 | 1 | 1 | 低成本侦察 |
 | UNIT_COMMON_DRONE_ATTACK | T2 | 950/80 | 14 | 140 | AIR | 30 | 650 | 2 | 2 | 轻攻击/标记 |
 | UNIT_COMMON_LOITER | T2 | 500/60 | 10 | 40 | AIR | 42 | 400 | 1 | 1 | 一次性精确攻击 |
 | UNIT_COMMON_ROBOT_RECON | T2 | 450/30 | 10 | 140 | LIGHT | 7 | 650 | 1 | 1 | 城市/危险区侦察 |
 | UNIT_COMMON_ROBOT_COMBAT | T3 | 700/80 | 14 | 300 | LIGHT | 6 | 400 | 1 | 2 | 伴随步兵/警戒 |
-| UNIT_COMMON_ROBOT_SUPPORT | T3 | 650/60 | 14 | 280 | LIGHT | 6 | 300 | 1 | 1 | 工程/维修/补给模块 |
+| UNIT_COMMON_ROBOT_SUPPORT | T3 | 650/60 | 14 | 280 | LIGHT | 6 | 300 | 1 | 1 | 工程/维修/补给 |
 | UNIT_COMMON_UGV_HEAVY | T3 | 1900/220 | 26 | 1200 | HEAVY | 9 | 500 | 3 | 3 | 无人火力平台 |
 
-自主等级：基础无人 T1=A1，T2=A2；战斗机器人默认 A2；T4 科技可升 A3；T5 集群科技可升 A4。A4 必须增加 50% 算力占用。
+自主等级：基础无人T1=A1，T2=A2；战斗机器人默认A2；T4科技可升A3；T5集群科技可升A4。A4算力占用×1.5。
 
 ## 4. 航空
 
@@ -63,7 +65,7 @@
 | UNIT_COMMON_BOMBER | T4 | 9000/1300 | 70 | 1900 | 190 | 1300 | 10 | 0 | 战略远程打击 |
 | UNIT_COMMON_TRANSPORT_AIR | T2 | 4200/300 | 45 | 1600 | 145 | 700 | 6 | 0 | 大型空运 |
 
-航空单位采用出动/返场循环；默认弹药架次为 1—4 次攻击任务，完成后自动返航补充。
+航空采用出动/返场循环；默认弹药架次为1—4次攻击任务，完成后返航补充。
 
 ## 5. 海军
 
@@ -83,61 +85,113 @@
 
 ## 6. 国家特色单位基线
 
-国家特色单位继承最接近的通用模板，只修改以下内容；未列字段沿用模板。
+规则：特色单位必须声明最近通用模板；未列字段继承模板。编队预设使用 `FORM_`，不生成万能单实体。
 
-- `UNIT_CN_DRAGON_MBT`：MBT；HP 1950，速度 11.5，传感 550；成本 2500/120；联网状态下首发命中与目标切换 +15%。
-- `UNIT_CN_HIVE_UGV`：重型无人战车；成本 2200/300；可同时携带 2 架侦察与 4 架微型攻击无人机；Compute 5。
-- `UNIT_CN_XUANWU_HEAVY_ROBOT`：T4；HP 2400；成本 4300/650；Cmd 6，Compute 7；重火力+近程反无人。
-- `UNIT_CN_THUNDER_MLRS`：MLRS；最大射程 +20%，齐射后重新部署时间 +15%。
-- `UNIT_CN_AEGIS_DESTROYER`：DESTROYER；Sensor 2100，区域防空容量 +25%。
+### 中国
+- `UNIT_CN_DRAGON_MBT`：模板MBT；T2；HP1950，Speed11.5，Sensor550，成本2500/120；联网且目标Confirmed以上时首轮火控+15%。
+- `UNIT_CN_HIVE_UGV`：模板UGV_HEAVY；T3；2200/300；HP1250，Compute5；携带2侦察+4微型攻击无人机库存。
+- `UNIT_CN_XUANWU_HEAVY_ROBOT`：模板UGV_HEAVY；T4；4300/650；HP2400，Cmd6，Compute7；重火力+反无人。
+- `UNIT_CN_THUNDER_MLRS`：模板MLRS；T3；射程+20%，齐射后再部署时间+15%。
+- `UNIT_CN_AEGIS_DESTROYER`：模板DESTROYER；T4；Sensor2100，区域防空容量+25%。
 
-- `UNIT_US_GHOST_FIGHTER`：FIGHTER；隐身等级 3，Sensor 1450；成本 6000/700；与 CCA 编组时发现/锁定时间 -20%。
-- `UNIT_US_FALCON_CCA`：UCAV；Compute 4；与幽灵战机组队时射程/目标共享 +15%。
-- `UNIT_US_ATLAS_ROBOT`：T4 重型机器人；HP 2000，Speed 10，Sensor 650；成本 4200/700；高自主 A4。
-- `UNIT_US_AEW_ADV`：AEW；Sensor 2500；成本 6500/800。
-- `UNIT_US_GLOBAL_FIRE`：远程火力平台；要求 Confirmed 以上目标；射程 +30%，单发成本高。
+### 美国
+- `UNIT_US_GHOST_FIGHTER`：模板FIGHTER；T3；6000/700；HP1050，Sensor1450，隐身3；与CCA编组锁定时间-20%。
+- `UNIT_US_FALCON_CCA`：模板UCAV；T3；4400/520；Compute4；与有人机共享目标效率+15%。
+- `UNIT_US_ATLAS_ROBOT`：模板UGV_HEAVY；T4；4200/700；HP2000，Speed10，Sensor650，A4。
+- `UNIT_US_AEW_ADV`：模板AEW；T4；6500/800；Sensor2500。
+- `UNIT_US_GLOBAL_FIRE`：模板SPG；T4；4800/850；HP800，射程等效+30%；只攻击Confirmed以上高价值目标。
 
-- `UNIT_RU_RHINO3_MBT`：MBT；HP 1900；成本 2100/70；建造时间 25s；精度略低。
-- `UNIT_RU_APOC3_HEAVY`：T4；HP 3600；Armor HEAVY；速度 6.5；成本 5200/600；Cmd 8；双重反装甲+近防。
-- `UNIT_RU_HOUND_ROBOT`：ROBOT_COMBAT；成本 550/50；HP 330；适合量产。
-- `UNIT_RU_LANCET_SWARM`：LOITER；一次生产 3 架，成本 1250/140；高价值后方单位优先。
-- `UNIT_RU_SHOCK_EW`：EW_VEH；干扰半径 +25%；自身 Sensor -10%。
+### 俄罗斯
+- `UNIT_RU_RHINO3_MBT`：模板MBT；T1；2100/70；HP1900，25s；精度-5%。
+- `UNIT_RU_APOC3_HEAVY`：模板MBT；T4；5200/600；HP3600，Speed6.5，Cmd8；双主炮等效齐射+重近防。
+- `UNIT_RU_HOUND_ROBOT`：模板ROBOT_COMBAT；T3；550/50；HP330，量产型。
+- `UNIT_RU_LANCET_SWARM`：模板LOITER；T3；1250/140一次生产3架。
+- `UNIT_RU_SHOCK_EW`：模板EW_VEH；T3；干扰半径+25%，自身Sensor-10%。
 
-- `UNIT_UK_TEMPEST`：高端战斗机；隐身2、Sensor 1500；远征机场维护时间 -15%。
-- `UNIT_UK_DRAGONFIRE`：定向能防空平台；对 DRONE/LOITER 高效；恶劣天气伤害 -30%。
-- `UNIT_FR_RAFALE_F`：任务模块切换时间为普通战机 50%。
-- `UNIT_FR_STEALTH_UCAV`：UCAV，隐身3，适合压制防空。
-- `UNIT_DE_LEOPARD_F`：MBT，维修成本 -25%，模块槽+1。
-- `UNIT_DE_BOXER_MODULE`：可在保障点切换 IFV/AA/EW/COMMAND 四种配置，切换 20s。
-- `UNIT_JP_RAILGUN_SHIP`：T4 驱逐级平台；高能耗、远程直射，对导弹/水面舰高效。
-- `UNIT_KR_THUNDER_SPG`：SPG；射击后转移准备时间 -35%。
-- `UNIT_IL_MERKAVA_F`：MBT；主动防护充能 +1，速度 -5%。
-- `UNIT_TR_BAYRAKTAR`：DRONE_ATTACK；成本 -20%，HP -15%。
-- `UNIT_TR_KIZILELMA`：UCAV；空战优先，适合批量编组。
-- `UNIT_UA_FIBER_DRONE`：LOITER；免疫无线链路干扰，但移动/转向性能 -10%。
-- `UNIT_UA_GROUND_ROBOT`：ROBOT_COMBAT；模块成本低，战损后适应科技积累 +1。
-- `UNIT_AU_GHOSTSHARK`：UUV；Sensor +25%，续航/巡逻半径 +30%。
-- `UNIT_PL_HEAVY_ARMOR_BG`：不是单车而是预编战斗群模板；创建时自动包含 MBT/IFV/AA 组合，价格无折扣。
-- `UNIT_IR_LOW_COST_DRONE`：DRONE_ATTACK；成本 -35%，HP -30%，适合饱和。
+### 英国
+- `UNIT_UK_SAS`：模板SPECOPS；T2；1250/120；HP130，Speed5.8，Sensor500；渗透/标记效率+15%。
+- `UNIT_UK_TEMPEST`：模板FIGHTER；T4；6500/800；HP1050，Sensor1500，隐身2；远征机场整备-15%。
+- `UNIT_UK_DRAGONFIRE`：模板SHORAD；T3；2600/300；HP650；定向能反无人，恶劣天气效率-30%。
+- `UNIT_UK_ATTACK_SS`：模板SS_ATTACK；T3；8800/900；Sensor1300，隐蔽确认时间+15%。
+
+### 法国
+- `UNIT_FR_RAFALE_F`：模板FIGHTER；T3；5600/580；任务模块切换时间为普通战机50%。
+- `UNIT_FR_STEALTH_UCAV`：模板UCAV；T3；4500/560；隐身3，HP650，适合压制防空。
+- `UNIT_FR_LECLERC_F`：模板MBT；T2；2550/120；HP1750，Speed12.2；移动射击稳定系数+5%。
+
+### 德国
+- `UNIT_DE_LEOPARD_F`：模板MBT；T2；2500/110；HP1850；维修工业成本-25%，模块槽+1。
+- `UNIT_DE_BOXER_MODULE`：模板IFV；T2；1700/80；可在保障点20秒切换IFV/AA/EW/COMMAND配置。
+- `UNIT_DE_MODULE_ROBOT`：模板ROBOT_COMBAT；T3；850/100；HP340；可在维修点切换侦察/战斗/工程模块，30秒。
+- `UNIT_DE_AUTO_SUPPORT`：模板REPAIR；T3；1550/100；HP600；维修/补给效率+20%，无主战武器。
+
+### 日本
+- `UNIT_JP_ISLAND_MOBILE`：模板MLRS；T3；3400/260；HP900，Sensor800；可切换反舰/区域防空支援模式，切换25秒。
+- `UNIT_JP_AEGIS_SHIP`：模板DESTROYER；T3；9800/1000；Sensor2100，防空/反导弹药容量+20%。
+- `UNIT_JP_RAILGUN_SHIP`：模板DESTROYER；T4；11800/1500；HP3600；高能耗远程直射，主武器`WPN_JP_RAILGUN_NAVAL`。
+- `UNIT_JP_ASW_UNMANNED`：模板USV；T3；1500/180；Sensor950；反潜搜索半径+25%。
+
+### 韩国
+- `UNIT_KR_BLACKPANTHER_F`：模板MBT；T2；2500/120；HP1780，Speed12，Sensor520；火控确认时间-10%。
+- `UNIT_KR_THUNDER_SPG`：模板SPG；T2；3000/140；射击后转移准备时间-35%。
+- `UNIT_KR_SKYLIGHT_LASER`：模板SHORAD；T3；2700/320；定向能反无人，不消耗导弹备弹但受热容量限制。
+
+### 以色列
+- `UNIT_IL_MERKAVA_F`：模板MBT；T2；2600/140；HP1950；APS充能+1，Speed-5%。
+- `UNIT_IL_SMART_INF`：模板RIFLE；T2；550/40；HP105，Sensor330；处于数据链覆盖时目标识别+15%。
+- `UNIT_IL_IRONBEAM`：模板SHORAD；T3；2800/340；激光反无人/巡飞弹，恶劣天气效率下降。
+
+### 印度
+- `FORM_IN_HIGHLAND_BG`：编队模板；T2；1×IFV+2×RIFLE+1×AT；总价不打折；复杂地形移动惩罚降低15%由战斗群模板修正实现。
+- `UNIT_IN_HIGHSPEED_STRIKE`：模板SPG；T4；4300/700；HP700，远程高速打击，单发成本高，必须Confirmed以上目标。
+- `UNIT_IN_HEAVY_ROCKET`：模板MLRS；T3；3500/220；区域齐射弹量+20%，装填时间+15%。
+
+### 土耳其
+- `UNIT_TR_BAYRAKTAR`：模板DRONE_ATTACK；T2；成本-20%，HP-15%，适合规模化侦察打击。
+- `UNIT_TR_KIZILELMA`：模板UCAV；T3；3900/420；空战优先，Sensor1000，Compute3。
+
+### 乌克兰
+- `UNIT_UA_FIBER_DRONE`：模板LOITER；T2；550/70；免疫无线控制链干扰，机动/转向-10%。
+- `UNIT_UA_GROUND_ROBOT`：模板ROBOT_COMBAT；T3；650/70；HP310；模块成本低。
+- `UNIT_UA_HEAVY_ATTACK_DRONE`：模板UCAV；T3；3600/380；HP620，Sensor850；低成本重打击，Compute3。
+
+### 澳大利亚
+- `UNIT_AU_GHOSTBAT`：模板UCAV；T3；4300/480；HP680，Sensor1050；与有人战机编组时共享目标效率+10%。
+- `UNIT_AU_GHOSTSHARK`：模板UUV；T3；2100/260；Sensor+25%，巡逻半径+30%。
+- `UNIT_AU_ATTACK_SS`：模板SS_ATTACK；T3；9000/900；Sensor1250；与海底传感器联网时目标确认+15%。
+
+### 波兰
+- `FORM_PL_HEAVY_ARMOR_BG`：编队模板；T2；1×MBT+1×IFV+1×SHORAD；总价不打折，完成后自动建立同一战斗群。
+- `UNIT_PL_MASS_ARTILLERY`：模板SPG；T2；2650/90；建造时间-15%，HP-10%，适合数量化炮兵。
+- `UNIT_PL_LAYERED_AA`：模板MRAD；T3；2800/150；与SHORAD编组时目标分配效率+15%。
+
+### 伊朗
+- `UNIT_IR_MOBILE_MISSILE`：模板MLRS；T3；3300/250；远程单发/小齐射，发射后高暴露，需机动转移。
+- `UNIT_IR_LOW_COST_DRONE`：模板DRONE_ATTACK；T2；成本-35%，HP-30%，用于饱和。
+- `UNIT_IR_DECOY`：模板DRONE_RECON；T2；350/20；无武器，生成高DeceptionStrength假目标并消耗少量算力。
 
 ## 7. 尤里单位
 
-- `UNIT_YURI_NEURAL_INF`：T1，350/20，HP 95；对人员附带短时认知扰乱。
-- `UNIT_YURI_BIOMECH`：T2，1200/120，HP 850；城市近战，抗电磁高、怕穿甲。
-- `UNIT_YURI_HUNTER_ROBOT`：T3，1800/220，HP 1100，Compute 4；高机动猎杀。
-- `UNIT_YURI_GATLING2`：T2，2000/120，HP 850；持续射击增速，对蜂群/轻空高效。
-- `UNIT_YURI_GRAVITY_PLATFORM`：T4，3800/650，HP 1500；控制轻型目标位移，强冷却。
+- `UNIT_YURI_NEURAL_INF`：T1，350/20，HP95；对人员附带短时神经压力。
+- `UNIT_YURI_BIOMECH`：T2，1200/120，HP850；城市近战，抗电磁高、怕穿甲。
+- `UNIT_YURI_HUNTER_ROBOT`：T3，1800/220，HP1100，Compute4；高机动猎杀。
+- `UNIT_YURI_GATLING2`：T2，2000/120，HP850；持续射击增速，对蜂群/轻空高效。
+- `UNIT_YURI_GRAVITY_PLATFORM`：T4，3800/650，HP1500；控制轻型目标位移，强冷却。
 - `UNIT_YURI_NEURAL_CONTROL`：T4，4200/800；局部神经/算法干扰，不可永久夺取英雄/战略单位。
 - `UNIT_YURI_PHANTOM_NODE`：T3，2400/350；生成可侦破假目标。
 - `UNIT_YURI_GHOST_SWARM`：T3，1400/180；侦察/欺骗蜂群。
-- `UNIT_YURI_AUTONOMOUS_FIGHTER`：T4，5600/850，Compute 6；完全无人空战。
-- `UNIT_YURI_ABYSS_UUV`：T4，3200/450，Compute 4；深海渗透。
+- `UNIT_YURI_AUTONOMOUS_FIGHTER`：T4，5600/850，Compute6；完全无人空战。
+- `UNIT_YURI_ABYSS_UUV`：T4，3200/450，Compute4；深海渗透。
+
+尤里单位装配和能力同样进入 `UNIT_LOADOUTS.md`，不能绕过注册体系。
 
 ## 8. 单位通用规则
 
-1. 人员单位是主要建筑占领与复杂政治目标执行者，机器人不能完全替代。
+1. 人员单位是主要建筑占领与复杂目标执行者，机器人不能完全替代。
 2. 重型平台不能进入全部城市狭窄通道。
 3. 所有远程单位近距离存在最低射程或展开惩罚。
-4. 防空弹药不是无限：普通对局抽象为 3 个备战等级，由保障系统自动恢复。
+4. 防空弹药采用`ReadyShots`与保障恢复规则，不是无限弹药。
 5. 机器人/无人单位在算力过载和网络受扰时按自主等级降级。
-6. 所有国家独占单位必须至少有两个明确反制标签。
+6. 所有国家独占单位至少有两个明确反制标签。
+7. `FORM_`只是一条生产/编组宏，展开后全部为独立真实单位。
+8. 特色单位继承链必须能被内容验证器解析；模板不存在即构建失败。

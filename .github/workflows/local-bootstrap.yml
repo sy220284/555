@@ -17,19 +17,26 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
-      - name: Package latest .NET 8 runtime patch
+      - name: Package exact 8.0.30 targeting packs
         run: |
-          RUNTIME_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^8\./ {print $2}' | sort -V | tail -1)"
-          test -n "$RUNTIME_VERSION"
-          mkdir -p /tmp/dotnet-runtime8/shared/Microsoft.NETCore.App /tmp/dotnet-runtime8/host/fxr
-          cp -a "/usr/share/dotnet/shared/Microsoft.NETCore.App/$RUNTIME_VERSION" /tmp/dotnet-runtime8/shared/Microsoft.NETCore.App/
-          cp -a "/usr/share/dotnet/host/fxr/$RUNTIME_VERSION" /tmp/dotnet-runtime8/host/fxr/
-          printf '%s\n' "$RUNTIME_VERSION" > /tmp/dotnet-runtime8/runtime-version.txt
-          tar -C /tmp -czf /tmp/dotnet8-runtime-patch.tar.gz dotnet-runtime8
+          VERSION=8.0.30
+          for path in \
+            "/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/$VERSION" \
+            "/usr/share/dotnet/packs/Microsoft.AspNetCore.App.Ref/$VERSION" \
+            "/usr/share/dotnet/packs/Microsoft.NETCore.App.Host.linux-x64/$VERSION"; do
+            test -d "$path"
+          done
+          mkdir -p /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Ref
+          mkdir -p /tmp/dotnet-packs8/packs/Microsoft.AspNetCore.App.Ref
+          mkdir -p /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Host.linux-x64
+          cp -a "/usr/share/dotnet/packs/Microsoft.NETCore.App.Ref/$VERSION" /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Ref/
+          cp -a "/usr/share/dotnet/packs/Microsoft.AspNetCore.App.Ref/$VERSION" /tmp/dotnet-packs8/packs/Microsoft.AspNetCore.App.Ref/
+          cp -a "/usr/share/dotnet/packs/Microsoft.NETCore.App.Host.linux-x64/$VERSION" /tmp/dotnet-packs8/packs/Microsoft.NETCore.App.Host.linux-x64/
+          tar -C /tmp -czf /tmp/dotnet8-packs-8.0.30.tar.gz dotnet-packs8
       - uses: actions/upload-artifact@v7
         with:
-          name: dotnet8-runtime-patch-${{ github.run_id }}-${{ github.run_attempt }}
-          path: /tmp/dotnet8-runtime-patch.tar.gz
+          name: dotnet8-packs-8.0.30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/dotnet8-packs-8.0.30.tar.gz
           if-no-files-found: error
           compression-level: 1
           retention-days: 1

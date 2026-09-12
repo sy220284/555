@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -118,6 +119,16 @@ internal static class PlayerCommandReplayFile
         return timeline.ToCanonicalArray();
     }
 
+    public static void ValidateOutcome(PlayerCommandReplayDocument document, int winnerTeamId, int resolvedTick, ulong finalStateHash)
+    {
+        Validate(document);
+        if (document.WinnerTeamId != winnerTeamId || document.ResolvedTick != resolvedTick ||
+            !string.Equals(document.FinalStateHash, finalStateHash.ToString("X16"), StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("command replay recorded outcome mismatch");
+        }
+    }
+
     public static string Sha256Hex(byte[] bytes)
     {
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -133,9 +144,20 @@ internal static class PlayerCommandReplayFile
             throw new InvalidDataException("command replay ruleset mismatch");
         if (string.IsNullOrWhiteSpace(document.ScenarioId))
             throw new InvalidDataException("command replay scenario id missing");
+        if (!string.Equals(document.ScenarioId, GrayRangeGeneratedData.MapId, StringComparison.Ordinal))
+            throw new InvalidDataException("command replay scenario id mismatch");
         if (document.Commands == null || document.Commands.Length == 0)
             throw new InvalidDataException("command replay contains no commands");
-        if (document.CommandHash.Length != 16 || document.FinalStateHash.Length != 16)
+        if (document.WinnerTeamId != 1 && document.WinnerTeamId != 2)
+            throw new InvalidDataException("command replay winner team is invalid");
+        if (document.ResolvedTick <= 0)
+            throw new InvalidDataException("command replay resolved tick is invalid");
+        if (!IsHex64(document.CommandHash) || !IsHex64(document.FinalStateHash))
             throw new InvalidDataException("command replay hash fields are malformed");
+    }
+
+    private static bool IsHex64(string value)
+    {
+        return value.Length == 16 && ulong.TryParse(value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _);
     }
 }

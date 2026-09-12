@@ -7,7 +7,7 @@
 - `design/00_MASTER_GDD.md`：母设计文档、产品边界、核心玩法。
 - `design/01_WORLD_LORE.md`：2037世界观、时间线、尤里/升格线索。
 - `design/02_FACTIONS_COUNTRIES.md`：四大基础体系与15国特色。
-- `design/03_GAMEPLAY_LOOP_MODES.md`：对局循环与五种模式定位。
+- `design/03_GAMEPLAY_LOOP_MODES.md`：对局循环、五种模式定位、玩家进入路径。
 - `design/03A_FREEDOM_WARFARE.md`：高自由度战争、动态控制、无时间驱动节奏原则。
 - `design/04_TECH_ECONOMY_BALANCE.md`：五级科技、分叉、经济与平衡。
 - `design/05_UNITS_BUILDINGS.md`：兵种、机器人、建筑与防御总览。
@@ -54,7 +54,8 @@
 - `specs/BUILDING_CATALOG.md`：建筑、防御与特色建筑。
 - `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁；快速战争全科技预置。
 - `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给公式。
-- `specs/GAME_MODE_RULES.md`：五种模式战争状态胜负、动态控制、投降、友军和异常结算。
+- `specs/GAME_MODE_RULES.md`：五种模式权威胜负、动态控制、投降、友军和异常结算。
+- `specs/MODE_PLAYABILITY_PROFILES.md`：五种模式开局战备、核心决策、翻盘、地图、AI职责和可玩性门禁。
 - `specs/QUICKWAR_FULL_READINESS.md`：快速战争满科技、完整建筑、初始联合编制、资源储备和公平性执行规格。
 - `specs/BALANCE_BASELINES.md`：总体平衡基线；时长只作遥测，不作规则触发。
 
@@ -94,7 +95,13 @@
 7. `specs/TEST_MATRIX.md`
 8. `specs/ACCEPTANCE_CRITERIA.md`
 
-模式、经济、地图、AI战略和胜负相关任务还必须读取 `design/03A_FREEDOM_WARFARE.md`。涉及快速战争开局、科技、编制、地图部署或平衡时必须同时读取 `specs/QUICKWAR_FULL_READINESS.md`。
+模式、经济、地图、AI战略和胜负相关任务必须同时读取：
+
+- `design/03A_FREEDOM_WARFARE.md`
+- `specs/GAME_MODE_RULES.md`
+- `specs/MODE_PLAYABILITY_PROFILES.md`
+
+涉及快速战争开局、科技、编制、地图部署或平衡时还必须读取 `specs/QUICKWAR_FULL_READINESS.md`。
 
 ## 唯一优先级
 

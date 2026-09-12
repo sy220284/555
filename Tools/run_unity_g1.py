@@ -75,6 +75,18 @@ def remove_stale_artifact(path):
         path.unlink()
 
 
+def print_log_tail(path, line_count=200):
+    if not path.exists():
+        print(f"LOG MISSING: {path}")
+        return
+    lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    tail = lines[-line_count:]
+    print(f"--- {path.name} tail ({len(tail)}/{len(lines)} lines) ---")
+    for line in tail:
+        print(line)
+    print(f"--- end {path.name} ---")
+
+
 def base_editor_command(editor):
     return [
         str(editor),
@@ -88,16 +100,16 @@ def base_editor_command(editor):
 
 
 def main():
+    artifacts = ROOT / "Artifacts" / "unity-g1"
+    compile_log = artifacts / "compile.log"
+    test_log = artifacts / "editmode.log"
+    test_results = artifacts / "editmode-results.xml"
     try:
         verify_project_version()
         editor = require_editor()
         verify_editor_binary(editor)
 
-        artifacts = ROOT / "Artifacts" / "unity-g1"
         artifacts.mkdir(parents=True, exist_ok=True)
-        compile_log = artifacts / "compile.log"
-        test_log = artifacts / "editmode.log"
-        test_results = artifacts / "editmode-results.xml"
         for artifact in (compile_log, test_log, test_results):
             remove_stale_artifact(artifact)
 
@@ -108,11 +120,13 @@ def main():
         ]
         code = run(compile_command, compile_log)
         if code != 0:
+            print_log_tail(compile_log)
             return code
 
         compile_text = compile_log.read_text(encoding="utf-8", errors="ignore") if compile_log.exists() else ""
         if "error CS" in compile_text or "Scripts have compiler errors" in compile_text:
             print("Unity compile log contains compiler errors")
+            print_log_tail(compile_log)
             return 2
 
         # Unity Test Framework exits after -runTests completes. Do not add -quit here;
@@ -128,8 +142,13 @@ def main():
         ]
         code = run(test_command, test_log)
         if code != 0:
+            print_log_tail(test_log)
             return code
-        verify_test_results(test_results)
+        try:
+            verify_test_results(test_results)
+        except Exception:
+            print_log_tail(test_log)
+            raise
         print(f"UNITY G1 PASSED: {EXPECTED_EDITOR_VERSION} compile + EditMode")
         return 0
     except Exception as exc:

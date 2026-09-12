@@ -20,3 +20,7 @@ jobs:
         run: python Tools/content_validator.py
       - name: Validate embedded package structure
         run: python Tools/project_structure_validator.py
+      - name: Run deterministic graybox unit tests
+        run: python -m unittest discover -s Tests -p 'test_*.py' -v
+      - name: Generate Gray Range graybox manifest
+        run: python Tools/graybox_generator.py --map Data/Maps/MAP_GRAY_RANGE.map.json --out /tmp/MAP_GRAY_RANGE.graybox.json --cell-size 50

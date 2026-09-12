@@ -10,8 +10,11 @@
 - `Tools/ModernRA.SimRunner`：1000单位/10000 tick 无画面规则运行器；
 - `Tools/ModernRA.AnnihilationRunner`：地图驱动的第一局歼灭完整规则闭环运行器；
 - `Tools/graybox_generator.py`：从地图侧车生成确定性灰盒清单；
+- `Tools/runtime_map_codegen.py`：从权威地图侧车生成编译期运行数据，供无画面规则与 Unity 共用；
+- `GrayRangeBootstrapSystem`：将出生点、资源点、战略设施、道路、控制区与可建区锚点转成 Unity ECS 数据实体；
+- `AnnihilationRuleBridgeSystem`：30Hz 固定步调用统一歼灭规则，并将建筑、单位、经济、状态哈希与胜负结果镜像到 ECS；
 - `.github/workflows/simulation-gates.yml`：规则构建、确定性模拟与歼灭闭环持续集成；
-- `.github/workflows/content-validation.yml`：权威数据、包结构、灰盒生成持续集成；
+- `.github/workflows/content-validation.yml`：权威数据、包结构、灰盒生成、运行地图代码生成与 Unity 桥结构持续集成；
 - Unity `Simulation/AI/IntelEW/Robotics/Network/Tests` 继续依赖统一规则内核，禁止测试逻辑和正式运行逻辑分叉。
 
 ### 1000单位确定性模拟证据
@@ -44,13 +47,29 @@
 - 初始基地/集结锚点：12；
 - 双方出生到近家工业、战略资源和中央设施的相对差：0；
 - 本地确定性派生清单哈希：`37ef8e3bec6a5e85a5a51234b69fa567e0b366d0811b7d9930a07b188d2b8845`；
-- 8个灰盒单元测试全部通过。
+- 灰盒与运行地图相关 Python 测试当前共11项，全部通过。
 
-这证明机器灰盒数据链可重复生成；尚未代表 Unity 场景、导航烘焙和实际实体出生已经完成。
+这证明机器灰盒数据链可重复生成；尚未代表 Unity 场景渲染、导航烘焙和真实编辑器运行已经完成。
+
+### 编译期地图数据与 Unity ECS 权威桥证据
+
+`runtime_map_codegen.py` 直接读取 `Data/Maps/MAP_GRAY_RANGE.map.json`，生成 `Packages/com.modernra.rules/Runtime/GrayRangeGeneratedData.cs`：
+
+- 权威源规范化 SHA256：`8364ee49943840c0ca1fd4710df01e9879ce87ef4262d57fd17ff3b148e92d63`；
+- 运行数据包含2个出生区、8个资源点、3个战略设施、3条道路、5个控制区、2个可建区；
+- 持续集成每次重新生成并逐字节比较，地图变化但生成文件未更新时直接失败；
+- `ModernRA.AnnihilationRunner` 同时校验原始地图出生点/中央道路与生成数据一致，再使用生成数据创建歼灭配置；
+- `GrayRangeBootstrapSystem` 只做地图数据实体化；
+- `AnnihilationRuleBridgeSystem` 只调用 `AnnihilationPrototype.Step` 并镜像结果，不含坦克造价、伤害、采集速率等第二套规则常量；
+- 接桥后1000单位压力模拟哈希仍为 `A72CA0F85058C84B`；
+- 接桥后歼灭闭环仍为 `tick=1893 / hash=1979A9B7B4183764`；
+- 两套 .NET 运行器仍为 `0 Warning(s)`、`0 Error(s)`。
+
+当前证据证明“权威地图 -> 编译期运行数据 -> Unity ECS 桥代码”的实现链已经进入仓库并受到门禁约束，但由于当前执行环境没有 Unity `6000.3.24f1` 编辑器，Unity 程序集本身尚未获得真实编辑器编译通过的证据。
 
 ### 第一局歼灭规则闭环证据
 
-`ModernRA.AnnihilationRunner` 直接读取 `Data/Maps/MAP_GRAY_RANGE.map.json` 的出生点、`ROAD_CENTER` 和模式兼容性，并使用标准歼灭开局工业资源12000。
+`ModernRA.AnnihilationRunner` 使用与 Unity 桥相同的生成地图数据创建标准歼灭配置，并继续对原始 `MAP_GRAY_RANGE` 源进行一致性校验。
 
 闭环包含：
 
@@ -78,31 +97,32 @@
 
 | 门禁 | 状态 | 当前证据 | 未完成部分 |
 |---|---|---|---|
-| G0 数据与仓库 | PASS | 数据、包结构、灰盒CI持续通过 | 后续新增数据继续受门禁约束 |
-| G1 Unity工程编译 | PENDING | 已锁 `6000.3.24f1`，包/程序集结构自动检查通过 | 尚未在真实Unity编辑器环境完整编译并跑EditMode |
-| G2 确定性模拟 | PASS（规则内核） | 10000 tick × 10，哈希一致 | Unity ECS接入后需重复同级验证 |
-| G3 首张地图 | PARTIAL+ | 侧车、双向区域图、确定性灰盒生成、8项测试、公平性通过 | Unity灰盒场景、导航烘焙、实际实体出生未完成 |
-| G4 第一经济闭环 | PASS（规则内核） | 基础金属、双采集递减、损失、容量非负；歼灭闭环也完成采集 | Unity采矿实体/处理点与ECS批处理未接入 |
+| G0 数据与仓库 | PASS | 数据、包结构、灰盒、运行地图代码生成CI持续通过 | 后续新增数据继续受门禁约束 |
+| G1 Unity工程编译 | PENDING+ | 已锁 `6000.3.24f1`；Unity ECS启动器、规则桥和EditMode合同测试已进入代码 | 尚未在真实Unity编辑器环境完整编译并跑EditMode |
+| G2 确定性模拟 | PASS（规则内核） | 10000 tick × 10，哈希一致；接桥后哈希未变化 | Unity程序集真实运行后需复核同级结果 |
+| G3 首张地图 | PARTIAL++ | 侧车、双向区域图、灰盒生成、运行时代码生成、ECS地图实体化代码均已建立 | Unity真实编译、场景可视化、导航烘焙与运行截图未完成 |
+| G4 第一经济闭环 | PASS（规则内核）/PARTIAL（Unity桥） | 规则经济闭环通过，桥可镜像经济与建筑状态 | 尚未转为正式ECS批处理经济系统与采矿表现 |
 | G5 移动与共享导航 | PARTIAL+ | 1000单位共享2条方向走廊；歼灭单位使用地图中央通道推进 | 局部避障、桥路失效、目标CPU P50/P95/P99未测 |
-| G6 第一战斗闭环 | PASS（规则内核） | 两类运行器均产生真实交火、伤害和摧毁 | 正式弹道/目标选择/ECS批处理和性能未完成 |
+| G6 第一战斗闭环 | PASS（规则内核）/PARTIAL（Unity桥） | 规则层真实交火与摧毁；桥可镜像作战单位与生命状态 | 正式ECS批处理战斗、弹道与性能未完成 |
 | G7 情报与战争迷雾 | PASS（规则内核） | 隐藏目标不复制；情报等级对应不同精度 | Unity传感器探测链和真实客户端快照集成未完成 |
 | G8 AI战斗群 | PARTIAL | 所属、区域、权限、禁令、玩家覆盖代次可执行判权 | 战斗群效用评分、路线/目标选择和实际接管未完成 |
 | G9 机器人/EW | PARTIAL | A1—A4断联、黑区、算力不足降级已验证 | 完整战场实体行为未接入 |
 | G10 网络回环 | PARTIAL | 内容哈希、防重放、意图、情报过滤、增量快照、插值已通过 | Unity Transport真实传输、丢包/延迟/重连未完成 |
-| G11 完整歼灭 | PARTIAL（规则闭环） | 地图驱动的建设/采集/生产/移动/战斗/胜负已8次确定性闭环 | Unity灰盒实体、真实输入/UI、录像重放、AI完整对局和ECS集成未完成 |
+| G11 完整歼灭 | PARTIAL+ | 地图驱动规则闭环稳定；Unity固定步桥和实体镜像代码已接入 | Unity真实编译/运行、玩家输入/UI、录像重放、AI完整对局与正式ECS批处理未完成 |
 
 ## 当前生命周期
 
 项目整体仍为 `implementation_bootstrap`，不得升级为 `playable`。
 
-目前已经跨过“只有接口/单系统烟测”的阶段，第一局歼灭在纯权威规则层形成了完整闭环；但 G1、Unity灰盒、ECS批处理、目标硬件性能、录像和实际AI对局尚未全部通过，因此不能把规则闭环冒充成成品对局。
+目前已经从“纯规则闭环”继续推进到“同源地图数据与 Unity ECS 权威桥代码已经落地”的阶段；但没有真实 Unity 编辑器编译和运行证据，因此不能把桥代码存在冒充成 Unity 可玩版完成。
 
 ## 下一条正式执行链
 
-1. 建立可用 Unity `6000.3.24f1` 自动编译/测试环境，关闭G1；
-2. 将确定性灰盒清单转为 Unity 场景、控制区、道路、资源点和双方初始实体；
-3. 将 `com.modernra.rules` 的建设/经济/生产/战斗闭环接入ECS批处理，不在Unity层重写规则；
-4. 加入局部空间哈希避障、道路/桥梁版本失效和性能采样；
-5. 完成传感器探测链、AI战斗群执行、机器人/EW实体行为和Unity Transport回环；
-6. 加入录像/重放和AI自动完成一局歼灭，关闭完整G11；
-7. 之后再进入征服矿产科技、动态前线、快速战争满战备和战区战争。
+1. 建立可用 Unity `6000.3.24f1` 自动编译/测试环境，真实编译 `ModernRA.Simulation` 与 `ModernRA.Tests.Editor`，关闭G1；
+2. 修复真实 Unity 编译暴露的问题，并实际运行 `GrayRangeBootstrapSystem`，核对地图锚点实体数量与坐标；
+3. 给地图锚点和歼灭实体增加最低限度灰盒显示、相机、选择与命令输入，形成可观察/可操作第一局；
+4. 将当前规则镜像桥逐步替换为正式ECS批处理执行路径，但继续以 `com.modernra.rules` 作为唯一规则源；
+5. 加入局部空间哈希避障、道路/桥梁版本失效和性能采样；
+6. 完成传感器探测链、AI战斗群执行、机器人/EW实体行为和Unity Transport回环；
+7. 加入录像/重放和AI自动完成一局歼灭，关闭完整G11；
+8. 之后再进入征服矿产科技、动态前线、快速战争满战备和战区战争。

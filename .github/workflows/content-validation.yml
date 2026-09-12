@@ -20,7 +20,11 @@ jobs:
         run: python Tools/content_validator.py
       - name: Validate embedded package structure
         run: python Tools/project_structure_validator.py
-      - name: Run deterministic graybox unit tests
+      - name: Run deterministic graybox and runtime-map unit tests
         run: python -m unittest discover -s Tests -p 'test_*.py' -v
+      - name: Verify generated runtime map code
+        run: |
+          python Tools/runtime_map_codegen.py --map Data/Maps/MAP_GRAY_RANGE.map.json --out /tmp/GrayRangeGeneratedData.cs
+          diff -u Packages/com.modernra.rules/Runtime/GrayRangeGeneratedData.cs /tmp/GrayRangeGeneratedData.cs
       - name: Generate Gray Range graybox manifest
         run: python Tools/graybox_generator.py --map Data/Maps/MAP_GRAY_RANGE.map.json --out /tmp/MAP_GRAY_RANGE.graybox.json --cell-size 50

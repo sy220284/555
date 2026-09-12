@@ -119,6 +119,15 @@ internal static class PlayerCommandReplayFile
         return timeline.ToCanonicalArray();
     }
 
+    public static void ValidateScenario(PlayerCommandReplayDocument document, string expectedScenarioId)
+    {
+        Validate(document);
+        if (string.IsNullOrWhiteSpace(expectedScenarioId))
+            throw new ArgumentException("expected scenario id is required", nameof(expectedScenarioId));
+        if (!string.Equals(document.ScenarioId, expectedScenarioId, StringComparison.Ordinal))
+            throw new InvalidDataException("command replay scenario id mismatch");
+    }
+
     public static void ValidateOutcome(PlayerCommandReplayDocument document, int winnerTeamId, int resolvedTick, ulong finalStateHash)
     {
         Validate(document);
@@ -144,8 +153,6 @@ internal static class PlayerCommandReplayFile
             throw new InvalidDataException("command replay ruleset mismatch");
         if (string.IsNullOrWhiteSpace(document.ScenarioId))
             throw new InvalidDataException("command replay scenario id missing");
-        if (!string.Equals(document.ScenarioId, GrayRangeGeneratedData.Create().MapId, StringComparison.Ordinal))
-            throw new InvalidDataException("command replay scenario id mismatch");
         if (document.Commands == null || document.Commands.Length == 0)
             throw new InvalidDataException("command replay contains no commands");
         if (document.WinnerTeamId != 1 && document.WinnerTeamId != 2)

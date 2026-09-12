@@ -6,6 +6,7 @@ internal static class AnnihilationGateChecks
     {
         const int repetitions = 8;
         const int watchdogTicks = 60000;
+        const int replayCheckpointIntervalTicks = 120;
         ulong expectedHash = 0;
         int expectedWinner = 0;
         int expectedTick = 0;
@@ -45,11 +46,19 @@ internal static class AnnihilationGateChecks
         Check(loser.DefeatReason == PrototypeDefeatReason.WarSystemCollapse, "loser did not record war-system collapse");
         Check(AnnihilationPrototype.CountAliveBuildings(loser) > 0, "annihilation still requires clearing every enemy building");
 
+        AnnihilationReplayTape replay = AnnihilationReplayVerifier.Record(config, replayCheckpointIntervalTicks, watchdogTicks);
+        AnnihilationReplayVerifier.Verify(config, replay, watchdogTicks);
+        Check(replay.WinnerTeamId == expectedWinner, "replay winner does not match deterministic gate");
+        Check(replay.ResolvedTick == expectedTick, "replay resolution tick does not match deterministic gate");
+        Check(replay.FinalStateHash == expectedHash, "replay final hash does not match deterministic gate");
+        Check(replay.Checkpoints.Count >= 10, "replay checkpoint coverage is too sparse");
+
         Console.WriteLine(
             $"annihilation_gate=passed scenario={scenarioId} winner={verified.WinnerTeamId} tick={verified.Tick} hash={expectedHash:X16} " +
             $"mined_a={verified.TeamA.MinedMilli / 1000.0:F3} mined_b={verified.TeamB.MinedMilli / 1000.0:F3} " +
             $"produced_a={verified.TeamA.UnitsProduced} produced_b={verified.TeamB.UnitsProduced} " +
-            $"shots={verified.ShotsFired} buildings_destroyed={verified.BuildingsDestroyed} loser_buildings_remaining={AnnihilationPrototype.CountAliveBuildings(loser)}");
+            $"shots={verified.ShotsFired} buildings_destroyed={verified.BuildingsDestroyed} loser_buildings_remaining={AnnihilationPrototype.CountAliveBuildings(loser)} " +
+            $"replay_checkpoints={replay.Checkpoints.Count} replay_final_hash={replay.FinalStateHash:X16}");
     }
 
     private static void Check(bool condition, string message)

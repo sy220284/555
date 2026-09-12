@@ -29,14 +29,18 @@ jobs:
         run: dotnet build Tools/ModernRA.CommandInboxRunner/ModernRA.CommandInboxRunner.csproj -c Release
       - name: Run live player command admission gate
         run: dotnet run --project Tools/ModernRA.CommandInboxRunner/ModernRA.CommandInboxRunner.csproj -c Release --no-build
-      - name: Package local .NET toolchain
+      - name: Package local bootstrap inputs
         if: always()
-        run: tar -C /usr/share -czf /tmp/dotnet8-toolchain.tar.gz dotnet
-      - name: Upload local .NET toolchain
+        run: |
+          tar -C /usr/share -czf /tmp/dotnet8-toolchain.tar.gz dotnet
+          tar --exclude=.git -czf /tmp/555-source.tar.gz .
+      - name: Upload local bootstrap inputs
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: dotnet8-toolchain-${{ github.run_id }}-${{ github.run_attempt }}
-          path: /tmp/dotnet8-toolchain.tar.gz
+          name: local-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/dotnet8-toolchain.tar.gz
+            /tmp/555-source.tar.gz
           if-no-files-found: error
           retention-days: 1

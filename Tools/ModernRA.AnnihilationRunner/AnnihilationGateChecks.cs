@@ -2,7 +2,7 @@ using ModernRA.Rules;
 
 internal static class AnnihilationGateChecks
 {
-    public static void Run()
+    public static void Run(AnnihilationPrototypeConfig config, string scenarioId)
     {
         const int repetitions = 8;
         const int watchdogTicks = 60000;
@@ -13,7 +13,7 @@ internal static class AnnihilationGateChecks
 
         for (int i = 0; i < repetitions; i++)
         {
-            AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(new AnnihilationPrototypeConfig());
+            AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
             AnnihilationPrototypeResult result = AnnihilationPrototype.Run(world, watchdogTicks);
             if (i == 0)
             {
@@ -46,7 +46,7 @@ internal static class AnnihilationGateChecks
         Check(AnnihilationPrototype.CountAliveBuildings(loser) > 0, "annihilation still requires clearing every enemy building");
 
         Console.WriteLine(
-            $"annihilation_gate=passed winner={verified.WinnerTeamId} tick={verified.Tick} hash={expectedHash:X16} " +
+            $"annihilation_gate=passed scenario={scenarioId} winner={verified.WinnerTeamId} tick={verified.Tick} hash={expectedHash:X16} " +
             $"mined_a={verified.TeamA.MinedMilli / 1000.0:F3} mined_b={verified.TeamB.MinedMilli / 1000.0:F3} " +
             $"produced_a={verified.TeamA.UnitsProduced} produced_b={verified.TeamB.UnitsProduced} " +
             $"shots={verified.ShotsFired} buildings_destroyed={verified.BuildingsDestroyed} loser_buildings_remaining={AnnihilationPrototype.CountAliveBuildings(loser)}");

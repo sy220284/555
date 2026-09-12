@@ -21,3 +21,7 @@ jobs:
         run: dotnet build Tools/ModernRA.AnnihilationRunner/ModernRA.AnnihilationRunner.csproj -c Release
       - name: Run deterministic annihilation gameplay closure
         run: dotnet run --project Tools/ModernRA.AnnihilationRunner/ModernRA.AnnihilationRunner.csproj -c Release --no-build -- --map Data/Maps/MAP_GRAY_RANGE.map.json
+      - name: Build deterministic player command stream runner
+        run: dotnet build Tools/ModernRA.CommandRunner/ModernRA.CommandRunner.csproj -c Release
+      - name: Run deterministic player command stream gate
+        run: dotnet run --project Tools/ModernRA.CommandRunner/ModernRA.CommandRunner.csproj -c Release --no-build

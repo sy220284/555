@@ -1,0 +1,45 @@
+name: local-bootstrap
+
+on:
+  push:
+    branches:
+      - tooling/local-dotnet8-artifact-20260912
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Package source and local .NET toolchain
+        run: |
+          SDK_VERSION="$(dotnet --list-sdks | awk '/^8\./ {print $1; exit}')"
+          RUNTIME_VERSION="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^8\./ {print $2; exit}')"
+          test -n "$SDK_VERSION"
+          test -n "$RUNTIME_VERSION"
+          mkdir -p /tmp/dotnet8/sdk /tmp/dotnet8/shared/Microsoft.NETCore.App /tmp/dotnet8/host/fxr
+          cp /usr/share/dotnet/dotnet /tmp/dotnet8/
+          cp -a "/usr/share/dotnet/sdk/$SDK_VERSION" /tmp/dotnet8/sdk/
+          cp -a "/usr/share/dotnet/shared/Microsoft.NETCore.App/$RUNTIME_VERSION" /tmp/dotnet8/shared/Microsoft.NETCore.App/
+          cp -a "/usr/share/dotnet/host/fxr/$RUNTIME_VERSION" /tmp/dotnet8/host/fxr/
+          cp -a /usr/share/dotnet/packs /tmp/dotnet8/
+          if [ -d /usr/share/dotnet/sdk-manifests/8.0.100 ]; then
+            mkdir -p /tmp/dotnet8/sdk-manifests
+            cp -a /usr/share/dotnet/sdk-manifests/8.0.100 /tmp/dotnet8/sdk-manifests/
+          fi
+          tar -C /tmp -cf /tmp/dotnet8-toolchain.tar dotnet8
+          tar --exclude=.git -czf /tmp/555-source.tar.gz .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: local-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/dotnet8-toolchain.tar
+            /tmp/555-source.tar.gz
+          if-no-files-found: error
+          compression-level: 1
+          retention-days: 1

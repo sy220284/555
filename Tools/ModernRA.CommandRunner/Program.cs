@@ -37,7 +37,7 @@ internal static class Program
                 throw new InvalidOperationException("command stream did not affect authoritative match result");
 
             AssertInvalidCommandsAreRejected();
-            ReplayRoundTrip(config, canonical, commanded);
+            ReplayRoundTrip(config, map.MapId, canonical, commanded);
 
             Console.WriteLine("PLAYER COMMAND GATE PASSED");
             Console.WriteLine($"commands={commands.Length} command_hash={canonical.ComputeCanonicalHash():X16}");
@@ -77,10 +77,10 @@ internal static class Program
         };
     }
 
-    private static void ReplayRoundTrip(AnnihilationPrototypeConfig config, DeterministicCommandTimeline canonical, CommandRunResult expected)
+    private static void ReplayRoundTrip(AnnihilationPrototypeConfig config, string scenarioId, DeterministicCommandTimeline canonical, CommandRunResult expected)
     {
         PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
-            GrayRangeGeneratedData.MapId,
+            scenarioId,
             canonical.ToCanonicalArray(),
             canonical.ComputeCanonicalHash(),
             expected.WinnerTeamId,

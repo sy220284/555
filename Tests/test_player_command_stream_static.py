@@ -52,7 +52,8 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("GrayRangeGeneratedData.SourceMapSha256", replay)
         self.assertIn("RULESET_ANNIHILATION_STANDARD", replay)
         self.assertIn("command replay canonical hash mismatch", replay)
-        self.assertIn("ReplayRoundTrip(config, canonical, commanded)", runner)
+        self.assertIn("ReplayRoundTrip(config, map.MapId, canonical, commanded)", runner)
+        self.assertNotIn("GrayRangeGeneratedData.MapId", runner)
         self.assertIn("persisted command replay changed authoritative result", runner)
         self.assertIn("command replay serialization is not byte-stable", runner)
 

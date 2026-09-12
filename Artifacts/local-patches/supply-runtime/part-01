@@ -1,0 +1,116 @@
+Level);
+                 if (unit.ControlGroupId != 0)
+                 {
+                     hash = StateHash64.Add(hash, 0x47525049);
+diff --git a/Packages/com.modernra.rules/Runtime/PrototypeBattleGroupAI.cs b/Packages/com.modernra.rules/Runtime/PrototypeBattleGroupAI.cs
+index 9961074..11c3fee 100644
+--- a/Packages/com.modernra.rules/Runtime/PrototypeBattleGroupAI.cs
++++ b/Packages/com.modernra.rules/Runtime/PrototypeBattleGroupAI.cs
+@@ -117,6 +117,9 @@ namespace ModernRA.Rules
+             int aliveCount = 0;
+             int totalHealth = 0;
+             int totalCursor = 0;
++            long totalX = 0;
++            long totalY = 0;
++            bool needsSupply = false;
+             for (int i = 0; i < team.Units.Count; i++)
+             {
+                 PrototypeCombatUnitState unit = team.Units[i];
+@@ -125,6 +128,10 @@ namespace ModernRA.Rules
+                 aliveCount++;
+                 totalHealth += unit.Health;
+                 totalCursor += unit.CorridorCursor;
++                totalX += unit.X;
++                totalY += unit.Y;
++                if (unit.SupplyLevel != RuleSupplyLevel.Sufficient)
++                    needsSupply = true;
+             }
+             if (aliveCount == 0)
+             {
+@@ -134,15 +141,29 @@ namespace ModernRA.Rules
+ 
+             int currentWaypoint = totalCursor / aliveCount;
+             int homeWaypoint = playerId == 1 ? 0 : world.SharedCorridor.Length - 1;
++            int resupplyWaypoint = homeWaypoint;
++            PrototypeSupplyRuntime.TryFindResupplyWaypoint(
++                world,
++                playerId,
++                (int)(totalX / aliveCount),
++                (int)(totalY / aliveCount),
++                out resupplyWaypoint);
++            if (resupplyWaypoint < 0)
++                resupplyWaypoint = homeWaypoint;
+             if (totalHealth / aliveCount < 350)
+             {
+-                decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Resupply, -1, homeWaypoint, 0);
++                decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Resupply, -1, resupplyWaypoint, 0);
+                 return true;
+             }
+ 
+             bool found = TrySelectTarget(visibleTargets, currentWaypoint, world.SharedCorridor.Length, out PrototypeBattleGroupTarget target, out int score);
+             if (!found)
+             {
++                if (needsSupply)
++                {
++                    decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Resupply, -1, resupplyWaypoint, 0);
++                    return true;
++                }
+                 decision = CreateDecision(team, regionId, groupId, PrototypeBattleGroupPhase.Recon, -1, currentWaypoint, 0);
+                 return true;
+             }
+diff --git a/Packages/com.modernra.rules/Runtime/PrototypeSupplyRuntime.cs b/Packages/com.modernra.rules/Runtime/PrototypeSupplyRuntime.cs
+new file mode 100644
+index 0000000..89c630b
+--- /dev/null
++++ b/Packages/com.modernra.rules/Runtime/PrototypeSupplyRuntime.cs
+@@ -0,0 +1,146 @@
++using System;
++using System.Collections.Generic;
++
++namespace ModernRA.Rules
++{
++    public static class PrototypeSupplyRuntime
++    {
++        public const int StandardBaseSupplyCapacity = 120;
++        public const int DefaultTankSupplyUse = 5;
++
++        public static RuleSupplyNode[] CopyCanonicalNodes(RuleSupplyNode[]? nodes)
++        {
++            if (nodes == null || nodes.Length == 0)
++                return Array.Empty<RuleSupplyNode>();
++
++            var copy = (RuleSupplyNode[])nodes.Clone();
++            Array.Sort(copy, (left, right) => left.NodeId.CompareTo(right.NodeId));
++            for (int i = 1; i < copy.Length; i++)
++            {
++                if (copy[i - 1].NodeId == copy[i].NodeId)
++                    throw new ArgumentException($"duplicate supply node {copy[i].NodeId}", nameof(nodes));
++            }
++            return copy;
++        }
++
++        public static void ReallocateIfDue(AnnihilationPrototypeWorld world)
++        {
++            if (world == null)
++                throw new ArgumentNullException(nameof(world));
++            if (RuleSupplyAllocator.ShouldReallocate(world.Tick))
++                Reallocate(world);
++        }
++
++        public static void Reallocate(AnnihilationPrototypeWorld world)
++        {
++            if (world == null)
++                throw new ArgumentNullException(nameof(world));
++
++            var consumers = new List<RuleSupplyConsumer>();
++            var units = new Dictionary<int, PrototypeCombatUnitState>();
++            AddConsumers(world.TeamA, consumers, units);
++            AddConsumers(world.TeamB, consumers, units);
++
++            if (world.SupplyNodes.Length == 0)
++            {
++                foreach (PrototypeCombatUnitState unit in units.Values)
++                {
++                    unit.AllocatedSupply = unit.SupplyUse;
++                    unit.PrimarySupplyNodeId = -1;
++                    unit.SupplyLe

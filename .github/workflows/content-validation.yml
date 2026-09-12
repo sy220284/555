@@ -20,6 +20,8 @@ jobs:
         run: python Tools/content_validator.py
       - name: Validate embedded package structure
         run: python Tools/project_structure_validator.py
+      - name: Validate required Unity G1 test contracts
+        run: python Tools/g1_test_contract_validator.py
       - name: Run deterministic graybox and runtime-map unit tests
         run: python -m unittest discover -s Tests -p 'test_*.py' -v
       - name: Verify generated runtime map code

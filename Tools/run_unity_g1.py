@@ -8,6 +8,11 @@ import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EXPECTED_EDITOR_VERSION = "6000.3.24f1"
+REQUIRED_EDITMODE_TESTS = (
+    "ModernRA.Tests.FixedStepRateTests.Bootstrap_ConfiguresFixedStepGroupToThirtyHertz",
+    "ModernRA.Tests.UnityWorldBootstrapSmokeTests.GrayRangeBootstrap_MaterializesRuntimeStateAndAllAnchors",
+    "ModernRA.Tests.AnnihilationRuleBridgeSmokeTests.RuleBridge_StartsFromGrayRangeAndMirrorsAuthoritativeState",
+)
 
 
 def run(command, log_path):
@@ -101,14 +106,59 @@ def verify_package_lock(root=ROOT):
     )
 
 
-def verify_test_results(path):
+def _test_case_full_name(case):
+    for key in ("fullname", "full-name", "fullName"):
+        value = case.attrib.get(key)
+        if value:
+            return value
+    classname = case.attrib.get("classname") or case.attrib.get("class-name") or ""
+    method = case.attrib.get("methodname") or case.attrib.get("method-name") or case.attrib.get("name") or ""
+    if classname and method:
+        return f"{classname}.{method}"
+    return case.attrib.get("name", "")
+
+
+def verify_test_results(path, required_tests=REQUIRED_EDITMODE_TESTS):
     if not path.exists():
         raise RuntimeError(f"Unity did not produce EditMode results: {path}")
+
     root = ET.parse(path).getroot()
-    failed = int(root.attrib.get("failed", "0"))
+    failed = int(root.attrib.get("failed", "0") or "0")
     result = root.attrib.get("result", "")
+    cases = list(root.iter("test-case"))
+    declared_total = root.attrib.get("total") or root.attrib.get("testcasecount")
+    total = int(declared_total) if declared_total not in (None, "") else len(cases)
+
+    if total <= 0 or not cases:
+        raise RuntimeError("EditMode test run executed zero test cases")
     if failed != 0 or result.lower() == "failed":
         raise RuntimeError(f"EditMode tests failed: failed={failed} result={result}")
+
+    executed = {}
+    for case in cases:
+        full_name = _test_case_full_name(case)
+        if full_name:
+            executed[full_name] = case.attrib.get("result", "")
+
+    missing = []
+    not_passed = []
+    for required in required_tests:
+        matches = [(name, case_result) for name, case_result in executed.items() if name == required or name.endswith(required)]
+        if not matches:
+            missing.append(required)
+            continue
+        if not any(case_result.lower() == "passed" for _, case_result in matches):
+            not_passed.append(required)
+
+    if missing:
+        raise RuntimeError("EditMode required tests were not executed: " + "; ".join(missing))
+    if not_passed:
+        raise RuntimeError("EditMode required tests did not pass: " + "; ".join(not_passed))
+
+    print(
+        "UNITY EDITMODE RESULTS VERIFIED: "
+        f"total={total}, required={len(required_tests)}, all required tests passed"
+    )
 
 
 def remove_stale_artifact(path):
@@ -172,8 +222,6 @@ def main():
 
         verify_package_lock()
 
-        # Unity Test Framework exits after -runTests completes. Do not add -quit here;
-        # an explicit early quit can terminate the process before the test runner flushes results.
         test_command = base_editor_command(editor) + [
             "-runTests",
             "-testPlatform",

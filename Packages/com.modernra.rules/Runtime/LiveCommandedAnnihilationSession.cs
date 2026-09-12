@@ -22,7 +22,29 @@ namespace ModernRA.Rules
         {
             if (World.Resolved)
                 return PrototypeCommandAdmissionResult.MatchResolved;
+            if (!HasValidRuntimeTarget(command))
+                return PrototypeCommandAdmissionResult.InvalidTarget;
             return _inbox.TryAccept(World.Tick, command);
+        }
+
+        private bool HasValidRuntimeTarget(PrototypePlayerCommand command)
+        {
+            if (command.Kind == PrototypePlayerCommandKind.SetTeamRallyWaypoint)
+                return command.IntValue >= 0 && command.IntValue < World.SharedCorridor.Length;
+            if (command.Kind != PrototypePlayerCommandKind.HoldUnit &&
+                command.Kind != PrototypePlayerCommandKind.ResumeUnit)
+            {
+                return true;
+            }
+
+            PrototypeAnnihilationTeamState team = command.PlayerId == 1 ? World.TeamA : World.TeamB;
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (unit.Id == command.IntValue)
+                    return unit.Alive;
+            }
+            return false;
         }
 
         public void Step()

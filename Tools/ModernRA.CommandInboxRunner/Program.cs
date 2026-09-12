@@ -75,8 +75,15 @@ internal static class Program
 
         var rally = new PrototypePlayerCommand(600, 20, 2, PrototypePlayerCommandKind.SetTeamRallyWaypoint, 0);
         Expect(session.Submit(rally), PrototypeCommandAdmissionResult.Accepted);
+        while (session.World.Tick < 500)
+            session.Step();
+
+        var invalidEnemyHold = new PrototypePlayerCommand(501, 21, 1, PrototypePlayerCommandKind.HoldUnit, 2000);
+        Expect(session.Submit(invalidEnemyHold), PrototypeCommandAdmissionResult.InvalidTarget);
+        var hold = new PrototypePlayerCommand(600, 21, 2, PrototypePlayerCommandKind.HoldUnit, 2000);
+        Expect(session.Submit(hold), PrototypeCommandAdmissionResult.Accepted);
         AnnihilationPrototypeResult result = session.RunUntilResolved(60000);
-        if (session.ExecutedCommandCount != 3 || session.PendingCommandCount != 0)
+        if (session.ExecutedCommandCount != 4 || session.PendingCommandCount != 0)
             throw new InvalidOperationException("live session command accounting drifted");
 
         PrototypePlayerCommand[] executed = session.GetExecutedCommands();
@@ -92,7 +99,7 @@ internal static class Program
             throw new InvalidOperationException("live admitted command stream did not replay to the authoritative result");
 
         Expect(session.Submit(Plan(result.ResolvedTick + 1, 21, 1, PrototypeAnnihilationPlan.Aggressive)), PrototypeCommandAdmissionResult.MatchResolved);
-        Console.WriteLine($"live_match winner={result.WinnerTeamId} tick={result.ResolvedTick} hash={result.StateHash:X16} commands={executed.Length}");
+        Console.WriteLine($"live_match winner={result.WinnerTeamId} tick={result.ResolvedTick} hash={result.StateHash:X16} commands={executed.Length} unit_hold=true");
     }
 
     private static PrototypePlayerCommand Plan(int tick, int sequence, int playerId, PrototypeAnnihilationPlan plan)

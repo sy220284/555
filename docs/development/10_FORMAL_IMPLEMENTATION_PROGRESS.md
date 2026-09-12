@@ -19,6 +19,7 @@
 - `.github/workflows/content-validation.yml`：权威数据、包结构、灰盒生成、运行地图代码生成与 Unity 桥结构持续集成；
 - Unity `Simulation/AI/IntelEW/Robotics/Network/Tests` 继续依赖统一规则内核，禁止测试逻辑和正式运行逻辑分叉。
 - `LiveCommandedAnnihilationSession`：把实时命令准入、防重放窗口、逐 tick 权威执行、已执行命令归档和确定性重放接成单一会话链；终局后拒绝继续接收命令。
+- 单单位坚守/恢复移动命令：服务器按当前所有权和存活状态校验目标；坚守单位仍会对射程内目标开火，但停止自主沿共享走廊推进；该状态进入权威哈希和命令流重放。
 
 ### 1000单位确定性模拟证据
 

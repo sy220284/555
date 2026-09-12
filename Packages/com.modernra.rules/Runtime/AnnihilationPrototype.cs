@@ -50,6 +50,7 @@ namespace ModernRA.Rules
         public int Health = 1000;
         public int WeaponCooldownTicks;
         public int CorridorCursor;
+        public bool HoldingPosition;
         public bool Alive = true;
     }
 
@@ -367,6 +368,9 @@ namespace ModernRA.Rules
                     continue;
                 }
 
+                if (unit.HoldingPosition)
+                    continue;
+
                 int oldX = unit.X;
                 int oldY = unit.Y;
                 MoveAlongSharedCorridor(unit, world.SharedCorridor, forward);
@@ -575,6 +579,8 @@ namespace ModernRA.Rules
                 hash = StateHash64.Add(hash, unit.Health);
                 hash = StateHash64.Add(hash, unit.WeaponCooldownTicks);
                 hash = StateHash64.Add(hash, unit.CorridorCursor);
+                if (unit.HoldingPosition)
+                    hash = StateHash64.Add(hash, 0x484F4C44);
                 hash = StateHash64.Add(hash, unit.Alive ? 1 : 0);
             }
         }

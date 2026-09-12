@@ -61,6 +61,33 @@
 - `TECH_COMMON_ORBITAL_CONTROL`：4500/1400，130s。
 - `TECH_COMMON_FUTURE_POWER`：5000/1500，140s。
 
+## 2A. 征服模式战略材料绑定
+
+仅 `RULESET_CONQUEST_STANDARD` 使用材料访问前置。具体矿产—产业链规则见 `CONQUEST_MINERAL_TECH_BINDING.md`。
+
+当前通用科技绑定冻结如下，并已同步进入 `/Data/Technology/common_technology.json`：
+
+| 科技 | 层级 | 征服材料前置 | 设计目的 |
+|---|---:|---|---|
+| `TECH_COMMON_CCA` | T3 | `MAT_BATTERY_ACCESS` | 让长航时无人航空成为首个材料路线选择，但不锁基础无人/机器人 |
+| `TECH_COMMON_DIRECTED_ENERGY` | T4 | `MAT_BATTERY_ACCESS` | 高功率储能路线 |
+| `TECH_COMMON_HIGHSPEED_STRIKE` | T4 | `MAT_ALLOY_ACCESS` | 高温/高强结构材料路线 |
+| `TECH_COMMON_LRAD_ABM` | T4 | `MAT_RARE_EARTH_ACCESS` | 高端雷达/识别/拦截电子链 |
+| `TECH_COMMON_AUTONOMY_A4` | T5 | `MAT_BATTERY_ACCESS` + `MAT_RARE_EARTH_ACCESS` | 终局级自主体系需要能源与高端电子双链 |
+| `TECH_COMMON_FUTURE_POWER` | T5 | `MAT_NUCLEAR_ACCESS` | 高密度战略能源路线 |
+
+绑定密度红线：
+
+- T1：0%；
+- T2通用科技：0%；
+- T3通用科技：1—2项；
+- T4通用科技：2—3项；
+- T5通用科技：1—2项。
+
+国家特色科技可以在此基础上增加材料前置，但不得导致某国基础战斗能力依赖单一矿种，也不得让同一矿种成为该国所有高阶分支的唯一入口。
+
+失去材料供应不撤销已研究科技；制造依赖、持续运行依赖和战略材料储备按 `CONQUEST_MINERAL_TECH_BINDING.md` 执行。
+
 ## 3. T4分叉规则
 
 发展型模式中，玩家在T4选择两个“主专精槽”。第三条及以后研究成本×1.75、研究耗时×1.5；第四条×2.5、研究耗时×2.0。该耗时是研究动作成本，不是比赛阶段锁。
@@ -179,13 +206,17 @@ T5：`TECH_YURI_ASCENSION_NETWORK`，解锁`STRAT_YURI_ASCENSION`。升格只在
 
 发展型模式中，AI不得跳过前置；必须支付相同资源与研究时间。AI只能依据自身合法情报选择分支，禁止读取未侦察玩家科技，也禁止根据比赛经过时间直接切换科技阶段。
 
+征服模式AI还必须合法获取材料访问标签；不能凭隐藏矿产状态解锁科技。材料断供后必须调整生产/研究计划，而不是继续排队不可生产内容。
+
 快速战争中AI与玩家以完全相同的全科技完成状态进入LIVE。
 
 ## 12. 数据字段
 
 每项科技必须包含：
 
-`id, tier, branch, prerequisites, industrial_cost, strategic_cost, data_cost, research_time, mutually_exclusive_group, modifiers, unlocks, ai_weight, mode_rules, test_profile`
+`id, tier, branch, prerequisites, industrial_cost, strategic_cost, data_cost, research_time, mutually_exclusive_group, modifiers, unlocks, ai_weight, mode_rules, material_requirements_by_ruleset, test_profile`
+
+第一批通用科技已落到 `/Data/Technology/common_technology.json`，其Schema为 `/Data/Schemas/technology.schema.json`。文档和数据不一致时视为构建错误，不能由代码自行猜测。
 
 所有在 `CONTENT_REGISTRY.md` 中登记的 `TECH_` 必须能在本文件或未来正式拆分科技注册表中找到执行定义，否则构建失败。
 

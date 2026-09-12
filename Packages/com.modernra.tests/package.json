@@ -1,0 +1,10 @@
+{
+  "name": "com.modernra.tests",
+  "version": "0.1.0",
+  "displayName": "ModernRA Tests",
+  "unity": "6000.3",
+  "dependencies": {
+    "com.modernra.core": "0.1.0",
+    "com.modernra.simulation": "0.1.0"
+  }
+}

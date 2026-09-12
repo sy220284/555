@@ -1,0 +1,6 @@
+{
+  "name": "ModernRA.Simulation",
+  "rootNamespace": "ModernRA.Simulation",
+  "references": ["ModernRA.Core", "Unity.Entities", "Unity.Mathematics", "Unity.Burst"],
+  "autoReferenced": true
+}

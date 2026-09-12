@@ -1,0 +1,17 @@
+name: content-validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate authoritative data
+        run: python Tools/content_validator.py

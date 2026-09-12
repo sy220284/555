@@ -1,0 +1,7 @@
+{
+  "name": "com.modernra.core",
+  "version": "0.1.0",
+  "displayName": "ModernRA Core",
+  "unity": "6000.3",
+  "description": "Stable identifiers, shared constants and deterministic primitives for ModernRA."
+}

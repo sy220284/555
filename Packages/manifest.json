@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "com.unity.addressables": "2.7.6",
+    "com.unity.burst": "1.8.26",
+    "com.unity.entities": "1.4.3",
+    "com.unity.entities.graphics": "1.4.16",
+    "com.unity.test-framework.performance": "3.2.0",
+    "com.unity.transport": "2.6.0"
+  }
+}

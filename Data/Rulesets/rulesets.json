@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "rulesets": [
+    {"id":"RULESET_ANNIHILATION_STANDARD","mode_id":"MODE_ANNIHILATION","depth_profile":"MODERN_STANDARD","time_driven_progression":false,"material_tech_binding":false,"all_tech_granted":false,"starting_force_ratio":0.125},
+    {"id":"RULESET_CONQUEST_STANDARD","mode_id":"MODE_CONQUEST","depth_profile":"MODERN_STANDARD","time_driven_progression":false,"material_tech_binding":true,"all_tech_granted":false,"starting_force_ratio":0.20},
+    {"id":"RULESET_FRONTLINE_STANDARD","mode_id":"MODE_FRONTLINE","depth_profile":"MODERN_STANDARD","time_driven_progression":false,"material_tech_binding":false,"all_tech_granted":false,"starting_force_ratio":0.35},
+    {"id":"RULESET_THEATER_STANDARD","mode_id":"MODE_THEATER","depth_profile":"FULL_WAR","time_driven_progression":false,"material_tech_binding":false,"all_tech_granted":false,"starting_force_ratio":0.45},
+    {"id":"RULESET_QUICKWAR_STANDARD","mode_id":"MODE_QUICKWAR","depth_profile":"MODERN_STANDARD","time_driven_progression":false,"material_tech_binding":false,"all_tech_granted":true,"starting_force_ratio":0.675}
+  ]
+}

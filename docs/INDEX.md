@@ -55,6 +55,7 @@
 - `specs/TECH_TREE_CATALOG.md`：T1—T5科技前置、成本、分叉；无比赛时间解锁；快速战争全科技预置。
 - `specs/ECONOMY_FORMULAS.md`：资源、维修、指挥、算力、电力、补给通用公式。
 - `specs/MINERAL_RESOURCE_SYSTEM.md`：具体矿种、采矿/精炼、战略材料标签、运输、枯竭、模式配置与地图公平。
+- `specs/CONQUEST_MINERAL_TECH_BINDING.md`：征服模式专属矿产—科技绑定、材料访问、断供降级、替代路线与公平门禁。
 - `specs/GAME_MODE_RULES.md`：五种模式权威胜负、动态控制、投降、友军和异常结算。
 - `specs/MODE_PLAYABILITY_PROFILES.md`：五种模式开局战备、核心决策、翻盘、地图、AI职责和可玩性门禁。
 - `specs/MODE_RESOURCE_PROFILES.md`：五种模式开局库存、安全/争夺经济、战略资源、数据、电力、算力、补给和长期经济结构。
@@ -105,6 +106,8 @@
 - `specs/MODE_RESOURCE_PROFILES.md`
 
 涉及矿产、资源节点、采集、精炼、产业材料标签或地图经济时还必须读取 `specs/MINERAL_RESOURCE_SYSTEM.md`。
+
+涉及征服模式的矿产、科技、材料供应、关键矿争夺或高阶生产限制时，必须额外读取 `specs/CONQUEST_MINERAL_TECH_BINDING.md`；该文件作为征服模式专项规则覆盖通用矿产规则中“具体矿种不硬锁科技”的默认约束。
 
 涉及快速战争开局、科技、编制、地图部署或平衡时还必须读取 `specs/QUICKWAR_FULL_READINESS.md`。
 

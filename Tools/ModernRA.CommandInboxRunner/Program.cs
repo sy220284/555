@@ -48,6 +48,7 @@ internal static class Program
                 throw new InvalidOperationException("admitted command order depends on packet arrival order");
 
             RunBattleGroupAIExecution();
+            RunScheduledBattleGroups();
             RunLiveCommandedMatch();
 
             Console.WriteLine("PLAYER COMMAND INBOX GATE PASSED");
@@ -107,6 +108,70 @@ internal static class Program
             throw new InvalidOperationException("stale battle-group AI decision survived player takeover");
 
         Console.WriteLine($"battle_group_ai target={decision.TargetId} phase={decision.Phase} score={decision.UtilityScore} units=2 player_takeover=true");
+    }
+
+    private static void RunScheduledBattleGroups()
+    {
+        (ulong worldHash, ulong schedulerHash) first = RunScheduledBattleGroupScenario();
+        (ulong worldHash, ulong schedulerHash) replay = RunScheduledBattleGroupScenario();
+        if (first != replay)
+            throw new InvalidOperationException("multi-group scheduler replay drifted from identical authoritative input");
+        Console.WriteLine($"battle_group_scheduler world={first.worldHash:X16} scheduler={first.schedulerHash:X16} groups=2 dynamic_intel=true cadence=10hz");
+    }
+
+    private static (ulong worldHash, ulong schedulerHash) RunScheduledBattleGroupScenario()
+    {
+        AnnihilationPrototypeConfig config = GrayRangeGeneratedData.Create().CreateStandardAnnihilationConfig();
+        var session = new LiveCommandedAnnihilationSession(config, maxCommandLeadTicks: 12);
+        while (session.World.Tick < 500)
+            session.Step();
+
+        var scheduler = new PrototypeBattleGroupScheduler();
+        var groupOne = scheduler.Register(session.World, new PrototypeBattleGroupOrderSpec(
+            1, 5, 1, 1, PrototypeBattleGroupStance.Balanced,
+            RuleAIAuthorityLevel.BattleGroup, RuleAIForbiddenAction.None));
+        var groupTwo = scheduler.Register(session.World, new PrototypeBattleGroupOrderSpec(
+            1, 5, 2, 1, PrototypeBattleGroupStance.Aggressive,
+            RuleAIAuthorityLevel.BattleGroup, RuleAIForbiddenAction.None));
+        int targetWaypoint = session.World.SharedCorridor.Length - 1;
+        scheduler.SetVisibleTargets(1, new[]
+        {
+            new PrototypeBattleGroupTarget(50, targetWaypoint, 700, 900, 500, 700, 800, RuleIntelLevel.Confirmed)
+        });
+        session.AttachBattleGroupScheduler(scheduler);
+
+        for (int i = 0; i < 6; i++)
+            session.Step();
+        if (groupOne.DecisionsExecuted == 0 || groupTwo.DecisionsExecuted == 0)
+            throw new InvalidOperationException("staggered multi-group scheduler did not execute both groups");
+        if (!PrototypeControlGroupRules.HasAliveMember(session.World.TeamA, 1) ||
+            !PrototypeControlGroupRules.HasAliveMember(session.World.TeamA, 2))
+        {
+            throw new InvalidOperationException("multi-group scheduler did not allocate available units deterministically");
+        }
+
+        int takeoverTick = session.World.Tick + 1;
+        while (!DeterministicUpdateBudget.ShouldRun(RuleUpdateLane.BattleGroupAI, takeoverTick, 17))
+            takeoverTick++;
+        Expect(session.Submit(new PrototypePlayerCommand(takeoverTick, 900, 1, PrototypePlayerCommandKind.HoldControlGroup, 1)),
+            PrototypeCommandAdmissionResult.Accepted);
+        int rejectedBefore = groupOne.DecisionsRejected;
+        while (session.World.Tick < takeoverTick)
+            session.Step();
+        if (groupOne.DecisionsRejected != rejectedBefore + 1)
+            throw new InvalidOperationException("scheduled stale AI task survived same-tick player takeover");
+
+        scheduler.RefreshAuthorization(session.World, 1, 1);
+        scheduler.SetVisibleTargets(1, Array.Empty<PrototypeBattleGroupTarget>());
+        int consolidateTick = session.World.Tick + 1;
+        while (!DeterministicUpdateBudget.ShouldRun(RuleUpdateLane.BattleGroupAI, consolidateTick, 17))
+            consolidateTick++;
+        while (session.World.Tick < consolidateTick)
+            session.Step();
+        if (groupOne.Phase != PrototypeBattleGroupPhase.Consolidate || groupOne.TargetId != -1)
+            throw new InvalidOperationException("dynamic intelligence removal did not transition the group to consolidate");
+
+        return (AnnihilationPrototype.ComputeStateHash(session.World), scheduler.ComputeStateHash());
     }
 
     private static void RunLiveCommandedMatch()

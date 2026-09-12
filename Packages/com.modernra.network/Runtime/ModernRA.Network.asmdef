@@ -1,0 +1,6 @@
+{
+  "name":"ModernRA.Network",
+  "rootNamespace":"ModernRA.Network",
+  "references":["ModernRA.Core","Unity.Networking.Transport"],
+  "autoReferenced":true
+}

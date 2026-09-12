@@ -1,0 +1,7 @@
+{
+  "name": "com.modernra.combat",
+  "version": "0.1.0",
+  "displayName": "ModernRA Combat",
+  "unity": "6000.3",
+  "dependencies": {"com.modernra.core":"0.1.0","com.modernra.simulation":"0.1.0","com.unity.entities":"1.4.3"}
+}

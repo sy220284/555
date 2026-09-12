@@ -1,0 +1,6 @@
+{
+  "name":"ModernRA.Navigation",
+  "rootNamespace":"ModernRA.Navigation",
+  "references":["ModernRA.Simulation","Unity.Entities","Unity.Mathematics"],
+  "autoReferenced":true
+}

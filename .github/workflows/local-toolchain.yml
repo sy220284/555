@@ -1,0 +1,41 @@
+name: local-toolchain
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/local-toolchain.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package-dotnet-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Record resolved .NET SDK
+        run: |
+          mkdir -p Artifacts/local-toolchain
+          dotnet --info | tee Artifacts/local-toolchain/dotnet-info.txt
+          dotnet --version | tee Artifacts/local-toolchain/dotnet-version.txt
+      - name: Package portable local .NET toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${DOTNET_ROOT:-}"
+          test -x "$DOTNET_ROOT/dotnet"
+          tar -C "$DOTNET_ROOT" -czf Artifacts/local-toolchain/dotnet-8-linux-x64.tar.gz .
+          sha256sum Artifacts/local-toolchain/dotnet-8-linux-x64.tar.gz \
+            > Artifacts/local-toolchain/dotnet-8-linux-x64.tar.gz.sha256
+      - name: Upload local toolchain artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dotnet-8-linux-x64
+          path: Artifacts/local-toolchain/**
+          if-no-files-found: error
+          retention-days: 30

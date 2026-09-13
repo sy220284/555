@@ -103,6 +103,10 @@ internal sealed class PlayerReplayEventRecord
     public int PlayerId { get; set; }
     public int CommandKind { get; set; }
     public int IntValue { get; set; }
+    public int SourceTeamId { get; set; }
+    public int TargetTeamId { get; set; }
+    public int TargetId { get; set; }
+    public int Value { get; set; }
     public string StateHash { get; set; } = string.Empty;
 }
 
@@ -128,6 +132,7 @@ internal static class PlayerCommandReplayFile
     public const int ProtocolVersion = 1;
     public const string RulesetId = "RULESET_ANNIHILATION_STANDARD";
     private const string PlayerCommandEvent = "player_command";
+    private const string AuthorityEvent = "authority_event";
     private const string StateKeyframeEvent = "state_keyframe";
     private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
     {
@@ -143,7 +148,8 @@ internal static class PlayerCommandReplayFile
         int winnerTeamId,
         int resolvedTick,
         ulong finalStateHash,
-        PlayerCommandCheckpointRecord[] checkpoints)
+        PlayerCommandCheckpointRecord[] checkpoints,
+        PrototypeAuthorityEvent[] authorityEvents)
     {
         if (string.IsNullOrWhiteSpace(scenarioId))
             throw new ArgumentException("scenario id is required", nameof(scenarioId));
@@ -153,6 +159,8 @@ internal static class PlayerCommandReplayFile
             throw new ArgumentNullException(nameof(canonicalCommands));
         if (checkpoints == null)
             throw new ArgumentNullException(nameof(checkpoints));
+        if (authorityEvents == null)
+            throw new ArgumentNullException(nameof(authorityEvents));
 
         var document = new PlayerCommandReplayDocument
         {
@@ -171,7 +179,7 @@ internal static class PlayerCommandReplayFile
             ResolvedTick = resolvedTick,
             FinalStateHash = finalStateHash.ToString("X16"),
             InitialSnapshot = CreateInitialSnapshot(config),
-            Events = CreateEvents(canonicalCommands, checkpoints)
+            Events = CreateEvents(canonicalCommands, checkpoints, authorityEvents)
         };
         Validate(document);
         return document;
@@ -276,6 +284,22 @@ internal static class PlayerCommandReplayFile
         return records.ToArray();
     }
 
+    public static PrototypeAuthorityEvent[] ToAuthorityEvents(PlayerCommandReplayDocument document)
+    {
+        Validate(document);
+        var records = new List<PrototypeAuthorityEvent>();
+        for (int i = 0; i < document.Events.Length; i++)
+        {
+            PlayerReplayEventRecord item = document.Events[i];
+            if (!string.Equals(item.Kind, AuthorityEvent, StringComparison.Ordinal))
+                continue;
+            records.Add(new PrototypeAuthorityEvent(item.Tick, item.Sequence,
+                (PrototypeAuthorityEventKind)item.CommandKind, item.SourceTeamId,
+                item.TargetTeamId, item.TargetId, item.Value));
+        }
+        return records.ToArray();
+    }
+
     public static void ValidateScenario(PlayerCommandReplayDocument document, string expectedScenarioId)
     {
         Validate(document);
@@ -321,9 +345,10 @@ internal static class PlayerCommandReplayFile
     }
 
     private static PlayerReplayEventRecord[] CreateEvents(
-        PrototypePlayerCommand[] commands, PlayerCommandCheckpointRecord[] checkpoints)
+        PrototypePlayerCommand[] commands, PlayerCommandCheckpointRecord[] checkpoints,
+        PrototypeAuthorityEvent[] authorityEvents)
     {
-        var events = new List<PlayerReplayEventRecord>(commands.Length + checkpoints.Length);
+        var events = new List<PlayerReplayEventRecord>(commands.Length + checkpoints.Length + authorityEvents.Length);
         for (int i = 0; i < commands.Length; i++)
         {
             PrototypePlayerCommand command = commands[i];
@@ -335,6 +360,21 @@ internal static class PlayerCommandReplayFile
                 PlayerId = command.PlayerId,
                 CommandKind = (int)command.Kind,
                 IntValue = command.IntValue
+            });
+        }
+        for (int i = 0; i < authorityEvents.Length; i++)
+        {
+            PrototypeAuthorityEvent item = authorityEvents[i];
+            events.Add(new PlayerReplayEventRecord
+            {
+                Kind = AuthorityEvent,
+                Tick = item.Tick,
+                Sequence = item.Sequence,
+                CommandKind = (int)item.Kind,
+                SourceTeamId = item.SourceTeamId,
+                TargetTeamId = item.TargetTeamId,
+                TargetId = item.TargetId,
+                Value = item.Value
             });
         }
         for (int i = 0; i < checkpoints.Length; i++)
@@ -364,7 +404,8 @@ internal static class PlayerCommandReplayFile
     private static int EventOrder(string kind)
     {
         if (string.Equals(kind, PlayerCommandEvent, StringComparison.Ordinal)) return 0;
-        if (string.Equals(kind, StateKeyframeEvent, StringComparison.Ordinal)) return 1;
+        if (string.Equals(kind, AuthorityEvent, StringComparison.Ordinal)) return 1;
+        if (string.Equals(kind, StateKeyframeEvent, StringComparison.Ordinal)) return 2;
         return int.MaxValue;
     }
 
@@ -431,6 +472,7 @@ internal static class PlayerCommandReplayFile
             throw new InvalidDataException("command replay contains no events");
         int commandCount = 0;
         int keyframeCount = 0;
+        int authoritySequence = 0;
         int finalKeyframeTick = 0;
         string finalKeyframeHash = string.Empty;
         var commands = new List<PrototypePlayerCommand>();
@@ -443,15 +485,27 @@ internal static class PlayerCommandReplayFile
                 throw new InvalidDataException("command replay events are not strictly ordered");
             if (string.Equals(item.Kind, PlayerCommandEvent, StringComparison.Ordinal))
             {
-                if (!string.IsNullOrEmpty(item.StateHash))
+                if (!string.IsNullOrEmpty(item.StateHash) || item.SourceTeamId != 0 || item.TargetTeamId != 0 ||
+                    item.TargetId != 0 || item.Value != 0)
                     throw new InvalidDataException("command replay player event contains state data");
                 commandCount++;
                 commands.Add(new PrototypePlayerCommand(item.Tick, item.Sequence, item.PlayerId,
                     (PrototypePlayerCommandKind)item.CommandKind, item.IntValue));
             }
+            else if (string.Equals(item.Kind, AuthorityEvent, StringComparison.Ordinal))
+            {
+                if (!string.IsNullOrEmpty(item.StateHash) || item.PlayerId != 0 ||
+                    item.Sequence != authoritySequence + 1 ||
+                    item.CommandKind < (int)PrototypeAuthorityEventKind.UnitDestroyed ||
+                    item.CommandKind > (int)PrototypeAuthorityEventKind.MatchResolved)
+                    throw new InvalidDataException("command replay authority event payload is invalid");
+                authoritySequence = item.Sequence;
+            }
             else if (string.Equals(item.Kind, StateKeyframeEvent, StringComparison.Ordinal))
             {
-                if (item.Sequence != 0 || item.PlayerId != 0 || item.CommandKind != 0 || item.IntValue != 0 || !IsHex64(item.StateHash))
+                if (item.Sequence != 0 || item.PlayerId != 0 || item.CommandKind != 0 || item.IntValue != 0 ||
+                    item.SourceTeamId != 0 || item.TargetTeamId != 0 || item.TargetId != 0 || item.Value != 0 ||
+                    !IsHex64(item.StateHash))
                     throw new InvalidDataException("command replay keyframe payload is invalid");
                 keyframeCount++;
                 finalKeyframeTick = item.Tick;
@@ -526,7 +580,8 @@ internal static class PlayerCommandReplayFile
             ResolvedTick = legacy.ResolvedTick,
             FinalStateHash = legacy.FinalStateHash,
             InitialSnapshot = CreateInitialSnapshot(config),
-            Events = CreateEvents(Array.Empty<PrototypePlayerCommand>(), checkpoints)
+            Events = CreateEvents(Array.Empty<PrototypePlayerCommand>(), checkpoints,
+                Array.Empty<PrototypeAuthorityEvent>())
         };
     }
 
@@ -558,7 +613,8 @@ internal static class PlayerCommandReplayFile
             ResolvedTick = legacy.ResolvedTick,
             FinalStateHash = legacy.FinalStateHash,
             InitialSnapshot = CreateInitialSnapshot(config),
-            Events = CreateEvents(commands, legacy.Checkpoints ?? Array.Empty<PlayerCommandCheckpointRecord>())
+            Events = CreateEvents(commands, legacy.Checkpoints ?? Array.Empty<PlayerCommandCheckpointRecord>(),
+                Array.Empty<PrototypeAuthorityEvent>())
         };
     }
 

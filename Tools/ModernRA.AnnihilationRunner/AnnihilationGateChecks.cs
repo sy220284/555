@@ -59,7 +59,7 @@ internal static class AnnihilationGateChecks
         ulong emptyCommandHash = new DeterministicCommandTimeline(noCommands).ComputeCanonicalHash();
         PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
             scenarioId, config, noCommands, emptyCommandHash, replay.WinnerTeamId,
-            replay.ResolvedTick, replay.FinalStateHash, checkpoints);
+            replay.ResolvedTick, replay.FinalStateHash, checkpoints, replay.AuthorityEvents.ToArray());
         string replayPath = Path.Combine(Path.GetTempPath(), "modernra-annihilation-replay.json");
         PlayerCommandReplayFile.Write(replayPath, document);
         byte[] replayBytes = File.ReadAllBytes(replayPath);
@@ -150,6 +150,7 @@ internal static class AnnihilationGateChecks
             tape.Checkpoints.Add(new AnnihilationReplayCheckpoint(
                 checkpoints[i].Tick, Convert.ToUInt64(checkpoints[i].StateHash, 16)));
         }
+        tape.AuthorityEvents.AddRange(PlayerCommandReplayFile.ToAuthorityEvents(document));
         return tape;
     }
 

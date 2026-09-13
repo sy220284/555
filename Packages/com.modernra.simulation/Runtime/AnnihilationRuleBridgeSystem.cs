@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using ModernRA.Rules;
+using Unity.Burst;
+using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace ModernRA.Simulation
@@ -9,6 +12,28 @@ namespace ModernRA.Simulation
     [UpdateAfter(typeof(SimulationTickSystem))]
     public partial class AnnihilationRuleBridgeSystem : SystemBase
     {
+        private struct RuleMirrorSnapshot
+        {
+            public float3 Position;
+            public int Health;
+            public int MaximumHealth;
+        }
+
+        [BurstCompile]
+        private partial struct ApplyRuleMirrorSnapshotJob : IJobEntity
+        {
+            [ReadOnly] public NativeParallelHashMap<int, RuleMirrorSnapshot> Snapshots;
+
+            private void Execute(in AnnihilationRuleEntity identity, ref SimPosition position, ref HealthState health)
+            {
+                if (!Snapshots.TryGetValue(identity.StableId, out RuleMirrorSnapshot snapshot))
+                    return;
+                position.Value = snapshot.Position;
+                health.Current = snapshot.Health;
+                health.Maximum = snapshot.MaximumHealth;
+            }
+        }
+
         private const int MaxCommandLeadTicks = 8;
         private readonly Dictionary<int, Entity> _unitEntities = new Dictionary<int, Entity>();
         private readonly Dictionary<int, Entity> _buildingEntities = new Dictionary<int, Entity>();
@@ -83,8 +108,9 @@ namespace ModernRA.Simulation
 
         private void SyncAll(AnnihilationPrototypeWorld world)
         {
-            SyncTeam(world.TeamA);
-            SyncTeam(world.TeamB);
+            Dependency.Complete();
+            SyncTeamStructure(world.TeamA);
+            SyncTeamStructure(world.TeamB);
             EntityManager.SetComponentData(_matchStateEntity, new AnnihilationMatchState
             {
                 Tick = world.Tick,
@@ -104,9 +130,10 @@ namespace ModernRA.Simulation
                 BuildingsDestroyed = world.BuildingsDestroyed,
                 Resolved = world.Resolved ? (byte)1 : (byte)0
             });
+            ScheduleBatchMirror(world);
         }
 
-        private void SyncTeam(PrototypeAnnihilationTeamState team)
+        private void SyncTeamStructure(PrototypeAnnihilationTeamState team)
         {
             for (int i = 0; i < team.Buildings.Count; i++)
             {
@@ -118,9 +145,7 @@ namespace ModernRA.Simulation
                     continue;
                 }
 
-                Entity entity = EnsureEntity(_buildingEntities, key, team.TeamId, 1, (byte)building.Role);
-                EntityManager.SetComponentData(entity, new SimPosition { Value = new float3(building.X, 0f, building.Y) });
-                EntityManager.SetComponentData(entity, new HealthState { Current = building.Health, Maximum = building.Role == PrototypeBuildingRole.Core ? 5000 : 3500 });
+                EnsureEntity(_buildingEntities, key, team.TeamId, 1, (byte)building.Role);
             }
 
             for (int i = 0; i < team.Units.Count; i++)
@@ -132,9 +157,54 @@ namespace ModernRA.Simulation
                     continue;
                 }
 
-                Entity entity = EnsureEntity(_unitEntities, unit.Id, team.TeamId, 2, 0);
-                EntityManager.SetComponentData(entity, new SimPosition { Value = new float3(unit.X, 0f, unit.Y) });
-                EntityManager.SetComponentData(entity, new HealthState { Current = unit.Health, Maximum = 1000 });
+                EnsureEntity(_unitEntities, unit.Id, team.TeamId, 2, 0);
+            }
+        }
+
+        private void ScheduleBatchMirror(AnnihilationPrototypeWorld world)
+        {
+            int capacity = AnnihilationPrototype.CountAliveBuildings(world.TeamA) +
+                AnnihilationPrototype.CountAliveBuildings(world.TeamB) +
+                AnnihilationPrototype.CountAliveUnits(world.TeamA) +
+                AnnihilationPrototype.CountAliveUnits(world.TeamB);
+            var snapshots = new NativeParallelHashMap<int, RuleMirrorSnapshot>(math.max(1, capacity), Allocator.TempJob);
+            AddTeamSnapshots(world.TeamA, snapshots);
+            AddTeamSnapshots(world.TeamB, snapshots);
+            JobHandle applyHandle = new ApplyRuleMirrorSnapshotJob { Snapshots = snapshots }
+                .ScheduleParallel(Dependency);
+            Dependency = snapshots.Dispose(applyHandle);
+        }
+
+        private static void AddTeamSnapshots(PrototypeAnnihilationTeamState team,
+            NativeParallelHashMap<int, RuleMirrorSnapshot> snapshots)
+        {
+            for (int i = 0; i < team.Buildings.Count; i++)
+            {
+                PrototypeBuildingState building = team.Buildings[i];
+                if (!building.Alive)
+                    continue;
+                int key = team.TeamId * 100000 + i;
+                if (!snapshots.TryAdd(key, new RuleMirrorSnapshot
+                {
+                    Position = new float3(building.X, 0f, building.Y),
+                    Health = building.Health,
+                    MaximumHealth = building.Role == PrototypeBuildingRole.Core ? 5000 : 3500
+                }))
+                    throw new System.InvalidOperationException($"duplicate rule mirror id {key}");
+            }
+
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (!unit.Alive)
+                    continue;
+                if (!snapshots.TryAdd(unit.Id, new RuleMirrorSnapshot
+                {
+                    Position = new float3(unit.X, 0f, unit.Y),
+                    Health = unit.Health,
+                    MaximumHealth = 1000
+                }))
+                    throw new System.InvalidOperationException($"duplicate rule mirror id {unit.Id}");
             }
         }
 
@@ -163,6 +233,12 @@ namespace ModernRA.Simulation
             if (EntityManager.Exists(entity))
                 EntityManager.DestroyEntity(entity);
             index.Remove(key);
+        }
+
+        protected override void OnDestroy()
+        {
+            Dependency.Complete();
+            base.OnDestroy();
         }
     }
 }

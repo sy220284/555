@@ -111,6 +111,32 @@ internal static class AdvancedGateChecks
         client.Apply(trackedDelta);
         Check(client.TryGet(enemyContact, out VisibleEntityState trackedEnemy) && trackedEnemy.Detail == RuleReplicationDetail.Full && trackedEnemy.X == 1234 && trackedEnemy.Y == 876, "tracked enemy did not receive exact authorized state");
         Check(trackedDelta.ContentHash == contentHash, "snapshot content hash changed");
+        client.Apply(delta);
+        Check(client.LastTick == trackedDelta.Tick && client.LastAcknowledgedCommandSequence == 1 && !client.NeedsReconnect,
+            "client did not ignore a late authoritative snapshot idempotently");
+
+        var malformedClient = new LocalClientReplica();
+        malformedClient.Apply(initial);
+        bool rejectedConflictingPayload = false;
+        try
+        {
+            malformedClient.Apply(new AuthoritativeSnapshot
+            {
+                Tick = initial.Tick + 1,
+                BaselineTick = initial.Tick,
+                IsDelta = true,
+                ContentHash = contentHash,
+                ProtocolVersion = LocalAuthoritativeServer.ProtocolVersion,
+                Entities = new[] { initial.Entities[0] },
+                RemovedContactIds = new[] { initial.Entities[0].ContactId }
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            rejectedConflictingPayload = true;
+        }
+        Check(rejectedConflictingPayload && malformedClient.LastTick == initial.Tick,
+            "client accepted a snapshot that updated and removed the same contact");
 
         server.AdvanceOneTick();
         AuthoritativeSnapshot skippedDelta = server.BuildSnapshot(1, trackedDelta.Tick);

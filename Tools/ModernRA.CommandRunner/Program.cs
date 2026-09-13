@@ -1,4 +1,5 @@
 using ModernRA.Rules;
+using System.Text.Json;
 
 internal static class Program
 {
@@ -119,7 +120,29 @@ internal static class Program
             if (!firstBytes.AsSpan().SequenceEqual(secondBytes))
                 throw new InvalidOperationException("command replay serialization is not byte-stable");
 
-            Console.WriteLine($"command_replay_bytes={firstBytes.Length} command_replay_sha256={PlayerCommandReplayFile.Sha256Hex(firstBytes)}");
+            var legacy = new PlayerCommandReplayV1Document
+            {
+                SchemaVersion = 1,
+                ScenarioId = document.ScenarioId,
+                MapSourceSha256 = document.MapSourceSha256,
+                RulesetId = document.RulesetId,
+                CommandHash = document.CommandHash,
+                WinnerTeamId = document.WinnerTeamId,
+                ResolvedTick = document.ResolvedTick,
+                FinalStateHash = document.FinalStateHash,
+                Commands = document.Commands
+            };
+            byte[] legacyBytes = JsonSerializer.SerializeToUtf8Bytes(legacy, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+            });
+            File.WriteAllBytes(path, legacyBytes);
+            PlayerCommandReplayDocument migrated = PlayerCommandReplayFile.Read(path);
+            if (migrated.FormatVersion != PlayerCommandReplayFile.FormatVersion ||
+                PlayerCommandReplayFile.ToCommands(migrated).Length != loadedCommands.Length)
+                throw new InvalidOperationException("command replay v1 migration lost commands or version metadata");
+
+            Console.WriteLine($"command_replay_bytes={firstBytes.Length} command_replay_sha256={PlayerCommandReplayFile.Sha256Hex(firstBytes)} migration_v1_v2=true");
         }
         finally
         {

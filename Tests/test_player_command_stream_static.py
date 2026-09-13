@@ -70,6 +70,14 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("PlayerCommandReplayFile.ValidateOutcome", runner)
         self.assertIn("persisted command replay changed authoritative result", runner)
         self.assertIn("command replay serialization is not byte-stable", runner)
+        self.assertIn("FormatVersion = 2", replay)
+        self.assertIn("GameVersion", replay)
+        self.assertIn("ContentHash", replay)
+        self.assertIn("TimestampUtc", replay)
+        self.assertIn("DeterminismSeed", replay)
+        self.assertIn("ProtocolVersion", replay)
+        self.assertIn("MigrateV1", replay)
+        self.assertIn("command replay v1 migration lost commands or version metadata", runner)
 
     def test_command_runner_compiles_all_rule_sources_and_is_in_simulation_gate(self):
         project = PROJECT.read_text(encoding="utf-8")

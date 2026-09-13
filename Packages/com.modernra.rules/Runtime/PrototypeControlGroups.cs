@@ -154,6 +154,23 @@ namespace ModernRA.Rules
             return true;
         }
 
+        public static bool IsGroupAtWaypoint(AnnihilationPrototypeWorld world, int playerId, int groupId, int waypointIndex)
+        {
+            if (world == null) throw new ArgumentNullException(nameof(world));
+            if (waypointIndex < 0 || waypointIndex >= world.SharedCorridor.Length) return false;
+            PrototypeAnnihilationTeamState team = playerId == 1 ? world.TeamA : world.TeamB;
+            Int2 waypoint = world.SharedCorridor[waypointIndex];
+            bool found = false;
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (!unit.Alive || unit.ControlGroupId != groupId) continue;
+                found = true;
+                if (unit.X != waypoint.X || unit.Y != waypoint.Y) return false;
+            }
+            return found;
+        }
+
         private static PrototypeCombatUnitState RequireAliveOwnedUnit(PrototypeAnnihilationTeamState team, int unitId)
         {
             for (int i = 0; i < team.Units.Count; i++)

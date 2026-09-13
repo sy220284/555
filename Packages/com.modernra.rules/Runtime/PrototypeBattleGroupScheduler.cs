@@ -184,7 +184,17 @@ namespace ModernRA.Rules
             bool timedOut = tick - state.PhaseEnteredTick >= AssembleTimeoutTicks;
             if (assigned == 0 || (!assembled && !timedOut))
             {
-                Transition(state, PrototypeBattleGroupPhase.Assemble, tick, -1);
+                if (assigned > 0)
+                {
+                    var assemble = new PrototypeBattleGroupDecision(state.Spec.PlayerId, state.Spec.RegionId,
+                        state.Spec.GroupId, state.AuthorizedGeneration, PrototypeBattleGroupPhase.Assemble,
+                        -1, AverageWaypoint(team, state.Spec.GroupId), 0);
+                    ExecuteDecision(world, tick, team, state, assemble);
+                }
+                else
+                {
+                    Transition(state, PrototypeBattleGroupPhase.Assemble, tick, -1);
+                }
                 return;
             }
 
@@ -224,6 +234,13 @@ namespace ModernRA.Rules
                 }
             }
 
+            ExecuteDecision(world, tick, team, state, decision);
+        }
+
+        private static void ExecuteDecision(AnnihilationPrototypeWorld world, int tick,
+            PrototypeAnnihilationTeamState team, PrototypeBattleGroupRuntimeState state,
+            PrototypeBattleGroupDecision decision)
+        {
             state.DecisionsPlanned++;
             var authority = new RuleAIAuthority(state.Spec.AuthorityLevel, state.Spec.PlayerId, state.Spec.RegionId,
                 state.Spec.Forbidden, team.PlayerOverrideGeneration);

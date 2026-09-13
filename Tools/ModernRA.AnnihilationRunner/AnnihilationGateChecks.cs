@@ -34,12 +34,15 @@ internal static class AnnihilationGateChecks
 
         Check(finalWorld != null, "annihilation prototype did not execute");
         AnnihilationPrototypeWorld verified = finalWorld!;
-        Check(verified.WinnerTeamId == 1, "aggressive reference plan should defeat economy reference plan");
+        Check(verified.WinnerTeamId == 1,
+            $"aggressive reference plan should defeat economy reference plan; actual winner={verified.WinnerTeamId} tick={verified.Tick}");
         Check(verified.DefeatReason == PrototypeDefeatReason.WarSystemCollapse, "annihilation resolved for wrong reason");
         Check(verified.TeamA.BuildingsCompleted >= 3 && verified.TeamB.BuildingsCompleted >= 3, "base construction loop did not complete");
         Check(verified.TeamA.MinedMilli > 0 && verified.TeamB.MinedMilli > 0, "resource collection loop did not run");
         Check(verified.TeamA.UnitsProduced + verified.TeamB.UnitsProduced > 0, "production loop produced no combat units");
         Check(verified.MovementSteps > 0, "produced units never moved");
+        Check(verified.AvoidanceCandidateVisits > 0, "annihilation movement never queried local spatial avoidance");
+        Check(verified.AvoidanceNeighborsResolved > 0, "annihilation movement never resolved nearby unit separation");
         Check(verified.ShotsFired > 0 && verified.BuildingsDestroyed > 0, "combat loop did not destroy war infrastructure");
         Check(verified.TeamA.IndustrialMilli >= 0 && verified.TeamB.IndustrialMilli >= 0, "resource pool became negative");
 
@@ -104,6 +107,7 @@ internal static class AnnihilationGateChecks
             $"annihilation_gate=passed scenario={scenarioId} winner={verified.WinnerTeamId} tick={verified.Tick} hash={expectedHash:X16} " +
             $"mined_a={verified.TeamA.MinedMilli / 1000.0:F3} mined_b={verified.TeamB.MinedMilli / 1000.0:F3} " +
             $"produced_a={verified.TeamA.UnitsProduced} produced_b={verified.TeamB.UnitsProduced} " +
+            $"avoidance_candidates={verified.AvoidanceCandidateVisits} avoidance_neighbors={verified.AvoidanceNeighborsResolved} " +
             $"shots={verified.ShotsFired} buildings_destroyed={verified.BuildingsDestroyed} loser_buildings_remaining={AnnihilationPrototype.CountAliveBuildings(loser)} " +
             $"replay_checkpoints={replay.Checkpoints.Count} replay_final_hash={replay.FinalStateHash:X16} replay_file_bytes={replayBytes.Length} replay_file_sha256={replayFileSha256} replay_format=v3 migration_v1_v3=true");
     }

@@ -42,10 +42,12 @@ namespace ModernRA.Rules
             Spec = spec;
             AuthorizedGeneration = generation;
             PhaseEnteredTick = tick;
+            ActiveRegionId = spec.RegionId;
         }
 
         public PrototypeBattleGroupOrderSpec Spec { get; }
         public uint AuthorizedGeneration { get; internal set; }
+        public int ActiveRegionId { get; internal set; }
         public PrototypeBattleGroupPhase Phase { get; internal set; } = PrototypeBattleGroupPhase.Assemble;
         public int PhaseEnteredTick { get; internal set; }
         public int TargetId { get; internal set; } = -1;
@@ -61,6 +63,8 @@ namespace ModernRA.Rules
         private readonly PrototypeSupplyRuntime _supply = new PrototypeSupplyRuntime();
         private PrototypeBattleGroupTarget[] _playerOneTargets = Array.Empty<PrototypeBattleGroupTarget>();
         private PrototypeBattleGroupTarget[] _playerTwoTargets = Array.Empty<PrototypeBattleGroupTarget>();
+        private PrototypeZoneCandidate[] _playerOneZones = Array.Empty<PrototypeZoneCandidate>();
+        private PrototypeZoneCandidate[] _playerTwoZones = Array.Empty<PrototypeZoneCandidate>();
 
         public bool PlanningEnabled { get; set; } = true;
         public int GroupCount => _groups.Count;
@@ -106,6 +110,17 @@ namespace ModernRA.Rules
             SetVisibleTargets(playerId, adapter.BuildTargets());
         }
 
+        public void SetZoneCandidates(int playerId, IEnumerable<PrototypeZoneCandidate> zones)
+        {
+            if (zones == null) throw new ArgumentNullException(nameof(zones));
+            var copy = new List<PrototypeZoneCandidate>(zones);
+            PrototypeZoneAI.Rank(copy);
+            copy.Sort((left, right) => left.RegionId.CompareTo(right.RegionId));
+            if (playerId == 1) _playerOneZones = copy.ToArray();
+            else if (playerId == 2) _playerTwoZones = copy.ToArray();
+            else throw new ArgumentOutOfRangeException(nameof(playerId));
+        }
+
         public void RefreshAuthorization(AnnihilationPrototypeWorld world, int playerId, int groupId)
         {
             PrototypeBattleGroupRuntimeState state = Find(playerId, groupId) ??
@@ -122,6 +137,9 @@ namespace ModernRA.Rules
 
             _supply.RefreshIfDue(world);
             if (!PlanningEnabled) return;
+
+            ReallocateZonesIfDue(1, decisionTick, _playerOneZones);
+            ReallocateZonesIfDue(2, decisionTick, _playerTwoZones);
 
             for (int i = 0; i < _groups.Count; i++)
             {
@@ -147,6 +165,7 @@ namespace ModernRA.Rules
                 PrototypeBattleGroupRuntimeState state = _groups[i];
                 hash = StateHash64.Add(hash, state.Spec.PlayerId);
                 hash = StateHash64.Add(hash, state.Spec.RegionId);
+                hash = StateHash64.Add(hash, state.ActiveRegionId);
                 hash = StateHash64.Add(hash, state.Spec.GroupId);
                 hash = StateHash64.Add(hash, state.Spec.DesiredUnitCount);
                 hash = StateHash64.Add(hash, (int)state.Spec.Stance);
@@ -167,6 +186,8 @@ namespace ModernRA.Rules
             }
             HashTargets(ref hash, _playerOneTargets);
             HashTargets(ref hash, _playerTwoTargets);
+            HashZones(ref hash, _playerOneZones);
+            HashZones(ref hash, _playerTwoZones);
             if (_supply.HasAnyConfiguration)
             {
                 hash = StateHash64.Add(hash, 0x53555050);
@@ -186,7 +207,7 @@ namespace ModernRA.Rules
             {
                 if (assigned > 0)
                 {
-                    var assemble = new PrototypeBattleGroupDecision(state.Spec.PlayerId, state.Spec.RegionId,
+                    var assemble = new PrototypeBattleGroupDecision(state.Spec.PlayerId, state.ActiveRegionId,
                         state.Spec.GroupId, state.AuthorizedGeneration, PrototypeBattleGroupPhase.Assemble,
                         -1, AverageWaypoint(team, state.Spec.GroupId), 0);
                     ExecuteDecision(world, tick, team, state, assemble);
@@ -205,7 +226,7 @@ namespace ModernRA.Rules
                 int homeWaypoint = state.Spec.PlayerId == 1 ? 0 : world.SharedCorridor.Length - 1;
                 decision = new PrototypeBattleGroupDecision(
                     state.Spec.PlayerId,
-                    state.Spec.RegionId,
+                    state.ActiveRegionId,
                     state.Spec.GroupId,
                     state.AuthorizedGeneration,
                     PrototypeBattleGroupPhase.Resupply,
@@ -218,11 +239,11 @@ namespace ModernRA.Rules
                 IReadOnlyList<PrototypeBattleGroupTarget> targets = state.Spec.PlayerId == 1 ? _playerOneTargets : _playerTwoTargets;
                 if (targets.Count == 0 && state.TargetId >= 0)
                 {
-                    decision = new PrototypeBattleGroupDecision(state.Spec.PlayerId, state.Spec.RegionId, state.Spec.GroupId,
+                    decision = new PrototypeBattleGroupDecision(state.Spec.PlayerId, state.ActiveRegionId, state.Spec.GroupId,
                         state.AuthorizedGeneration, PrototypeBattleGroupPhase.Consolidate, -1,
                         AverageWaypoint(team, state.Spec.GroupId), 0);
                 }
-                else if (!PrototypeBattleGroupAI.TryPlan(world, state.Spec.PlayerId, state.Spec.RegionId, state.Spec.GroupId,
+                else if (!PrototypeBattleGroupAI.TryPlan(world, state.Spec.PlayerId, state.ActiveRegionId, state.Spec.GroupId,
                     state.Spec.Stance, targets, out decision))
                 {
                     return;
@@ -242,7 +263,7 @@ namespace ModernRA.Rules
             PrototypeBattleGroupDecision decision)
         {
             state.DecisionsPlanned++;
-            var authority = new RuleAIAuthority(state.Spec.AuthorityLevel, state.Spec.PlayerId, state.Spec.RegionId,
+            var authority = new RuleAIAuthority(state.Spec.AuthorityLevel, state.Spec.PlayerId, state.ActiveRegionId,
                 state.Spec.Forbidden, team.PlayerOverrideGeneration);
             if (!PrototypeBattleGroupAI.TryExecute(world, authority, decision))
             {
@@ -251,6 +272,26 @@ namespace ModernRA.Rules
             }
             state.DecisionsExecuted++;
             Transition(state, decision.Phase, tick, decision.TargetId);
+        }
+
+        private void ReallocateZonesIfDue(int playerId, int tick, PrototypeZoneCandidate[] zones)
+        {
+            if (zones.Length == 0 || !DeterministicUpdateBudget.ShouldRun(RuleUpdateLane.TheaterAI, tick, playerId))
+                return;
+            var groupIds = new List<int>();
+            for (int i = 0; i < _groups.Count; i++)
+            {
+                PrototypeBattleGroupRuntimeState state = _groups[i];
+                if (state.Spec.PlayerId == playerId && state.Spec.AuthorityLevel >= RuleAIAuthorityLevel.Theater)
+                    groupIds.Add(state.Spec.GroupId);
+            }
+            PrototypeZoneAssignment[] assignments = PrototypeZoneAI.BuildAllocationPlan(playerId, groupIds, zones);
+            for (int i = 0; i < assignments.Length; i++)
+            {
+                PrototypeZoneAssignment assignment = assignments[i];
+                PrototypeBattleGroupRuntimeState? state = Find(assignment.PlayerId, assignment.GroupId);
+                if (state != null) state.ActiveRegionId = assignment.RegionId;
+            }
         }
 
         private static void AssignAvailableUnits(PrototypeAnnihilationTeamState team, int groupId, int desiredCount)
@@ -331,6 +372,23 @@ namespace ModernRA.Rules
                 hash = StateHash64.Add(hash, target.CounterMatch);
                 hash = StateHash64.Add(hash, target.EstimatedCombatPower);
                 hash = StateHash64.Add(hash, (int)target.Intel);
+            }
+        }
+
+        private static void HashZones(ref ulong hash, PrototypeZoneCandidate[] zones)
+        {
+            hash = StateHash64.Add(hash, zones.Length);
+            for (int i = 0; i < zones.Length; i++)
+            {
+                PrototypeZoneCandidate zone = zones[i];
+                hash = StateHash64.Add(hash, zone.RegionId);
+                hash = StateHash64.Add(hash, zone.ObjectiveValue);
+                hash = StateHash64.Add(hash, zone.EnemyPressure);
+                hash = StateHash64.Add(hash, zone.ResourceValue);
+                hash = StateHash64.Add(hash, zone.StrategicConnectivity);
+                hash = StateHash64.Add(hash, zone.PlayerDirective);
+                hash = StateHash64.Add(hash, zone.ExplicitPlayerDirective ? 1 : 0);
+                hash = StateHash64.Add(hash, zone.AllocationSlots);
             }
         }
     }

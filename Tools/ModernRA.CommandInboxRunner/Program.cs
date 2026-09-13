@@ -116,7 +116,7 @@ internal static class Program
         (ulong worldHash, ulong schedulerHash) replay = RunScheduledBattleGroupScenario();
         if (first != replay)
             throw new InvalidOperationException("multi-group scheduler replay drifted from identical authoritative input");
-        Console.WriteLine($"battle_group_scheduler world={first.worldHash:X16} scheduler={first.schedulerHash:X16} groups=2 dynamic_intel=true cadence=10hz");
+        Console.WriteLine($"battle_group_scheduler world={first.worldHash:X16} scheduler={first.schedulerHash:X16} groups=2 dynamic_intel=true zone_allocation=true cadence=10hz");
     }
 
     private static (ulong worldHash, ulong schedulerHash) RunScheduledBattleGroupScenario()
@@ -132,7 +132,12 @@ internal static class Program
             RuleAIAuthorityLevel.BattleGroup, RuleAIForbiddenAction.None));
         var groupTwo = scheduler.Register(session.World, new PrototypeBattleGroupOrderSpec(
             1, 5, 2, 1, PrototypeBattleGroupStance.Aggressive,
-            RuleAIAuthorityLevel.BattleGroup, RuleAIForbiddenAction.None));
+            RuleAIAuthorityLevel.Theater, RuleAIForbiddenAction.None));
+        scheduler.SetZoneCandidates(1, new[]
+        {
+            new PrototypeZoneCandidate(5, 300, 300, 300, 700, 100, false),
+            new PrototypeZoneCandidate(7, 800, 700, 600, 800, 1000, true)
+        });
         int targetWaypoint = session.World.SharedCorridor.Length - 1;
         scheduler.SetVisibleTargets(1, new[]
         {
@@ -144,6 +149,8 @@ internal static class Program
             session.Step();
         if (groupOne.DecisionsExecuted == 0 || groupTwo.DecisionsExecuted == 0)
             throw new InvalidOperationException("staggered multi-group scheduler did not execute both groups");
+        if (groupOne.ActiveRegionId != 5 || groupTwo.ActiveRegionId != 7)
+            throw new InvalidOperationException("theater allocation reassigned a low-authority group or missed the authorized group");
         if (!PrototypeControlGroupRules.HasAliveMember(session.World.TeamA, 1) ||
             !PrototypeControlGroupRules.HasAliveMember(session.World.TeamA, 2))
         {

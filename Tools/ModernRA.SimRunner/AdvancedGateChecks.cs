@@ -87,7 +87,14 @@ internal static class AdvancedGateChecks
         Check(server.SubmitIntent(new ClientCommandIntent(1, 10, 1, 100, 0)), "legal movement intent rejected");
         Check(!server.SubmitIntent(new ClientCommandIntent(1, 10, 1, 200, 0)), "replayed command sequence accepted");
 
-        server.SetIntel(1, 20, RuleIntelLevel.Detected);
+        var jammedSensor = new RuleSensorCoverageSource(100, 1, 0, 0, 2000, 1000, 0,
+            new[] { new RuleEWInterferenceSource(200, 1000, 1000) });
+        Check(RuleSensorDetectionRules.EffectiveRange(jammedSensor) == 300,
+            "EW quality did not reduce authoritative sensor range to the 0.15 floor");
+        var clearSensor = new RuleSensorCoverageSource(100, 1, 0, 0, 2000, 1000, 0,
+            Array.Empty<RuleEWInterferenceSource>());
+        Check(server.RefreshSensorIntelIfDue(1, new[] { clearSensor }),
+            "authoritative sensor scan missed its deterministic 15Hz lane");
         server.AdvanceOneTick();
         AuthoritativeSnapshot delta = server.BuildSnapshot(1, initial.Tick);
         Check(delta.IsDelta && delta.BaselineTick == initial.Tick, "incremental snapshot baseline invalid");
@@ -114,6 +121,8 @@ internal static class AdvancedGateChecks
             "battle-group AI adapter did not consume the filtered enemy snapshot");
 
         server.SetIntel(1, 20, RuleIntelLevel.Unknown);
+        Check(server.RefreshSensorIntelIfDue(1, Array.Empty<RuleSensorCoverageSource>()),
+            "sensor coverage removal missed its deterministic 15Hz lane");
         server.AdvanceOneTick();
         AuthoritativeSnapshot hiddenDelta = server.BuildSnapshot(1, trackedDelta.Tick);
         Check(hiddenDelta.RemovedContactIds.Length == 1 && hiddenDelta.RemovedContactIds[0] == enemyContact,

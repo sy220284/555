@@ -3,6 +3,47 @@ using System.Collections.Generic;
 
 namespace ModernRA.Rules
 {
+    public readonly struct RuleSensorCoverageSource
+    {
+        public readonly int SensorId;
+        public readonly int TeamId;
+        public readonly int X;
+        public readonly int Y;
+        public readonly int BaseRange;
+        public readonly int BaseQualityPermille;
+        public readonly int ResistancePermille;
+        public readonly RuleEWInterferenceSource[] Interference;
+
+        public RuleSensorCoverageSource(int sensorId, int teamId, int x, int y, int baseRange,
+            int baseQualityPermille, int resistancePermille, RuleEWInterferenceSource[] interference)
+        {
+            if (sensorId <= 0) throw new ArgumentOutOfRangeException(nameof(sensorId));
+            if (teamId != 1 && teamId != 2) throw new ArgumentOutOfRangeException(nameof(teamId));
+            if (baseRange <= 0) throw new ArgumentOutOfRangeException(nameof(baseRange));
+            if (baseQualityPermille < 0 || baseQualityPermille > 1000) throw new ArgumentOutOfRangeException(nameof(baseQualityPermille));
+            if (resistancePermille < 0 || resistancePermille > 1000) throw new ArgumentOutOfRangeException(nameof(resistancePermille));
+            SensorId = sensorId;
+            TeamId = teamId;
+            X = x;
+            Y = y;
+            BaseRange = baseRange;
+            BaseQualityPermille = baseQualityPermille;
+            ResistancePermille = resistancePermille;
+            Interference = interference == null ? Array.Empty<RuleEWInterferenceSource>() :
+                (RuleEWInterferenceSource[])interference.Clone();
+        }
+    }
+
+    public static class RuleSensorDetectionRules
+    {
+        public static int EffectiveRange(in RuleSensorCoverageSource sensor)
+        {
+            int quality = RuleElectronicWarfareRules.ApplyInterference(
+                sensor.BaseQualityPermille, sensor.ResistancePermille, sensor.Interference);
+            return Math.Max(1, (int)((long)sensor.BaseRange * quality / 1000L));
+        }
+    }
+
     public sealed class ServerEntityState
     {
         public int EntityId;
@@ -51,6 +92,7 @@ namespace ModernRA.Rules
         private readonly List<ClientCommandIntent> _commands = new List<ClientCommandIntent>();
         private readonly Dictionary<int, uint> _lastSequenceByPlayer = new Dictionary<int, uint>();
         private readonly Dictionary<long, RuleIntelLevel> _intel = new Dictionary<long, RuleIntelLevel>();
+        private readonly Dictionary<long, RuleIntelLevel> _sensorIntel = new Dictionary<long, RuleIntelLevel>();
         private readonly Dictionary<long, uint> _intelChangedTick = new Dictionary<long, uint>();
 
         public ulong ContentHash { get; }
@@ -82,8 +124,61 @@ namespace ModernRA.Rules
         public void SetIntel(int observerTeam, int entityId, RuleIntelLevel level)
         {
             long key = IntelKey(observerTeam, entityId);
+            RuleIntelLevel before = GetIntel(observerTeam, entityId);
             _intel[key] = level;
-            _intelChangedTick[key] = Tick + 1;
+            if (GetIntel(observerTeam, entityId) != before)
+                _intelChangedTick[key] = Tick + 1;
+        }
+
+        public bool RefreshSensorIntelIfDue(int observerTeam, IReadOnlyList<RuleSensorCoverageSource> sensors)
+        {
+            if (observerTeam != 1 && observerTeam != 2) throw new ArgumentOutOfRangeException(nameof(observerTeam));
+            if (sensors == null) throw new ArgumentNullException(nameof(sensors));
+            if (!DeterministicUpdateBudget.ShouldRun(RuleUpdateLane.HighRateSensor, (int)Tick, observerTeam))
+                return false;
+
+            var ordered = new RuleSensorCoverageSource[sensors.Count];
+            for (int i = 0; i < sensors.Count; i++) ordered[i] = sensors[i];
+            Array.Sort(ordered, (left, right) => left.SensorId.CompareTo(right.SensorId));
+            for (int i = 0; i < ordered.Length; i++)
+            {
+                if (ordered[i].TeamId != observerTeam)
+                    throw new ArgumentException($"sensor {ordered[i].SensorId} belongs to team {ordered[i].TeamId}", nameof(sensors));
+                if (i > 0 && ordered[i - 1].SensorId == ordered[i].SensorId)
+                    throw new ArgumentException($"duplicate sensor {ordered[i].SensorId}", nameof(sensors));
+            }
+
+            var detected = new HashSet<int>();
+            for (int sensorIndex = 0; sensorIndex < ordered.Length; sensorIndex++)
+            {
+                RuleSensorCoverageSource sensor = ordered[sensorIndex];
+                long range = RuleSensorDetectionRules.EffectiveRange(sensor);
+                long rangeSquared = range * range;
+                for (int entityIndex = 0; entityIndex < _entities.Length; entityIndex++)
+                {
+                    ServerEntityState entity = _entities[entityIndex];
+                    if (entity.TeamId == observerTeam) continue;
+                    long dx = (long)entity.X - sensor.X;
+                    long dy = (long)entity.Y - sensor.Y;
+                    if (dx * dx + dy * dy <= rangeSquared)
+                        detected.Add(entity.EntityId);
+                }
+            }
+
+            for (int i = 0; i < _entities.Length; i++)
+            {
+                ServerEntityState entity = _entities[i];
+                if (entity.TeamId == observerTeam) continue;
+                long key = IntelKey(observerTeam, entity.EntityId);
+                RuleIntelLevel before = GetIntel(observerTeam, entity.EntityId);
+                if (detected.Contains(entity.EntityId))
+                    _sensorIntel[key] = RuleIntelLevel.Detected;
+                else
+                    _sensorIntel.Remove(key);
+                if (GetIntel(observerTeam, entity.EntityId) != before)
+                    _intelChangedTick[key] = Tick + 1;
+            }
+            return true;
         }
 
         public bool SubmitIntent(in ClientCommandIntent command)
@@ -160,7 +255,12 @@ namespace ModernRA.Rules
 
         private RuleIntelLevel GetIntel(int observerTeam, int entityId)
         {
-            return _intel.TryGetValue(IntelKey(observerTeam, entityId), out RuleIntelLevel level) ? level : RuleIntelLevel.Unknown;
+            long key = IntelKey(observerTeam, entityId);
+            RuleIntelLevel manual = _intel.TryGetValue(key, out RuleIntelLevel manualLevel)
+                ? manualLevel : RuleIntelLevel.Unknown;
+            RuleIntelLevel sensor = _sensorIntel.TryGetValue(key, out RuleIntelLevel sensorLevel)
+                ? sensorLevel : RuleIntelLevel.Unknown;
+            return manual >= sensor ? manual : sensor;
         }
 
         private ServerEntityState? FindEntity(int entityId)

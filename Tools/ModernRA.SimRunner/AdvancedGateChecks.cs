@@ -110,6 +110,44 @@ internal static class AdvancedGateChecks
         Check(client.TryGet(enemyContact, out VisibleEntityState trackedEnemy) && trackedEnemy.Detail == RuleReplicationDetail.Full && trackedEnemy.X == 1234 && trackedEnemy.Y == 876, "tracked enemy did not receive exact authorized state");
         Check(trackedDelta.ContentHash == contentHash, "snapshot content hash changed");
 
+        server.AdvanceOneTick();
+        AuthoritativeSnapshot skippedDelta = server.BuildSnapshot(1, trackedDelta.Tick);
+        server.AdvanceOneTick();
+        AuthoritativeSnapshot outOfSequenceDelta = server.BuildSnapshot(1, skippedDelta.Tick);
+        bool rejectedGap = false;
+        try
+        {
+            client.Apply(outOfSequenceDelta);
+        }
+        catch (InvalidOperationException)
+        {
+            rejectedGap = true;
+        }
+        Check(rejectedGap && client.NeedsReconnect && client.LastTick == trackedDelta.Tick,
+            "client accepted an incremental snapshot after a missing baseline");
+        AuthoritativeSnapshot reconnect = server.BuildReconnectSnapshot(1);
+        client.Apply(reconnect);
+        Check(!client.NeedsReconnect && client.LastTick == server.Tick && client.ContainsContact(enemyContact),
+            "full authorized snapshot did not recover the disconnected client");
+        var wrongContentClient = new LocalClientReplica();
+        wrongContentClient.Apply(initial);
+        bool rejectedContentChange = false;
+        try
+        {
+            wrongContentClient.Apply(new AuthoritativeSnapshot
+            {
+                Tick = initial.Tick + 1,
+                BaselineTick = initial.Tick,
+                IsDelta = true,
+                ContentHash = contentHash + 1
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            rejectedContentChange = true;
+        }
+        Check(rejectedContentChange, "client accepted a snapshot from different content");
+
         var intelAdapter = new PrototypeBattleGroupIntelAdapter(
             new[] { new Int2(0, 0), new Int2(1000, 1000), new Int2(1500, 1000) },
             new[] { new PrototypeBattleGroupTargetProfile(2, 700, 800, 500, 600, 900) });
@@ -124,7 +162,7 @@ internal static class AdvancedGateChecks
         Check(server.RefreshSensorIntelIfDue(1, Array.Empty<RuleSensorCoverageSource>()),
             "sensor coverage removal missed its deterministic 15Hz lane");
         server.AdvanceOneTick();
-        AuthoritativeSnapshot hiddenDelta = server.BuildSnapshot(1, trackedDelta.Tick);
+        AuthoritativeSnapshot hiddenDelta = server.BuildSnapshot(1, reconnect.Tick);
         Check(hiddenDelta.RemovedContactIds.Length == 1 && hiddenDelta.RemovedContactIds[0] == enemyContact,
             "lost intelligence did not emit a contact tombstone");
         client.Apply(hiddenDelta);

@@ -57,6 +57,25 @@ internal sealed class PlayerCommandReplayV1Document
     public PlayerCommandRecord[] Commands { get; set; } = Array.Empty<PlayerCommandRecord>();
 }
 
+internal sealed class AnnihilationReplayV1Document
+{
+    public int SchemaVersion { get; set; }
+    public string ScenarioId { get; set; } = string.Empty;
+    public string SourceMapSha256 { get; set; } = string.Empty;
+    public string RulesetId { get; set; } = string.Empty;
+    public int CheckpointIntervalTicks { get; set; }
+    public int WinnerTeamId { get; set; }
+    public int ResolvedTick { get; set; }
+    public string FinalStateHash { get; set; } = string.Empty;
+    public AnnihilationReplayV1Checkpoint[] Checkpoints { get; set; } = Array.Empty<AnnihilationReplayV1Checkpoint>();
+}
+
+internal sealed class AnnihilationReplayV1Checkpoint
+{
+    public int Tick { get; set; }
+    public string StateHash { get; set; } = string.Empty;
+}
+
 internal sealed class PlayerReplayInitialSnapshot
 {
     public int Tick { get; set; }
@@ -180,8 +199,16 @@ internal static class PlayerCommandReplayFile
             {
                 if (legacyVersion.GetInt32() != 1)
                     throw new InvalidDataException($"unsupported command replay schema {legacyVersion.GetInt32()}");
-                PlayerCommandReplayV1Document? legacy = JsonSerializer.Deserialize<PlayerCommandReplayV1Document>(bytes, JsonOptions);
-                document = legacy == null ? null : MigrateV1(legacy);
+                if (root.TryGetProperty("checkpoint_interval_ticks", out _))
+                {
+                    AnnihilationReplayV1Document? legacy = JsonSerializer.Deserialize<AnnihilationReplayV1Document>(bytes, JsonOptions);
+                    document = legacy == null ? null : MigrateAnnihilationV1(legacy);
+                }
+                else
+                {
+                    PlayerCommandReplayV1Document? legacy = JsonSerializer.Deserialize<PlayerCommandReplayV1Document>(bytes, JsonOptions);
+                    document = legacy == null ? null : MigrateV1(legacy);
+                }
             }
             else
             {
@@ -435,8 +462,8 @@ internal static class PlayerCommandReplayFile
                 throw new InvalidDataException($"unsupported command replay event {item.Kind}");
             }
         }
-        if (commandCount == 0 || keyframeCount == 0)
-            throw new InvalidDataException("command replay event stream is incomplete");
+        if (keyframeCount == 0)
+            throw new InvalidDataException("command replay event stream contains no keyframes");
         var timeline = new DeterministicCommandTimeline(commands);
         if (!string.Equals(timeline.ComputeCanonicalHash().ToString("X16"), document.CommandHash, StringComparison.Ordinal))
             throw new InvalidDataException("command replay event command hash mismatch");
@@ -466,6 +493,41 @@ internal static class PlayerCommandReplayFile
             Checkpoints = new[] { new PlayerCommandCheckpointRecord { Tick = legacy.ResolvedTick, StateHash = legacy.FinalStateHash } }
         };
         return MigrateV2(v2);
+    }
+
+    private static PlayerCommandReplayDocument MigrateAnnihilationV1(AnnihilationReplayV1Document legacy)
+    {
+        if (legacy.CheckpointIntervalTicks <= 0)
+            throw new InvalidDataException("legacy annihilation replay checkpoint interval is invalid");
+        var checkpoints = new PlayerCommandCheckpointRecord[legacy.Checkpoints.Length];
+        for (int i = 0; i < checkpoints.Length; i++)
+        {
+            checkpoints[i] = new PlayerCommandCheckpointRecord
+            {
+                Tick = legacy.Checkpoints[i].Tick,
+                StateHash = legacy.Checkpoints[i].StateHash
+            };
+        }
+        var emptyTimeline = new DeterministicCommandTimeline(Array.Empty<PrototypePlayerCommand>());
+        AnnihilationPrototypeConfig config = GrayRangeGeneratedData.Create().CreateStandardAnnihilationConfig();
+        return new PlayerCommandReplayDocument
+        {
+            FormatVersion = FormatVersion,
+            GameVersion = GameVersion,
+            ContentHash = legacy.SourceMapSha256,
+            MapId = legacy.ScenarioId,
+            TimestampUtc = DateTimeOffset.UnixEpoch,
+            ProtocolVersion = ProtocolVersion,
+            ScenarioId = legacy.ScenarioId,
+            MapSourceSha256 = legacy.SourceMapSha256,
+            RulesetId = legacy.RulesetId,
+            CommandHash = emptyTimeline.ComputeCanonicalHash().ToString("X16"),
+            WinnerTeamId = legacy.WinnerTeamId,
+            ResolvedTick = legacy.ResolvedTick,
+            FinalStateHash = legacy.FinalStateHash,
+            InitialSnapshot = CreateInitialSnapshot(config),
+            Events = CreateEvents(Array.Empty<PrototypePlayerCommand>(), checkpoints)
+        };
     }
 
     private static PlayerCommandReplayDocument MigrateV2(PlayerCommandReplayV2Document legacy)

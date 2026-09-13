@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Packages/com.modernra.rules/Runtime/*.cs" Link="Rules/%(Filename)%(Extension)" />
+    <Compile Include="../ModernRA.CommandRunner/PlayerCommandReplayFile.cs" Link="Replay/PlayerCommandReplayFile.cs" />
   </ItemGroup>
 </Project>

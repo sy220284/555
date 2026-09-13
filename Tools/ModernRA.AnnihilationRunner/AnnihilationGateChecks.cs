@@ -1,4 +1,5 @@
 using ModernRA.Rules;
+using System.Text.Json;
 
 internal static class AnnihilationGateChecks
 {
@@ -53,23 +54,103 @@ internal static class AnnihilationGateChecks
         Check(replay.FinalStateHash == expectedHash, "replay final hash does not match deterministic gate");
         Check(replay.Checkpoints.Count >= 10, "replay checkpoint coverage is too sparse");
 
-        string replayJson = AnnihilationReplayFile.Write(replay, scenarioId, GrayRangeGeneratedData.SourceMapSha256, replayCheckpointIntervalTicks);
+        PlayerCommandCheckpointRecord[] checkpoints = ToCheckpointRecords(replay);
+        PrototypePlayerCommand[] noCommands = Array.Empty<PrototypePlayerCommand>();
+        ulong emptyCommandHash = new DeterministicCommandTimeline(noCommands).ComputeCanonicalHash();
+        PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
+            scenarioId, config, noCommands, emptyCommandHash, replay.WinnerTeamId,
+            replay.ResolvedTick, replay.FinalStateHash, checkpoints);
         string replayPath = Path.Combine(Path.GetTempPath(), "modernra-annihilation-replay.json");
-        File.WriteAllText(replayPath, replayJson);
-        string persistedReplayJson = File.ReadAllText(replayPath);
+        PlayerCommandReplayFile.Write(replayPath, document);
+        byte[] replayBytes = File.ReadAllBytes(replayPath);
+        PlayerCommandReplayDocument replayFile = PlayerCommandReplayFile.Read(replayPath);
+        PlayerCommandReplayFile.ValidateScenario(replayFile, scenarioId);
+        Check(PlayerCommandReplayFile.ToCommands(replayFile).Length == 0,
+            "uncommanded replay acquired player commands");
+        AnnihilationPrototypeConfig replayConfig = PlayerCommandReplayFile.ToInitialConfig(replayFile);
+        AnnihilationReplayTape loadedTape = ToReplayTape(replayFile);
+        AnnihilationReplayVerifier.Verify(replayConfig, loadedTape, watchdogTicks);
+        byte[] replayRoundTrip = PlayerCommandReplayFile.Serialize(replayFile);
+        Check(replayBytes.AsSpan().SequenceEqual(replayRoundTrip),
+            "unified replay file round-trip changed canonical content");
+
+        var legacy = new AnnihilationReplayV1Document
+        {
+            SchemaVersion = 1,
+            ScenarioId = scenarioId,
+            SourceMapSha256 = GrayRangeGeneratedData.SourceMapSha256,
+            RulesetId = PlayerCommandReplayFile.RulesetId,
+            CheckpointIntervalTicks = replayCheckpointIntervalTicks,
+            WinnerTeamId = replay.WinnerTeamId,
+            ResolvedTick = replay.ResolvedTick,
+            FinalStateHash = replay.FinalStateHash.ToString("X16"),
+            Checkpoints = ToLegacyCheckpointRecords(replay)
+        };
+        File.WriteAllBytes(replayPath, JsonSerializer.SerializeToUtf8Bytes(legacy, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        }));
+        PlayerCommandReplayDocument migrated = PlayerCommandReplayFile.Read(replayPath);
         File.Delete(replayPath);
-        AnnihilationReplayFileData replayFile = AnnihilationReplayFile.Read(persistedReplayJson, scenarioId, GrayRangeGeneratedData.SourceMapSha256);
-        AnnihilationReplayVerifier.Verify(config, replayFile.Tape, watchdogTicks);
-        string replayRoundTrip = AnnihilationReplayFile.Write(replayFile.Tape, replayFile.ScenarioId, replayFile.SourceMapSha256, replayFile.CheckpointIntervalTicks);
-        Check(string.Equals(replayJson, replayRoundTrip, StringComparison.Ordinal), "replay file round-trip changed canonical content");
-        string replayFileSha256 = AnnihilationReplayFile.ComputeSha256(replayJson);
+        Check(migrated.FormatVersion == PlayerCommandReplayFile.FormatVersion &&
+              PlayerCommandReplayFile.ToCommands(migrated).Length == 0 &&
+              PlayerCommandReplayFile.ToCheckpoints(migrated).Length == replay.Checkpoints.Count,
+            "legacy annihilation replay migration lost timeline data");
+        AnnihilationReplayVerifier.Verify(PlayerCommandReplayFile.ToInitialConfig(migrated),
+            ToReplayTape(migrated), watchdogTicks);
+        string replayFileSha256 = PlayerCommandReplayFile.Sha256Hex(replayBytes);
 
         Console.WriteLine(
             $"annihilation_gate=passed scenario={scenarioId} winner={verified.WinnerTeamId} tick={verified.Tick} hash={expectedHash:X16} " +
             $"mined_a={verified.TeamA.MinedMilli / 1000.0:F3} mined_b={verified.TeamB.MinedMilli / 1000.0:F3} " +
             $"produced_a={verified.TeamA.UnitsProduced} produced_b={verified.TeamB.UnitsProduced} " +
             $"shots={verified.ShotsFired} buildings_destroyed={verified.BuildingsDestroyed} loser_buildings_remaining={AnnihilationPrototype.CountAliveBuildings(loser)} " +
-            $"replay_checkpoints={replay.Checkpoints.Count} replay_final_hash={replay.FinalStateHash:X16} replay_file_bytes={System.Text.Encoding.UTF8.GetByteCount(replayJson)} replay_file_sha256={replayFileSha256}");
+            $"replay_checkpoints={replay.Checkpoints.Count} replay_final_hash={replay.FinalStateHash:X16} replay_file_bytes={replayBytes.Length} replay_file_sha256={replayFileSha256} replay_format=v3 migration_v1_v3=true");
+    }
+
+    private static PlayerCommandCheckpointRecord[] ToCheckpointRecords(AnnihilationReplayTape replay)
+    {
+        var records = new PlayerCommandCheckpointRecord[replay.Checkpoints.Count];
+        for (int i = 0; i < records.Length; i++)
+        {
+            records[i] = new PlayerCommandCheckpointRecord
+            {
+                Tick = replay.Checkpoints[i].Tick,
+                StateHash = replay.Checkpoints[i].StateHash.ToString("X16")
+            };
+        }
+        return records;
+    }
+
+    private static AnnihilationReplayV1Checkpoint[] ToLegacyCheckpointRecords(AnnihilationReplayTape replay)
+    {
+        var records = new AnnihilationReplayV1Checkpoint[replay.Checkpoints.Count];
+        for (int i = 0; i < records.Length; i++)
+        {
+            records[i] = new AnnihilationReplayV1Checkpoint
+            {
+                Tick = replay.Checkpoints[i].Tick,
+                StateHash = replay.Checkpoints[i].StateHash.ToString("X16")
+            };
+        }
+        return records;
+    }
+
+    private static AnnihilationReplayTape ToReplayTape(PlayerCommandReplayDocument document)
+    {
+        PlayerCommandCheckpointRecord[] checkpoints = PlayerCommandReplayFile.ToCheckpoints(document);
+        var tape = new AnnihilationReplayTape
+        {
+            WinnerTeamId = document.WinnerTeamId,
+            ResolvedTick = document.ResolvedTick,
+            FinalStateHash = Convert.ToUInt64(document.FinalStateHash, 16)
+        };
+        for (int i = 0; i < checkpoints.Length; i++)
+        {
+            tape.Checkpoints.Add(new AnnihilationReplayCheckpoint(
+                checkpoints[i].Tick, Convert.ToUInt64(checkpoints[i].StateHash, 16)));
+        }
+        return tape;
     }
 
     private static void Check(bool condition, string message)

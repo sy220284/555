@@ -32,6 +32,8 @@ namespace ModernRA.Rules
     public sealed class PrototypeSupplyRuntime
     {
         public const int DefaultCombatUnitSupplyUse = 5;
+        public const int CombatUnitMaximumHealth = 1000;
+        private const int BaseRepairPerServicePermille = 2000;
 
         private RuleSupplyNode[] _playerOneNodes = Array.Empty<RuleSupplyNode>();
         private RuleSupplyNode[] _playerTwoNodes = Array.Empty<RuleSupplyNode>();
@@ -39,6 +41,7 @@ namespace ModernRA.Rules
         private bool _playerTwoConfigured;
         private readonly Dictionary<int, PrototypeUnitSupplyState> _unitStates =
             new Dictionary<int, PrototypeUnitSupplyState>();
+        private readonly Dictionary<int, int> _repairRemainderPermille = new Dictionary<int, int>();
 
         public bool HasAnyConfiguration => _playerOneConfigured || _playerTwoConfigured;
 
@@ -118,6 +121,42 @@ namespace ModernRA.Rules
             return _unitStates.TryGetValue(entityId, out state);
         }
 
+        public int ServiceGroupAtHome(AnnihilationPrototypeWorld world, PrototypeAnnihilationTeamState team, int groupId)
+        {
+            if (world == null) throw new ArgumentNullException(nameof(world));
+            if (team == null) throw new ArgumentNullException(nameof(team));
+            if (!PrototypeControlGroupPayload.IsValidGroupId(groupId)) throw new ArgumentOutOfRangeException(nameof(groupId));
+
+            int homeWaypoint = team.TeamId == 1 ? 0 : world.SharedCorridor.Length - 1;
+            int repaired = 0;
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (!unit.Alive || unit.ControlGroupId != groupId || unit.CorridorCursor != homeWaypoint ||
+                    !unit.HoldingPosition || unit.Health >= CombatUnitMaximumHealth)
+                    continue;
+
+                RuleSupplyLevel level = _unitStates.TryGetValue(unit.Id, out PrototypeUnitSupplyState supply)
+                    ? supply.Level
+                    : RuleSupplyLevel.Sufficient;
+                int accumulated = BaseRepairPerServicePermille * RuleSupplyEffects.RepairPermille(level) / 1000;
+                if (_repairRemainderPermille.TryGetValue(unit.Id, out int remainder)) accumulated += remainder;
+                int health = accumulated / 1000;
+                int nextRemainder = accumulated % 1000;
+                if (health > 0)
+                {
+                    int before = unit.Health;
+                    unit.Health = Math.Min(CombatUnitMaximumHealth, unit.Health + health);
+                    repaired += unit.Health - before;
+                }
+                if (unit.Health >= CombatUnitMaximumHealth || nextRemainder == 0)
+                    _repairRemainderPermille.Remove(unit.Id);
+                else
+                    _repairRemainderPermille[unit.Id] = nextRemainder;
+            }
+            return repaired;
+        }
+
         public ulong ComputeStateHash()
         {
             ulong hash = StateHash64.Begin();
@@ -138,6 +177,15 @@ namespace ModernRA.Rules
                 hash = StateHash64.Add(hash, state.Allocated);
                 hash = StateHash64.Add(hash, state.PrimaryNodeId);
                 hash = StateHash64.Add(hash, (int)state.Level);
+            }
+            ids.Clear();
+            ids.AddRange(_repairRemainderPermille.Keys);
+            ids.Sort();
+            hash = StateHash64.Add(hash, ids.Count);
+            for (int i = 0; i < ids.Count; i++)
+            {
+                hash = StateHash64.Add(hash, ids[i]);
+                hash = StateHash64.Add(hash, _repairRemainderPermille[ids[i]]);
             }
             return hash;
         }

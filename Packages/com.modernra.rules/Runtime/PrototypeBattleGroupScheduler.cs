@@ -255,10 +255,12 @@ namespace ModernRA.Rules
                 }
             }
 
-            ExecuteDecision(world, tick, team, state, decision);
+            if (ExecuteDecision(world, tick, team, state, decision) &&
+                decision.Phase == PrototypeBattleGroupPhase.Resupply)
+                _supply.ServiceGroupAtHome(world, team, state.Spec.GroupId);
         }
 
-        private static void ExecuteDecision(AnnihilationPrototypeWorld world, int tick,
+        private static bool ExecuteDecision(AnnihilationPrototypeWorld world, int tick,
             PrototypeAnnihilationTeamState team, PrototypeBattleGroupRuntimeState state,
             PrototypeBattleGroupDecision decision)
         {
@@ -268,10 +270,11 @@ namespace ModernRA.Rules
             if (!PrototypeBattleGroupAI.TryExecute(world, authority, decision))
             {
                 state.DecisionsRejected++;
-                return;
+                return false;
             }
             state.DecisionsExecuted++;
             Transition(state, decision.Phase, tick, decision.TargetId);
+            return true;
         }
 
         private void ReallocateZonesIfDue(int playerId, int tick, PrototypeZoneCandidate[] zones)

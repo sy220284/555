@@ -50,7 +50,7 @@ class PlayerCommandInboxStaticTests(unittest.TestCase):
         self.assertIn("PrototypeBattleGroupScheduler", text)
         self.assertIn("scheduled stale AI task survived same-tick player takeover", text)
         self.assertIn("dynamic intelligence removal did not transition", text)
-        self.assertIn("resupply group did not hold", text)
+        self.assertIn("resupply group did not hold and repair", text)
         self.assertIn("theater allocation reassigned a low-authority group", text)
 
     def test_runner_compiles_all_rules_and_is_wired_to_simulation_gate(self):

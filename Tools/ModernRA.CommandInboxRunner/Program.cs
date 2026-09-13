@@ -198,8 +198,8 @@ internal static class Program
         serviceUnit.Y = session.World.SharedCorridor[0].Y;
         serviceUnit.HoldingPosition = false;
         session.Step();
-        if (groupOne.Phase != PrototypeBattleGroupPhase.Resupply || !serviceUnit.HoldingPosition)
-            throw new InvalidOperationException("resupply group did not hold after reaching its service waypoint");
+        if (groupOne.Phase != PrototypeBattleGroupPhase.Resupply || !serviceUnit.HoldingPosition || serviceUnit.Health <= 300)
+            throw new InvalidOperationException("resupply group did not hold and repair after reaching its service waypoint");
 
         return (AnnihilationPrototype.ComputeStateHash(session.World), scheduler.ComputeStateHash());
     }

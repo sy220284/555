@@ -41,6 +41,8 @@ namespace ModernRA.Simulation
         public byte Role;
     }
 
+    public struct AnnihilationRuleActive : IComponentData, IEnableableComponent { }
+
     public struct AnnihilationMatchState : IComponentData
     {
         public int Tick;

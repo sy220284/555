@@ -19,6 +19,7 @@ namespace ModernRA.Simulation
         }
 
         [BurstCompile]
+        [WithAll(typeof(AnnihilationRuleActive))]
         private partial struct ApplyRuleMirrorSnapshotJob : IJobEntity
         {
             [ReadOnly] public NativeParallelHashMap<int, RuleMirrorSnapshot> Snapshots;
@@ -36,6 +37,7 @@ namespace ModernRA.Simulation
         private const int MaxCommandLeadTicks = 8;
         private readonly Dictionary<int, Entity> _unitEntities = new Dictionary<int, Entity>();
         private readonly Dictionary<int, Entity> _buildingEntities = new Dictionary<int, Entity>();
+        private readonly Stack<Entity> _entityPool = new Stack<Entity>();
         private NativeParallelHashMap<int, RuleMirrorSnapshot> _mirrorSnapshots;
         private LiveCommandedAnnihilationSession _session;
         private Entity _matchStateEntity;
@@ -216,7 +218,17 @@ namespace ModernRA.Simulation
             if (index.TryGetValue(key, out Entity existing) && EntityManager.Exists(existing))
                 return existing;
 
-            Entity entity = EntityManager.CreateEntity(typeof(AnnihilationRuleEntity), typeof(CommandOwner), typeof(SimPosition), typeof(HealthState));
+            Entity entity;
+            if (_entityPool.Count > 0)
+            {
+                entity = _entityPool.Pop();
+                EntityManager.SetComponentEnabled<AnnihilationRuleActive>(entity, true);
+            }
+            else
+            {
+                entity = EntityManager.CreateEntity(typeof(AnnihilationRuleEntity),
+                    typeof(AnnihilationRuleActive), typeof(CommandOwner), typeof(SimPosition), typeof(HealthState));
+            }
             EntityManager.SetComponentData(entity, new AnnihilationRuleEntity
             {
                 StableId = key,
@@ -234,7 +246,10 @@ namespace ModernRA.Simulation
             if (!index.TryGetValue(key, out Entity entity))
                 return;
             if (EntityManager.Exists(entity))
-                EntityManager.DestroyEntity(entity);
+            {
+                EntityManager.SetComponentEnabled<AnnihilationRuleActive>(entity, false);
+                _entityPool.Push(entity);
+            }
             index.Remove(key);
         }
 

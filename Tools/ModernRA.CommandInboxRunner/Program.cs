@@ -49,6 +49,7 @@ internal static class Program
 
             RunBattleGroupAIExecution();
             RunScheduledBattleGroups();
+            RunAutonomousBattleGroupMatch();
             RunLiveCommandedMatch();
 
             Console.WriteLine("PLAYER COMMAND INBOX GATE PASSED");
@@ -202,6 +203,58 @@ internal static class Program
             throw new InvalidOperationException("resupply group did not hold and repair after reaching its service waypoint");
 
         return (AnnihilationPrototype.ComputeStateHash(session.World), scheduler.ComputeStateHash());
+    }
+
+    private static void RunAutonomousBattleGroupMatch()
+    {
+        (int winner, int tick, ulong worldHash, ulong schedulerHash, int decisions) first =
+            RunAutonomousBattleGroupScenario();
+        (int winner, int tick, ulong worldHash, ulong schedulerHash, int decisions) replay =
+            RunAutonomousBattleGroupScenario();
+        if (first != replay)
+            throw new InvalidOperationException("autonomous battle-group match replay drifted from identical input");
+        if (first.winner == 0 || first.decisions < 2)
+            throw new InvalidOperationException("autonomous battle-group match did not reach a decisive AI-driven result");
+        Console.WriteLine($"battle_group_auto_match winner={first.winner} tick={first.tick} world={first.worldHash:X16} scheduler={first.schedulerHash:X16} decisions={first.decisions} replay=true");
+    }
+
+    private static (int winner, int tick, ulong worldHash, ulong schedulerHash, int decisions)
+        RunAutonomousBattleGroupScenario()
+    {
+        AnnihilationPrototypeConfig config = GrayRangeGeneratedData.Create().CreateStandardAnnihilationConfig();
+        var session = new LiveCommandedAnnihilationSession(config, maxCommandLeadTicks: 12);
+        var scheduler = new PrototypeBattleGroupScheduler();
+        var teamA = scheduler.Register(session.World, new PrototypeBattleGroupOrderSpec(
+            1, 5, 1, 6, PrototypeBattleGroupStance.Aggressive,
+            RuleAIAuthorityLevel.Theater, RuleAIForbiddenAction.None));
+        var teamB = scheduler.Register(session.World, new PrototypeBattleGroupOrderSpec(
+            2, 6, 1, 6, PrototypeBattleGroupStance.Balanced,
+            RuleAIAuthorityLevel.Theater, RuleAIForbiddenAction.None));
+        scheduler.SetZoneCandidates(1, new[]
+        {
+            new PrototypeZoneCandidate(5, 800, 600, 400, 900, 1000, true)
+        });
+        scheduler.SetZoneCandidates(2, new[]
+        {
+            new PrototypeZoneCandidate(6, 700, 650, 500, 800, 1000, true)
+        });
+        scheduler.SetVisibleTargets(1, new[]
+        {
+            new PrototypeBattleGroupTarget(200, session.World.SharedCorridor.Length - 1,
+                900, 900, 500, 800, 1200, RuleIntelLevel.Confirmed)
+        });
+        scheduler.SetVisibleTargets(2, new[]
+        {
+            new PrototypeBattleGroupTarget(100, 0,
+                900, 900, 500, 800, 1200, RuleIntelLevel.Confirmed)
+        });
+        session.AttachBattleGroupScheduler(scheduler);
+
+        AnnihilationPrototypeResult result = session.RunUntilResolved(60000);
+        int decisions = teamA.DecisionsExecuted + teamB.DecisionsExecuted;
+        if (teamA.DecisionsExecuted == 0 || teamB.DecisionsExecuted == 0)
+            throw new InvalidOperationException("one side never executed an autonomous battle-group decision");
+        return (result.WinnerTeamId, result.ResolvedTick, result.StateHash, scheduler.ComputeStateHash(), decisions);
     }
 
     private static void RunLiveCommandedMatch()

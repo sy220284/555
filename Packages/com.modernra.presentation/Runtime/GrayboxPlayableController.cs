@@ -115,6 +115,7 @@ namespace ModernRA.Presentation
                 return;
             _ruleEntityQuery = entityManager.CreateEntityQuery(
                 ComponentType.ReadOnly<AnnihilationRuleEntity>(),
+                ComponentType.ReadOnly<AnnihilationRuleActive>(),
                 ComponentType.ReadOnly<SimPosition>(),
                 ComponentType.ReadOnly<HealthState>());
             _ruleQueryReady = true;

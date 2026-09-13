@@ -21,6 +21,7 @@ namespace ModernRA.Tests
                 ComponentType.ReadOnly<AnnihilationMatchState>());
             using EntityQuery ruleEntityQuery = world.EntityManager.CreateEntityQuery(
                 ComponentType.ReadOnly<AnnihilationRuleEntity>(),
+                ComponentType.ReadOnly<AnnihilationRuleActive>(),
                 ComponentType.ReadOnly<SimPosition>(),
                 ComponentType.ReadOnly<HealthState>());
 

@@ -43,6 +43,17 @@ class UnityRuleBridgeStaticTests(unittest.TestCase):
         self.assertNotIn("SetComponentData(entity, new SimPosition", text)
         self.assertNotIn("SetComponentData(entity, new HealthState", text)
 
+    def test_rule_entities_are_disabled_and_reused_instead_of_destroyed(self):
+        bridge = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
+        components = (SIM / "GrayRangeRuntimeComponents.cs").read_text(encoding="utf-8")
+        presentation = (ROOT / "Packages/com.modernra.presentation/Runtime/GrayboxPlayableController.cs").read_text(encoding="utf-8")
+        self.assertIn("AnnihilationRuleActive : IComponentData, IEnableableComponent", components)
+        self.assertIn("Stack<Entity> _entityPool", bridge)
+        self.assertIn("SetComponentEnabled<AnnihilationRuleActive>(entity, false)", bridge)
+        self.assertIn("SetComponentEnabled<AnnihilationRuleActive>(entity, true)", bridge)
+        self.assertNotIn("EntityManager.DestroyEntity(entity)", bridge)
+        self.assertIn("ComponentType.ReadOnly<AnnihilationRuleActive>()", presentation)
+
     def test_map_bootstrap_materializes_all_major_graybox_categories(self):
         text = (SIM / "GrayRangeBootstrapSystem.cs").read_text(encoding="utf-8")
         for name in (

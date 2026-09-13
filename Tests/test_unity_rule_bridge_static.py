@@ -35,7 +35,11 @@ class UnityRuleBridgeStaticTests(unittest.TestCase):
         self.assertIn("ApplyRuleMirrorSnapshotJob : IJobEntity", text)
         self.assertIn("NativeParallelHashMap<int, RuleMirrorSnapshot>", text)
         self.assertIn("ScheduleParallel(Dependency)", text)
-        self.assertIn("snapshots.Dispose(applyHandle)", text)
+        self.assertIn("Allocator.Persistent", text)
+        self.assertIn("_mirrorSnapshots.Clear()", text)
+        self.assertIn("_mirrorSnapshots.Capacity = requiredCapacity", text)
+        self.assertIn("_mirrorSnapshots.Dispose()", text)
+        self.assertNotIn("Allocator.TempJob", text)
         self.assertNotIn("SetComponentData(entity, new SimPosition", text)
         self.assertNotIn("SetComponentData(entity, new HealthState", text)
 

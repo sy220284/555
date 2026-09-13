@@ -3,7 +3,6 @@ using ModernRA.Rules;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 
 namespace ModernRA.Simulation
@@ -37,6 +36,7 @@ namespace ModernRA.Simulation
         private const int MaxCommandLeadTicks = 8;
         private readonly Dictionary<int, Entity> _unitEntities = new Dictionary<int, Entity>();
         private readonly Dictionary<int, Entity> _buildingEntities = new Dictionary<int, Entity>();
+        private NativeParallelHashMap<int, RuleMirrorSnapshot> _mirrorSnapshots;
         private LiveCommandedAnnihilationSession _session;
         private Entity _matchStateEntity;
         private Entity _commandQueueEntity;
@@ -55,6 +55,7 @@ namespace ModernRA.Simulation
 
             RuntimeMapBootstrapData map = GrayRangeGeneratedData.Create();
             _session = new LiveCommandedAnnihilationSession(map.CreateStandardAnnihilationConfig(), MaxCommandLeadTicks);
+            _mirrorSnapshots = new NativeParallelHashMap<int, RuleMirrorSnapshot>(64, Allocator.Persistent);
             _matchStateEntity = EntityManager.CreateEntity(typeof(AnnihilationMatchState));
             _commandQueueEntity = EntityManager.CreateEntity(typeof(PlayerCommandQueueState));
             EntityManager.AddBuffer<PlayerCommandRequest>(_commandQueueEntity);
@@ -167,12 +168,14 @@ namespace ModernRA.Simulation
                 AnnihilationPrototype.CountAliveBuildings(world.TeamB) +
                 AnnihilationPrototype.CountAliveUnits(world.TeamA) +
                 AnnihilationPrototype.CountAliveUnits(world.TeamB);
-            var snapshots = new NativeParallelHashMap<int, RuleMirrorSnapshot>(math.max(1, capacity), Allocator.TempJob);
-            AddTeamSnapshots(world.TeamA, snapshots);
-            AddTeamSnapshots(world.TeamB, snapshots);
-            JobHandle applyHandle = new ApplyRuleMirrorSnapshotJob { Snapshots = snapshots }
+            int requiredCapacity = math.max(1, capacity);
+            if (_mirrorSnapshots.Capacity < requiredCapacity)
+                _mirrorSnapshots.Capacity = requiredCapacity;
+            _mirrorSnapshots.Clear();
+            AddTeamSnapshots(world.TeamA, _mirrorSnapshots);
+            AddTeamSnapshots(world.TeamB, _mirrorSnapshots);
+            Dependency = new ApplyRuleMirrorSnapshotJob { Snapshots = _mirrorSnapshots }
                 .ScheduleParallel(Dependency);
-            Dependency = snapshots.Dispose(applyHandle);
         }
 
         private static void AddTeamSnapshots(PrototypeAnnihilationTeamState team,
@@ -238,6 +241,8 @@ namespace ModernRA.Simulation
         protected override void OnDestroy()
         {
             Dependency.Complete();
+            if (_mirrorSnapshots.IsCreated)
+                _mirrorSnapshots.Dispose();
             base.OnDestroy();
         }
     }

@@ -100,6 +100,7 @@ internal static class Program
         PlayerCommandCheckpointRecord[] checkpoints = RecordCheckpoints(config, canonicalCommands);
         PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
             scenarioId,
+            config,
             canonicalCommands,
             canonical.ComputeCanonicalHash(),
             expected.WinnerTeamId,
@@ -114,28 +115,58 @@ internal static class Program
             byte[] firstBytes = File.ReadAllBytes(path);
             PlayerCommandReplayDocument loaded = PlayerCommandReplayFile.Read(path);
             PlayerCommandReplayFile.ValidateScenario(loaded, scenarioId);
+            AnnihilationPrototypeConfig replayConfig = PlayerCommandReplayFile.ToInitialConfig(loaded);
             PrototypePlayerCommand[] loadedCommands = PlayerCommandReplayFile.ToCommands(loaded);
-            CommandRunResult replayed = Run(config, loadedCommands);
+            PlayerCommandCheckpointRecord[] loadedCheckpoints = PlayerCommandReplayFile.ToCheckpoints(loaded);
+            CommandRunResult replayed = Run(replayConfig, loadedCommands);
             if (!replayed.Equals(expected))
                 throw new InvalidOperationException("persisted command replay changed authoritative result");
             PlayerCommandReplayFile.ValidateOutcome(loaded, replayed.WinnerTeamId, replayed.ResolvedTick, replayed.StateHash);
-            VerifyCheckpoints(config, loadedCommands, loaded.Checkpoints);
+            VerifyCheckpoints(replayConfig, loadedCommands, loadedCheckpoints);
 
             byte[] secondBytes = PlayerCommandReplayFile.Serialize(loaded);
             if (!firstBytes.AsSpan().SequenceEqual(secondBytes))
                 throw new InvalidOperationException("command replay serialization is not byte-stable");
 
+            var versionTwo = new PlayerCommandReplayV2Document
+            {
+                FormatVersion = 2,
+                GameVersion = PlayerCommandReplayFile.GameVersion,
+                ContentHash = GrayRangeGeneratedData.SourceMapSha256,
+                MapId = scenarioId,
+                TimestampUtc = DateTimeOffset.UnixEpoch,
+                ProtocolVersion = PlayerCommandReplayFile.ProtocolVersion,
+                ScenarioId = scenarioId,
+                MapSourceSha256 = GrayRangeGeneratedData.SourceMapSha256,
+                RulesetId = PlayerCommandReplayFile.RulesetId,
+                CommandHash = canonical.ComputeCanonicalHash().ToString("X16"),
+                WinnerTeamId = expected.WinnerTeamId,
+                ResolvedTick = expected.ResolvedTick,
+                FinalStateHash = expected.StateHash.ToString("X16"),
+                Commands = ToLegacyRecords(canonicalCommands),
+                Checkpoints = checkpoints
+            };
+            File.WriteAllBytes(path, JsonSerializer.SerializeToUtf8Bytes(versionTwo, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+            }));
+            PlayerCommandReplayDocument migratedV2 = PlayerCommandReplayFile.Read(path);
+            if (migratedV2.FormatVersion != PlayerCommandReplayFile.FormatVersion ||
+                PlayerCommandReplayFile.ToCommands(migratedV2).Length != loadedCommands.Length ||
+                PlayerCommandReplayFile.ToCheckpoints(migratedV2).Length != checkpoints.Length)
+                throw new InvalidOperationException("command replay v2 migration lost events or initial state");
+
             var legacy = new PlayerCommandReplayV1Document
             {
                 SchemaVersion = 1,
-                ScenarioId = document.ScenarioId,
-                MapSourceSha256 = document.MapSourceSha256,
-                RulesetId = document.RulesetId,
-                CommandHash = document.CommandHash,
-                WinnerTeamId = document.WinnerTeamId,
-                ResolvedTick = document.ResolvedTick,
-                FinalStateHash = document.FinalStateHash,
-                Commands = document.Commands
+                ScenarioId = scenarioId,
+                MapSourceSha256 = GrayRangeGeneratedData.SourceMapSha256,
+                RulesetId = PlayerCommandReplayFile.RulesetId,
+                CommandHash = canonical.ComputeCanonicalHash().ToString("X16"),
+                WinnerTeamId = expected.WinnerTeamId,
+                ResolvedTick = expected.ResolvedTick,
+                FinalStateHash = expected.StateHash.ToString("X16"),
+                Commands = ToLegacyRecords(canonicalCommands)
             };
             byte[] legacyBytes = JsonSerializer.SerializeToUtf8Bytes(legacy, new JsonSerializerOptions
             {
@@ -147,13 +178,31 @@ internal static class Program
                 PlayerCommandReplayFile.ToCommands(migrated).Length != loadedCommands.Length)
                 throw new InvalidOperationException("command replay v1 migration lost commands or version metadata");
 
-            Console.WriteLine($"command_replay_bytes={firstBytes.Length} command_replay_sha256={PlayerCommandReplayFile.Sha256Hex(firstBytes)} checkpoints={checkpoints.Length} migration_v1_v2=true");
+            Console.WriteLine($"command_replay_bytes={firstBytes.Length} command_replay_sha256={PlayerCommandReplayFile.Sha256Hex(firstBytes)} checkpoints={checkpoints.Length} unified_events={document.Events.Length} migration_v1_v2_v3=true");
         }
         finally
         {
             if (File.Exists(path))
                 File.Delete(path);
         }
+    }
+
+    private static PlayerCommandRecord[] ToLegacyRecords(PrototypePlayerCommand[] commands)
+    {
+        var records = new PlayerCommandRecord[commands.Length];
+        for (int i = 0; i < commands.Length; i++)
+        {
+            PrototypePlayerCommand command = commands[i];
+            records[i] = new PlayerCommandRecord
+            {
+                Tick = command.Tick,
+                Sequence = command.Sequence,
+                PlayerId = command.PlayerId,
+                Kind = (int)command.Kind,
+                IntValue = command.IntValue
+            };
+        }
+        return records;
     }
 
     private static PlayerCommandCheckpointRecord[] RecordCheckpoints(

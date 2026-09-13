@@ -32,6 +32,36 @@ namespace ModernRA.Rules
         WarSystemCollapse = 1
     }
 
+    public enum PrototypeAuthorityEventKind : byte
+    {
+        UnitDestroyed = 1,
+        BuildingDestroyed = 2,
+        MatchResolved = 3
+    }
+
+    public readonly struct PrototypeAuthorityEvent
+    {
+        public readonly int Tick;
+        public readonly int Sequence;
+        public readonly PrototypeAuthorityEventKind Kind;
+        public readonly int SourceTeamId;
+        public readonly int TargetTeamId;
+        public readonly int TargetId;
+        public readonly int Value;
+
+        public PrototypeAuthorityEvent(int tick, int sequence, PrototypeAuthorityEventKind kind,
+            int sourceTeamId, int targetTeamId, int targetId, int value)
+        {
+            Tick = tick;
+            Sequence = sequence;
+            Kind = kind;
+            SourceTeamId = sourceTeamId;
+            TargetTeamId = targetTeamId;
+            TargetId = targetId;
+            Value = value;
+        }
+    }
+
     public sealed class PrototypeBuildingState
     {
         public PrototypeBuildingRole Role;
@@ -102,6 +132,7 @@ namespace ModernRA.Rules
         public int WinnerTeamId;
         public PrototypeDefeatReason DefeatReason;
         public int MaxLiveTanksPerTeam;
+        public readonly List<PrototypeAuthorityEvent> AuthorityEvents = new List<PrototypeAuthorityEvent>();
 
         public bool Resolved => WinnerTeamId != 0;
     }
@@ -353,7 +384,8 @@ namespace ModernRA.Rules
                     {
                         unit.WeaponCooldownTicks = WeaponCooldownTicks;
                         world.ShotsFired++;
-                        ApplyUnitDamage(targetUnit, ResolveUnitDamage(RawDamage, TankArmor), world);
+                        ApplyUnitDamage(targetUnit, ResolveUnitDamage(RawDamage, TankArmor), world,
+                            attacker.TeamId, defender.TeamId);
                     }
                     continue;
                 }
@@ -365,7 +397,7 @@ namespace ModernRA.Rules
                     {
                         unit.WeaponCooldownTicks = WeaponCooldownTicks;
                         world.ShotsFired++;
-                        ApplyBuildingDamage(targetBuilding, RawDamage, world);
+                        ApplyBuildingDamage(targetBuilding, RawDamage, world, attacker.TeamId, defender.TeamId);
                     }
                     continue;
                 }
@@ -428,7 +460,8 @@ namespace ModernRA.Rules
             return Math.Max(40, rawDamage - armor / 4);
         }
 
-        private static void ApplyUnitDamage(PrototypeCombatUnitState target, int damage, AnnihilationPrototypeWorld world)
+        private static void ApplyUnitDamage(PrototypeCombatUnitState target, int damage, AnnihilationPrototypeWorld world,
+            int sourceTeamId, int targetTeamId)
         {
             if (!target.Alive)
                 return;
@@ -438,9 +471,12 @@ namespace ModernRA.Rules
             target.Health = 0;
             target.Alive = false;
             world.UnitsDestroyed++;
+            AddAuthorityEvent(world, PrototypeAuthorityEventKind.UnitDestroyed,
+                sourceTeamId, targetTeamId, target.Id, 0);
         }
 
-        private static void ApplyBuildingDamage(PrototypeBuildingState target, int damage, AnnihilationPrototypeWorld world)
+        private static void ApplyBuildingDamage(PrototypeBuildingState target, int damage, AnnihilationPrototypeWorld world,
+            int sourceTeamId, int targetTeamId)
         {
             if (!target.Alive)
                 return;
@@ -450,6 +486,15 @@ namespace ModernRA.Rules
             target.Health = 0;
             target.Alive = false;
             world.BuildingsDestroyed++;
+            AddAuthorityEvent(world, PrototypeAuthorityEventKind.BuildingDestroyed,
+                sourceTeamId, targetTeamId, (int)target.Role, 0);
+        }
+
+        private static void AddAuthorityEvent(AnnihilationPrototypeWorld world, PrototypeAuthorityEventKind kind,
+            int sourceTeamId, int targetTeamId, int targetId, int value)
+        {
+            world.AuthorityEvents.Add(new PrototypeAuthorityEvent(world.Tick, world.AuthorityEvents.Count + 1,
+                kind, sourceTeamId, targetTeamId, targetId, value));
         }
 
         private static void MoveAlongSharedCorridor(PrototypeCombatUnitState unit, Int2[] corridor, bool forward)
@@ -519,6 +564,8 @@ namespace ModernRA.Rules
                 world.DefeatReason = PrototypeDefeatReason.WarSystemCollapse;
                 world.TeamA.DefeatReason = PrototypeDefeatReason.WarSystemCollapse;
                 world.TeamB.DefeatReason = PrototypeDefeatReason.WarSystemCollapse;
+                AddAuthorityEvent(world, PrototypeAuthorityEventKind.MatchResolved,
+                    0, 0, -1, (int)PrototypeDefeatReason.WarSystemCollapse);
                 return;
             }
 
@@ -526,6 +573,8 @@ namespace ModernRA.Rules
             world.WinnerTeamId = collapsedA ? world.TeamB.TeamId : world.TeamA.TeamId;
             world.DefeatReason = PrototypeDefeatReason.WarSystemCollapse;
             loser.DefeatReason = PrototypeDefeatReason.WarSystemCollapse;
+            AddAuthorityEvent(world, PrototypeAuthorityEventKind.MatchResolved,
+                world.WinnerTeamId, loser.TeamId, world.WinnerTeamId, (int)world.DefeatReason);
         }
 
         private static bool IsWarSystemCollapsed(PrototypeAnnihilationTeamState team)

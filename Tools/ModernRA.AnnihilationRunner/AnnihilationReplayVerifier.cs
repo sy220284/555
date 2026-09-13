@@ -15,6 +15,7 @@ internal readonly struct AnnihilationReplayCheckpoint
 internal sealed class AnnihilationReplayTape
 {
     public readonly List<AnnihilationReplayCheckpoint> Checkpoints = new List<AnnihilationReplayCheckpoint>();
+    public readonly List<PrototypeAuthorityEvent> AuthorityEvents = new List<PrototypeAuthorityEvent>();
     public int WinnerTeamId;
     public int ResolvedTick;
     public ulong FinalStateHash;
@@ -46,6 +47,7 @@ internal static class AnnihilationReplayVerifier
         tape.WinnerTeamId = world.WinnerTeamId;
         tape.ResolvedTick = world.Tick;
         tape.FinalStateHash = AnnihilationPrototype.ComputeStateHash(world);
+        tape.AuthorityEvents.AddRange(world.AuthorityEvents);
         return tape;
     }
 
@@ -80,9 +82,29 @@ internal static class AnnihilationReplayVerifier
             throw new InvalidOperationException("annihilation replay verification exceeded watchdog");
         if (checkpointIndex != tape.Checkpoints.Count)
             throw new InvalidOperationException("annihilation replay did not consume every checkpoint");
+        if (tape.AuthorityEvents.Count > 0)
+            VerifyAuthorityEvents(world.AuthorityEvents, tape.AuthorityEvents);
 
         ulong finalHash = AnnihilationPrototype.ComputeStateHash(world);
         if (world.WinnerTeamId != tape.WinnerTeamId || world.Tick != tape.ResolvedTick || finalHash != tape.FinalStateHash)
             throw new InvalidOperationException("annihilation replay final result diverged");
+    }
+
+    private static void VerifyAuthorityEvents(IReadOnlyList<PrototypeAuthorityEvent> actual,
+        IReadOnlyList<PrototypeAuthorityEvent> expected)
+    {
+        if (actual.Count != expected.Count)
+            throw new InvalidOperationException("annihilation replay authority event count diverged");
+        for (int i = 0; i < actual.Count; i++)
+        {
+            PrototypeAuthorityEvent left = actual[i];
+            PrototypeAuthorityEvent right = expected[i];
+            if (left.Tick != right.Tick || left.Sequence != right.Sequence || left.Kind != right.Kind ||
+                left.SourceTeamId != right.SourceTeamId || left.TargetTeamId != right.TargetTeamId ||
+                left.TargetId != right.TargetId || left.Value != right.Value)
+            {
+                throw new InvalidOperationException($"annihilation replay authority event diverged at sequence {right.Sequence}");
+            }
+        }
     }
 }

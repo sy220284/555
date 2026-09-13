@@ -97,7 +97,8 @@ internal static class Program
     private static void ReplayRoundTrip(AnnihilationPrototypeConfig config, string scenarioId, DeterministicCommandTimeline canonical, CommandRunResult expected)
     {
         PrototypePlayerCommand[] canonicalCommands = canonical.ToCanonicalArray();
-        PlayerCommandCheckpointRecord[] checkpoints = RecordCheckpoints(config, canonicalCommands);
+        PlayerCommandCheckpointRecord[] checkpoints = RecordCheckpoints(config, canonicalCommands,
+            out PrototypeAuthorityEvent[] authorityEvents);
         PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
             scenarioId,
             config,
@@ -106,7 +107,8 @@ internal static class Program
             expected.WinnerTeamId,
             expected.ResolvedTick,
             expected.StateHash,
-            checkpoints);
+            checkpoints,
+            authorityEvents);
 
         string path = Path.Combine(Path.GetTempPath(), $"modernra-command-{Guid.NewGuid():N}.json");
         try
@@ -122,7 +124,8 @@ internal static class Program
             if (!replayed.Equals(expected))
                 throw new InvalidOperationException("persisted command replay changed authoritative result");
             PlayerCommandReplayFile.ValidateOutcome(loaded, replayed.WinnerTeamId, replayed.ResolvedTick, replayed.StateHash);
-            VerifyCheckpoints(replayConfig, loadedCommands, loadedCheckpoints);
+            VerifyCheckpoints(replayConfig, loadedCommands, loadedCheckpoints,
+                PlayerCommandReplayFile.ToAuthorityEvents(loaded));
 
             byte[] secondBytes = PlayerCommandReplayFile.Serialize(loaded);
             if (!firstBytes.AsSpan().SequenceEqual(secondBytes))
@@ -206,7 +209,8 @@ internal static class Program
     }
 
     private static PlayerCommandCheckpointRecord[] RecordCheckpoints(
-        AnnihilationPrototypeConfig config, PrototypePlayerCommand[] commands)
+        AnnihilationPrototypeConfig config, PrototypePlayerCommand[] commands,
+        out PrototypeAuthorityEvent[] authorityEvents)
     {
         AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
         var timeline = new DeterministicCommandTimeline(commands);
@@ -225,11 +229,13 @@ internal static class Program
         }
         if (!world.Resolved)
             throw new InvalidOperationException("command checkpoint recording exceeded watchdog");
+        authorityEvents = world.AuthorityEvents.ToArray();
         return checkpoints.ToArray();
     }
 
     private static void VerifyCheckpoints(AnnihilationPrototypeConfig config,
-        PrototypePlayerCommand[] commands, PlayerCommandCheckpointRecord[] checkpoints)
+        PrototypePlayerCommand[] commands, PlayerCommandCheckpointRecord[] checkpoints,
+        PrototypeAuthorityEvent[] authorityEvents)
     {
         AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
         var timeline = new DeterministicCommandTimeline(commands);
@@ -247,6 +253,23 @@ internal static class Program
         }
         if (!world.Resolved || checkpointIndex != checkpoints.Length)
             throw new InvalidOperationException("command replay did not consume every state checkpoint");
+        VerifyAuthorityEvents(world.AuthorityEvents, authorityEvents);
+    }
+
+    private static void VerifyAuthorityEvents(IReadOnlyList<PrototypeAuthorityEvent> actual,
+        IReadOnlyList<PrototypeAuthorityEvent> expected)
+    {
+        if (actual.Count != expected.Count)
+            throw new InvalidOperationException("command replay authority event count diverged");
+        for (int i = 0; i < actual.Count; i++)
+        {
+            PrototypeAuthorityEvent left = actual[i];
+            PrototypeAuthorityEvent right = expected[i];
+            if (left.Tick != right.Tick || left.Sequence != right.Sequence || left.Kind != right.Kind ||
+                left.SourceTeamId != right.SourceTeamId || left.TargetTeamId != right.TargetTeamId ||
+                left.TargetId != right.TargetId || left.Value != right.Value)
+                throw new InvalidOperationException($"command replay authority event diverged at sequence {right.Sequence}");
+        }
     }
 
     private static void AssertInvalidCommandsAreRejected()

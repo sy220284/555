@@ -121,6 +121,8 @@ namespace ModernRA.Rules
 
     public sealed class AnnihilationPrototypeWorld
     {
+        internal readonly DeterministicSpatialHash MovementSpatial = new DeterministicSpatialHash(64);
+        internal readonly List<SpatialEntity> AvoidanceScratch = new List<SpatialEntity>(16);
         public int Tick;
         public PrototypeAnnihilationTeamState TeamA = new PrototypeAnnihilationTeamState();
         public PrototypeAnnihilationTeamState TeamB = new PrototypeAnnihilationTeamState();
@@ -129,6 +131,8 @@ namespace ModernRA.Rules
         public int UnitsDestroyed;
         public int BuildingsDestroyed;
         public int MovementSteps;
+        public long AvoidanceCandidateVisits;
+        public long AvoidanceNeighborsResolved;
         public int WinnerTeamId;
         public PrototypeDefeatReason DefeatReason;
         public int MaxLiveTanksPerTeam;
@@ -166,6 +170,11 @@ namespace ModernRA.Rules
         private const int TankBuildTicks = 90;
         private const long MiningPerTickMilli = 1000L;
         private const int TankSpeedPerTick = 7;
+        private const int TankMaximumStepPerTick = 10;
+        private const int LocalAvoidanceIntervalTicks = 2;
+        private const int LocalAvoidanceQueryRadius = 80;
+        private const int LocalAvoidanceSeparationRadius = 45;
+        private const int LocalAvoidanceMaxAdjustment = 3;
         private const int WeaponRange = 360;
         private const int WeaponRangeSq = WeaponRange * WeaponRange;
         private const int RawDamage = 240;
@@ -218,9 +227,28 @@ namespace ModernRA.Rules
             world.Tick++;
             StepEconomyAndProduction(world.TeamA, world.SharedCorridor.Length, world.MaxLiveTanksPerTeam);
             StepEconomyAndProduction(world.TeamB, world.SharedCorridor.Length, world.MaxLiveTanksPerTeam);
-            StepTeamCombat(world, world.TeamA, world.TeamB, true);
-            StepTeamCombat(world, world.TeamB, world.TeamA, false);
+            RebuildMovementSpatial(world);
+            bool solveLocalAvoidance = world.Tick % LocalAvoidanceIntervalTicks == 0;
+            StepTeamCombat(world, world.TeamA, world.TeamB, true, solveLocalAvoidance);
+            StepTeamCombat(world, world.TeamB, world.TeamA, false, solveLocalAvoidance);
             ResolveWarSystemCollapse(world);
+        }
+
+        private static void RebuildMovementSpatial(AnnihilationPrototypeWorld world)
+        {
+            world.MovementSpatial.Clear();
+            AddAliveUnits(world.MovementSpatial, world.TeamA);
+            AddAliveUnits(world.MovementSpatial, world.TeamB);
+        }
+
+        private static void AddAliveUnits(DeterministicSpatialHash spatial, PrototypeAnnihilationTeamState team)
+        {
+            for (int i = 0; i < team.Units.Count; i++)
+            {
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (unit.Alive)
+                    spatial.Insert(new SpatialEntity(unit.Id, unit.TeamId, unit.X, unit.Y));
+            }
         }
 
         private static PrototypeAnnihilationTeamState CreateTeam(int teamId, PrototypeAnnihilationPlan plan, Int2 spawn, int direction, long industrialMilli)
@@ -367,7 +395,8 @@ namespace ModernRA.Rules
             return new Int2(team.Spawn.X + offsetX * team.Direction, team.Spawn.Y + offsetY * team.Direction);
         }
 
-        private static void StepTeamCombat(AnnihilationPrototypeWorld world, PrototypeAnnihilationTeamState attacker, PrototypeAnnihilationTeamState defender, bool forward)
+        private static void StepTeamCombat(AnnihilationPrototypeWorld world, PrototypeAnnihilationTeamState attacker,
+            PrototypeAnnihilationTeamState defender, bool forward, bool solveLocalAvoidance)
         {
             for (int i = 0; i < attacker.Units.Count; i++)
             {
@@ -407,7 +436,7 @@ namespace ModernRA.Rules
 
                 int oldX = unit.X;
                 int oldY = unit.Y;
-                MoveAlongSharedCorridor(unit, world.SharedCorridor, forward);
+                MoveAlongSharedCorridor(world, unit, world.SharedCorridor, forward, solveLocalAvoidance);
                 if (unit.X != oldX || unit.Y != oldY)
                     world.MovementSteps++;
             }
@@ -497,7 +526,8 @@ namespace ModernRA.Rules
                 kind, sourceTeamId, targetTeamId, targetId, value));
         }
 
-        private static void MoveAlongSharedCorridor(PrototypeCombatUnitState unit, Int2[] corridor, bool forward)
+        private static void MoveAlongSharedCorridor(AnnihilationPrototypeWorld world, PrototypeCombatUnitState unit,
+            Int2[] corridor, bool forward, bool solveLocalAvoidance)
         {
             if (corridor.Length == 0)
                 return;
@@ -505,8 +535,27 @@ namespace ModernRA.Rules
             if (cursor < 0) cursor = 0;
             if (cursor >= corridor.Length) cursor = corridor.Length - 1;
             Int2 target = corridor[cursor];
-            MoveAxis(ref unit.X, target.X, TankSpeedPerTick);
-            MoveAxis(ref unit.Y, target.Y, TankSpeedPerTick);
+            var current = new Int2(unit.X, unit.Y);
+            var desiredDelta = new Int2(
+                ClampAxisDelta(target.X - unit.X, TankSpeedPerTick),
+                ClampAxisDelta(target.Y - unit.Y, TankSpeedPerTick));
+            Int2 avoidance = new Int2(0, 0);
+            if (solveLocalAvoidance)
+            {
+                LocalAvoidanceResult result = DeterministicLocalAvoidance.Solve(
+                    world.MovementSpatial,
+                    new SpatialEntity(unit.Id, unit.TeamId, unit.X, unit.Y),
+                    LocalAvoidanceQueryRadius,
+                    LocalAvoidanceSeparationRadius,
+                    LocalAvoidanceMaxAdjustment,
+                    world.AvoidanceScratch);
+                avoidance = result.Adjustment;
+                world.AvoidanceCandidateVisits += result.CandidateVisits;
+                world.AvoidanceNeighborsResolved += result.NeighborCount;
+            }
+            Int2 next = DeterministicLocalAvoidance.ApplyStep(current, desiredDelta, avoidance, TankMaximumStepPerTick);
+            unit.X = next.X;
+            unit.Y = next.Y;
 
             if (Math.Abs(unit.X - target.X) <= TankSpeedPerTick && Math.Abs(unit.Y - target.Y) <= TankSpeedPerTick)
             {
@@ -519,12 +568,11 @@ namespace ModernRA.Rules
             }
         }
 
-        private static void MoveAxis(ref int value, int target, int maxStep)
+        private static int ClampAxisDelta(int delta, int maxStep)
         {
-            int delta = target - value;
-            if (delta > maxStep) value += maxStep;
-            else if (delta < -maxStep) value -= maxStep;
-            else value = target;
+            if (delta > maxStep) return maxStep;
+            if (delta < -maxStep) return -maxStep;
+            return delta;
         }
 
         private static long DistanceSq(int ax, int ay, int bx, int by)
@@ -595,6 +643,8 @@ namespace ModernRA.Rules
             hash = StateHash64.Add(hash, world.UnitsDestroyed);
             hash = StateHash64.Add(hash, world.BuildingsDestroyed);
             hash = StateHash64.Add(hash, world.MovementSteps);
+            hash = StateHash64.Add(hash, world.AvoidanceCandidateVisits);
+            hash = StateHash64.Add(hash, world.AvoidanceNeighborsResolved);
             HashTeam(ref hash, world.TeamA);
             HashTeam(ref hash, world.TeamB);
             return hash;

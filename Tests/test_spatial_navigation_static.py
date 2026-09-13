@@ -3,7 +3,9 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RULES = ROOT / "Packages/com.modernra.rules/Runtime/SpatialNavigationRules.cs"
+ANNIHILATION = ROOT / "Packages/com.modernra.rules/Runtime/AnnihilationPrototype.cs"
 GATE = ROOT / "Tools/ModernRA.SimRunner/SpatialNavigationGateChecks.cs"
+ANNIHILATION_GATE = ROOT / "Tools/ModernRA.AnnihilationRunner/AnnihilationGateChecks.cs"
 
 
 class SpatialNavigationStaticTests(unittest.TestCase):
@@ -34,6 +36,16 @@ class SpatialNavigationStaticTests(unittest.TestCase):
         self.assertIn("naiveCandidateVisits / 5", text)
         self.assertIn("insertion order", text)
         self.assertIn("VerifySharedRouteInvalidation", text)
+
+    def test_annihilation_movement_uses_fixed_rate_spatial_local_avoidance(self):
+        rules = ANNIHILATION.read_text(encoding="utf-8")
+        gate = ANNIHILATION_GATE.read_text(encoding="utf-8")
+        self.assertIn("LocalAvoidanceIntervalTicks = 2", rules)
+        self.assertIn("RebuildMovementSpatial(world)", rules)
+        self.assertIn("DeterministicLocalAvoidance.Solve", rules)
+        self.assertIn("DeterministicLocalAvoidance.ApplyStep", rules)
+        self.assertIn("AvoidanceCandidateVisits", gate)
+        self.assertIn("AvoidanceNeighborsResolved", gate)
 
 
 if __name__ == "__main__":

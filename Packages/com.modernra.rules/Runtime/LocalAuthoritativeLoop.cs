@@ -100,6 +100,7 @@ namespace ModernRA.Rules
 
         public LocalAuthoritativeServer(ulong contentHash, ServerEntityState[] entities)
         {
+            if (entities == null) throw new ArgumentNullException(nameof(entities));
             ContentHash = contentHash;
             _entities = new ServerEntityState[entities.Length];
             for (int i = 0; i < entities.Length; i++)
@@ -116,6 +117,16 @@ namespace ModernRA.Rules
                     TargetX = source.X,
                     TargetY = source.Y
                 };
+            }
+            Array.Sort(_entities, (left, right) => left.EntityId.CompareTo(right.EntityId));
+            for (int i = 0; i < _entities.Length; i++)
+            {
+                if (_entities[i].EntityId <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(entities), "server entity id must be positive");
+                if (_entities[i].TeamId != 1 && _entities[i].TeamId != 2)
+                    throw new ArgumentOutOfRangeException(nameof(entities), $"server entity {_entities[i].EntityId} has invalid team");
+                if (i > 0 && _entities[i - 1].EntityId == _entities[i].EntityId)
+                    throw new ArgumentException($"duplicate server entity {_entities[i].EntityId}", nameof(entities));
             }
         }
 
@@ -224,6 +235,8 @@ namespace ModernRA.Rules
 
         public AuthoritativeSnapshot BuildSnapshot(int observerTeam, uint baselineTick)
         {
+            if (observerTeam != 1 && observerTeam != 2) throw new ArgumentOutOfRangeException(nameof(observerTeam));
+            if (baselineTick > Tick) throw new ArgumentOutOfRangeException(nameof(baselineTick));
             var visible = new List<VisibleEntityState>(_entities.Length);
             var removed = new List<int>();
             for (int i = 0; i < _entities.Length; i++)
@@ -251,6 +264,11 @@ namespace ModernRA.Rules
                 Entities = visible.ToArray(),
                 RemovedContactIds = removed.ToArray()
             };
+        }
+
+        public AuthoritativeSnapshot BuildReconnectSnapshot(int observerTeam)
+        {
+            return BuildSnapshot(observerTeam, 0);
         }
 
         private RuleIntelLevel GetIntel(int observerTeam, int entityId)
@@ -286,14 +304,40 @@ namespace ModernRA.Rules
     {
         private readonly Dictionary<int, VisibleEntityState> _current = new Dictionary<int, VisibleEntityState>();
         private readonly Dictionary<int, VisibleEntityState> _previous = new Dictionary<int, VisibleEntityState>();
+        private bool _hasContentHash;
+        private ulong _contentHash;
         public uint LastTick { get; private set; }
+        public bool NeedsReconnect { get; private set; }
+        public ulong ContentHash => _contentHash;
 
         public void Apply(AuthoritativeSnapshot snapshot)
         {
+            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            if (_hasContentHash && snapshot.ContentHash != _contentHash)
+                throw new InvalidOperationException("snapshot content hash changed during the session");
+            if (!_hasContentHash)
+            {
+                _contentHash = snapshot.ContentHash;
+                _hasContentHash = true;
+            }
+            if (snapshot.IsDelta)
+            {
+                if (LastTick == 0 || snapshot.BaselineTick != LastTick || snapshot.Tick <= snapshot.BaselineTick)
+                {
+                    NeedsReconnect = true;
+                    throw new InvalidOperationException("snapshot delta baseline does not match the client state");
+                }
+            }
+            else if (snapshot.BaselineTick != 0)
+            {
+                throw new InvalidOperationException("full snapshot must use baseline tick zero");
+            }
+
             if (!snapshot.IsDelta)
             {
                 _current.Clear();
                 _previous.Clear();
+                NeedsReconnect = false;
             }
             for (int i = 0; i < snapshot.RemovedContactIds.Length; i++)
             {

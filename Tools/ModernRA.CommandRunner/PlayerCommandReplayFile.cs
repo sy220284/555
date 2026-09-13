@@ -21,6 +21,7 @@ internal sealed class PlayerCommandReplayDocument
     public int ResolvedTick { get; set; }
     public string FinalStateHash { get; set; } = string.Empty;
     public PlayerCommandRecord[] Commands { get; set; } = Array.Empty<PlayerCommandRecord>();
+    public PlayerCommandCheckpointRecord[] Checkpoints { get; set; } = Array.Empty<PlayerCommandCheckpointRecord>();
 }
 
 internal sealed class PlayerCommandReplayV1Document
@@ -45,6 +46,12 @@ internal sealed class PlayerCommandRecord
     public int IntValue { get; set; }
 }
 
+internal sealed class PlayerCommandCheckpointRecord
+{
+    public int Tick { get; set; }
+    public string StateHash { get; set; } = string.Empty;
+}
+
 internal static class PlayerCommandReplayFile
 {
     public const int FormatVersion = 2;
@@ -63,12 +70,15 @@ internal static class PlayerCommandReplayFile
         ulong commandHash,
         int winnerTeamId,
         int resolvedTick,
-        ulong finalStateHash)
+        ulong finalStateHash,
+        PlayerCommandCheckpointRecord[] checkpoints)
     {
         if (string.IsNullOrWhiteSpace(scenarioId))
             throw new ArgumentException("scenario id is required", nameof(scenarioId));
         if (canonicalCommands == null)
             throw new ArgumentNullException(nameof(canonicalCommands));
+        if (checkpoints == null)
+            throw new ArgumentNullException(nameof(checkpoints));
 
         var records = new PlayerCommandRecord[canonicalCommands.Length];
         for (int i = 0; i < canonicalCommands.Length; i++)
@@ -100,7 +110,8 @@ internal static class PlayerCommandReplayFile
             WinnerTeamId = winnerTeamId,
             ResolvedTick = resolvedTick,
             FinalStateHash = finalStateHash.ToString("X16"),
-            Commands = records
+            Commands = records,
+            Checkpoints = checkpoints
         };
     }
 
@@ -213,6 +224,22 @@ internal static class PlayerCommandReplayFile
             throw new InvalidDataException("command replay resolved tick is invalid");
         if (!IsHex64(document.CommandHash) || !IsHex64(document.FinalStateHash))
             throw new InvalidDataException("command replay hash fields are malformed");
+        if (document.Checkpoints == null || document.Checkpoints.Length == 0)
+            throw new InvalidDataException("command replay contains no state checkpoints");
+        int previousTick = 0;
+        for (int i = 0; i < document.Checkpoints.Length; i++)
+        {
+            PlayerCommandCheckpointRecord checkpoint = document.Checkpoints[i];
+            if (checkpoint.Tick <= previousTick || checkpoint.Tick > document.ResolvedTick)
+                throw new InvalidDataException("command replay checkpoints are not strictly increasing");
+            if (!IsHex64(checkpoint.StateHash))
+                throw new InvalidDataException("command replay checkpoint hash is malformed");
+            previousTick = checkpoint.Tick;
+        }
+        PlayerCommandCheckpointRecord final = document.Checkpoints[document.Checkpoints.Length - 1];
+        if (final.Tick != document.ResolvedTick ||
+            !string.Equals(final.StateHash, document.FinalStateHash, StringComparison.Ordinal))
+            throw new InvalidDataException("command replay final checkpoint does not match outcome");
     }
 
     private static PlayerCommandReplayDocument MigrateV1(PlayerCommandReplayV1Document legacy)
@@ -233,7 +260,15 @@ internal static class PlayerCommandReplayFile
             WinnerTeamId = legacy.WinnerTeamId,
             ResolvedTick = legacy.ResolvedTick,
             FinalStateHash = legacy.FinalStateHash,
-            Commands = legacy.Commands ?? Array.Empty<PlayerCommandRecord>()
+            Commands = legacy.Commands ?? Array.Empty<PlayerCommandRecord>(),
+            Checkpoints = new[]
+            {
+                new PlayerCommandCheckpointRecord
+                {
+                    Tick = legacy.ResolvedTick,
+                    StateHash = legacy.FinalStateHash
+                }
+            }
         };
     }
 

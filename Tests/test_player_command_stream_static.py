@@ -78,6 +78,9 @@ class PlayerCommandStreamStaticTests(unittest.TestCase):
         self.assertIn("ProtocolVersion", replay)
         self.assertIn("MigrateV1", replay)
         self.assertIn("command replay v1 migration lost commands or version metadata", runner)
+        self.assertIn("RecordCheckpoints", runner)
+        self.assertIn("VerifyCheckpoints", runner)
+        self.assertIn("command replay checkpoint diverged", runner)
 
     def test_command_runner_compiles_all_rule_sources_and_is_in_simulation_gate(self):
         project = PROJECT.read_text(encoding="utf-8")

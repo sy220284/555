@@ -5,6 +5,7 @@ internal static class Program
 {
     private const int WatchdogTicks = 60000;
     private const int Repetitions = 8;
+    private const int ReplayCheckpointIntervalTicks = 120;
 
     private static int Main()
     {
@@ -95,13 +96,16 @@ internal static class Program
 
     private static void ReplayRoundTrip(AnnihilationPrototypeConfig config, string scenarioId, DeterministicCommandTimeline canonical, CommandRunResult expected)
     {
+        PrototypePlayerCommand[] canonicalCommands = canonical.ToCanonicalArray();
+        PlayerCommandCheckpointRecord[] checkpoints = RecordCheckpoints(config, canonicalCommands);
         PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
             scenarioId,
-            canonical.ToCanonicalArray(),
+            canonicalCommands,
             canonical.ComputeCanonicalHash(),
             expected.WinnerTeamId,
             expected.ResolvedTick,
-            expected.StateHash);
+            expected.StateHash,
+            checkpoints);
 
         string path = Path.Combine(Path.GetTempPath(), $"modernra-command-{Guid.NewGuid():N}.json");
         try
@@ -115,6 +119,7 @@ internal static class Program
             if (!replayed.Equals(expected))
                 throw new InvalidOperationException("persisted command replay changed authoritative result");
             PlayerCommandReplayFile.ValidateOutcome(loaded, replayed.WinnerTeamId, replayed.ResolvedTick, replayed.StateHash);
+            VerifyCheckpoints(config, loadedCommands, loaded.Checkpoints);
 
             byte[] secondBytes = PlayerCommandReplayFile.Serialize(loaded);
             if (!firstBytes.AsSpan().SequenceEqual(secondBytes))
@@ -142,13 +147,57 @@ internal static class Program
                 PlayerCommandReplayFile.ToCommands(migrated).Length != loadedCommands.Length)
                 throw new InvalidOperationException("command replay v1 migration lost commands or version metadata");
 
-            Console.WriteLine($"command_replay_bytes={firstBytes.Length} command_replay_sha256={PlayerCommandReplayFile.Sha256Hex(firstBytes)} migration_v1_v2=true");
+            Console.WriteLine($"command_replay_bytes={firstBytes.Length} command_replay_sha256={PlayerCommandReplayFile.Sha256Hex(firstBytes)} checkpoints={checkpoints.Length} migration_v1_v2=true");
         }
         finally
         {
             if (File.Exists(path))
                 File.Delete(path);
         }
+    }
+
+    private static PlayerCommandCheckpointRecord[] RecordCheckpoints(
+        AnnihilationPrototypeConfig config, PrototypePlayerCommand[] commands)
+    {
+        AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
+        var timeline = new DeterministicCommandTimeline(commands);
+        var checkpoints = new List<PlayerCommandCheckpointRecord>();
+        while (!world.Resolved && world.Tick < WatchdogTicks)
+        {
+            DeterministicCommandTimeline.StepWithCommands(world, timeline);
+            if (world.Tick % ReplayCheckpointIntervalTicks == 0 || world.Resolved)
+            {
+                checkpoints.Add(new PlayerCommandCheckpointRecord
+                {
+                    Tick = world.Tick,
+                    StateHash = AnnihilationPrototype.ComputeStateHash(world).ToString("X16")
+                });
+            }
+        }
+        if (!world.Resolved)
+            throw new InvalidOperationException("command checkpoint recording exceeded watchdog");
+        return checkpoints.ToArray();
+    }
+
+    private static void VerifyCheckpoints(AnnihilationPrototypeConfig config,
+        PrototypePlayerCommand[] commands, PlayerCommandCheckpointRecord[] checkpoints)
+    {
+        AnnihilationPrototypeWorld world = AnnihilationPrototype.Create(config);
+        var timeline = new DeterministicCommandTimeline(commands);
+        int checkpointIndex = 0;
+        while (!world.Resolved && world.Tick < WatchdogTicks)
+        {
+            DeterministicCommandTimeline.StepWithCommands(world, timeline);
+            if (checkpointIndex >= checkpoints.Length || world.Tick < checkpoints[checkpointIndex].Tick)
+                continue;
+            PlayerCommandCheckpointRecord expected = checkpoints[checkpointIndex];
+            if (world.Tick != expected.Tick ||
+                !string.Equals(AnnihilationPrototype.ComputeStateHash(world).ToString("X16"), expected.StateHash, StringComparison.Ordinal))
+                throw new InvalidOperationException($"command replay checkpoint diverged at tick {expected.Tick}");
+            checkpointIndex++;
+        }
+        if (!world.Resolved || checkpointIndex != checkpoints.Length)
+            throw new InvalidOperationException("command replay did not consume every state checkpoint");
     }
 
     private static void AssertInvalidCommandsAreRejected()

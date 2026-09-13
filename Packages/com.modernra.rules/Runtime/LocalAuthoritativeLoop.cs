@@ -81,6 +81,8 @@ namespace ModernRA.Rules
         public uint Tick;
         public uint BaselineTick;
         public ulong ContentHash;
+        public int ProtocolVersion;
+        public uint AcknowledgedCommandSequence;
         public bool IsDelta;
         public VisibleEntityState[] Entities = Array.Empty<VisibleEntityState>();
         public int[] RemovedContactIds = Array.Empty<int>();
@@ -88,9 +90,11 @@ namespace ModernRA.Rules
 
     public sealed class LocalAuthoritativeServer
     {
+        public const int ProtocolVersion = 1;
         private readonly ServerEntityState[] _entities;
         private readonly List<ClientCommandIntent> _commands = new List<ClientCommandIntent>();
         private readonly Dictionary<int, uint> _lastSequenceByPlayer = new Dictionary<int, uint>();
+        private readonly Dictionary<int, uint> _lastExecutedSequenceByPlayer = new Dictionary<int, uint>();
         private readonly Dictionary<long, RuleIntelLevel> _intel = new Dictionary<long, RuleIntelLevel>();
         private readonly Dictionary<long, RuleIntelLevel> _sensorIntel = new Dictionary<long, RuleIntelLevel>();
         private readonly Dictionary<long, uint> _intelChangedTick = new Dictionary<long, uint>();
@@ -130,7 +134,12 @@ namespace ModernRA.Rules
             }
         }
 
-        public bool TryConnect(ulong clientContentHash) => clientContentHash == ContentHash;
+        public bool TryConnect(ulong clientContentHash) => TryConnect(clientContentHash, ProtocolVersion);
+
+        public bool TryConnect(ulong clientContentHash, int clientProtocolVersion)
+        {
+            return clientContentHash == ContentHash && clientProtocolVersion == ProtocolVersion;
+        }
 
         public void SetIntel(int observerTeam, int entityId, RuleIntelLevel level)
         {
@@ -207,6 +216,11 @@ namespace ModernRA.Rules
         public void AdvanceOneTick()
         {
             Tick++;
+            _commands.Sort(static (left, right) =>
+            {
+                int player = left.PlayerId.CompareTo(right.PlayerId);
+                return player != 0 ? player : left.Sequence.CompareTo(right.Sequence);
+            });
             for (int i = 0; i < _commands.Count; i++)
             {
                 ClientCommandIntent command = _commands[i];
@@ -215,6 +229,7 @@ namespace ModernRA.Rules
                 entity.TargetX = command.TargetX;
                 entity.TargetY = command.TargetY;
                 entity.HasMoveTarget = true;
+                _lastExecutedSequenceByPlayer[command.PlayerId] = command.Sequence;
             }
             _commands.Clear();
 
@@ -260,6 +275,9 @@ namespace ModernRA.Rules
                 Tick = Tick,
                 BaselineTick = baselineTick,
                 ContentHash = ContentHash,
+                ProtocolVersion = ProtocolVersion,
+                AcknowledgedCommandSequence = _lastExecutedSequenceByPlayer.TryGetValue(observerTeam, out uint sequence)
+                    ? sequence : 0,
                 IsDelta = baselineTick > 0,
                 Entities = visible.ToArray(),
                 RemovedContactIds = removed.ToArray()
@@ -309,10 +327,13 @@ namespace ModernRA.Rules
         public uint LastTick { get; private set; }
         public bool NeedsReconnect { get; private set; }
         public ulong ContentHash => _contentHash;
+        public uint LastAcknowledgedCommandSequence { get; private set; }
 
         public void Apply(AuthoritativeSnapshot snapshot)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            if (snapshot.ProtocolVersion != LocalAuthoritativeServer.ProtocolVersion)
+                throw new InvalidOperationException("snapshot protocol version is unsupported");
             if (_hasContentHash && snapshot.ContentHash != _contentHash)
                 throw new InvalidOperationException("snapshot content hash changed during the session");
             if (!_hasContentHash)
@@ -332,6 +353,8 @@ namespace ModernRA.Rules
             {
                 throw new InvalidOperationException("full snapshot must use baseline tick zero");
             }
+            if (snapshot.AcknowledgedCommandSequence < LastAcknowledgedCommandSequence)
+                throw new InvalidOperationException("snapshot command acknowledgement moved backwards");
 
             if (!snapshot.IsDelta)
             {
@@ -353,6 +376,7 @@ namespace ModernRA.Rules
                 _current[next.ContactId] = next;
             }
             LastTick = snapshot.Tick;
+            LastAcknowledgedCommandSequence = snapshot.AcknowledgedCommandSequence;
         }
 
         public bool ContainsContact(int contactId) => _current.ContainsKey(contactId);

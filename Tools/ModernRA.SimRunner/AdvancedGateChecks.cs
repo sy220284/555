@@ -74,6 +74,7 @@ internal static class AdvancedGateChecks
         });
 
         Check(!server.TryConnect(contentHash + 1), "content hash mismatch was accepted");
+        Check(!server.TryConnect(contentHash, LocalAuthoritativeServer.ProtocolVersion + 1), "protocol mismatch was accepted");
         Check(server.TryConnect(contentHash), "matching content hash was rejected");
         server.AdvanceOneTick();
         AuthoritativeSnapshot initial = server.BuildSnapshot(1, 0);
@@ -99,6 +100,7 @@ internal static class AdvancedGateChecks
         AuthoritativeSnapshot delta = server.BuildSnapshot(1, initial.Tick);
         Check(delta.IsDelta && delta.BaselineTick == initial.Tick, "incremental snapshot baseline invalid");
         client.Apply(delta);
+        Check(client.LastAcknowledgedCommandSequence == 1, "executed command was not acknowledged in the snapshot");
         Check(client.ContainsContact(enemyContact), "detected enemy missing from filtered delta");
         Check(client.TryGet(enemyContact, out VisibleEntityState detectedEnemy) && detectedEnemy.Detail == RuleReplicationDetail.Contact, "detected enemy received excess precision");
         Check(client.TryInterpolate(ownContact, 500, out Int2 interpolated) && interpolated.X == 5, "client interpolation did not blend authoritative snapshots");
@@ -139,7 +141,8 @@ internal static class AdvancedGateChecks
                 Tick = initial.Tick + 1,
                 BaselineTick = initial.Tick,
                 IsDelta = true,
-                ContentHash = contentHash + 1
+                ContentHash = contentHash + 1,
+                ProtocolVersion = LocalAuthoritativeServer.ProtocolVersion
             });
         }
         catch (InvalidOperationException)
@@ -147,6 +150,21 @@ internal static class AdvancedGateChecks
             rejectedContentChange = true;
         }
         Check(rejectedContentChange, "client accepted a snapshot from different content");
+        bool rejectedProtocolChange = false;
+        try
+        {
+            new LocalClientReplica().Apply(new AuthoritativeSnapshot
+            {
+                Tick = 1,
+                ContentHash = contentHash,
+                ProtocolVersion = LocalAuthoritativeServer.ProtocolVersion + 1
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            rejectedProtocolChange = true;
+        }
+        Check(rejectedProtocolChange, "client accepted an unsupported snapshot protocol");
 
         var intelAdapter = new PrototypeBattleGroupIntelAdapter(
             new[] { new Int2(0, 0), new Int2(1000, 1000), new Int2(1500, 1000) },
@@ -159,6 +177,8 @@ internal static class AdvancedGateChecks
             "battle-group AI adapter did not consume the filtered enemy snapshot");
 
         server.SetIntel(1, 20, RuleIntelLevel.Unknown);
+        Check(server.SubmitIntent(new ClientCommandIntent(1, 10, 2, 200, 0)),
+            "second legal movement intent was rejected");
         Check(server.RefreshSensorIntelIfDue(1, Array.Empty<RuleSensorCoverageSource>()),
             "sensor coverage removal missed its deterministic 15Hz lane");
         server.AdvanceOneTick();
@@ -166,6 +186,8 @@ internal static class AdvancedGateChecks
         Check(hiddenDelta.RemovedContactIds.Length == 1 && hiddenDelta.RemovedContactIds[0] == enemyContact,
             "lost intelligence did not emit a contact tombstone");
         client.Apply(hiddenDelta);
+        Check(client.LastAcknowledgedCommandSequence == 2,
+            "client did not advance its authoritative command acknowledgement");
         intelAdapter.Apply(hiddenDelta);
         Check(!client.ContainsContact(enemyContact), "client retained a hidden enemy after the tombstone");
         Check(intelAdapter.BuildTargets().Length == 0, "battle-group AI retained a hidden target after the tombstone");

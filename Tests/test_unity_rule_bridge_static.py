@@ -29,6 +29,16 @@ class UnityRuleBridgeStaticTests(unittest.TestCase):
         self.assertIn("AnnihilationMatchState", text)
         self.assertIn("ComputeStateHash", text)
 
+    def test_hot_mirror_state_is_applied_by_burst_batch_job(self):
+        text = (SIM / "AnnihilationRuleBridgeSystem.cs").read_text(encoding="utf-8")
+        self.assertIn("[BurstCompile]", text)
+        self.assertIn("ApplyRuleMirrorSnapshotJob : IJobEntity", text)
+        self.assertIn("NativeParallelHashMap<int, RuleMirrorSnapshot>", text)
+        self.assertIn("ScheduleParallel(Dependency)", text)
+        self.assertIn("snapshots.Dispose(applyHandle)", text)
+        self.assertNotIn("SetComponentData(entity, new SimPosition", text)
+        self.assertNotIn("SetComponentData(entity, new HealthState", text)
+
     def test_map_bootstrap_materializes_all_major_graybox_categories(self):
         text = (SIM / "GrayRangeBootstrapSystem.cs").read_text(encoding="utf-8")
         for name in (

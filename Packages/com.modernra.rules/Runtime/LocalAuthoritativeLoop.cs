@@ -341,6 +341,9 @@ namespace ModernRA.Rules
                 _contentHash = snapshot.ContentHash;
                 _hasContentHash = true;
             }
+            if (LastTick > 0 && snapshot.Tick <= LastTick)
+                return;
+            ValidatePayload(snapshot);
             if (snapshot.IsDelta)
             {
                 if (LastTick == 0 || snapshot.BaselineTick != LastTick || snapshot.Tick <= snapshot.BaselineTick)
@@ -377,6 +380,35 @@ namespace ModernRA.Rules
             }
             LastTick = snapshot.Tick;
             LastAcknowledgedCommandSequence = snapshot.AcknowledgedCommandSequence;
+        }
+
+        private static void ValidatePayload(AuthoritativeSnapshot snapshot)
+        {
+            if (snapshot.Entities == null) throw new InvalidOperationException("snapshot entity payload is missing");
+            if (snapshot.RemovedContactIds == null) throw new InvalidOperationException("snapshot removal payload is missing");
+            int previous = int.MinValue;
+            for (int i = 0; i < snapshot.Entities.Length; i++)
+            {
+                int contactId = snapshot.Entities[i].ContactId;
+                if (i > 0 && contactId <= previous)
+                    throw new InvalidOperationException("snapshot entity contacts are not strictly ordered");
+                previous = contactId;
+            }
+            previous = int.MinValue;
+            int entityIndex = 0;
+            for (int i = 0; i < snapshot.RemovedContactIds.Length; i++)
+            {
+                int contactId = snapshot.RemovedContactIds[i];
+                if (i > 0 && contactId <= previous)
+                    throw new InvalidOperationException("snapshot removed contacts are not strictly ordered");
+                while (entityIndex < snapshot.Entities.Length &&
+                       snapshot.Entities[entityIndex].ContactId < contactId)
+                    entityIndex++;
+                if (entityIndex < snapshot.Entities.Length &&
+                    snapshot.Entities[entityIndex].ContactId == contactId)
+                    throw new InvalidOperationException("snapshot both updates and removes the same contact");
+                previous = contactId;
+            }
         }
 
         public bool ContainsContact(int contactId) => _current.ContainsKey(contactId);

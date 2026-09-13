@@ -171,6 +171,29 @@ internal static class Program
         if (groupOne.Phase != PrototypeBattleGroupPhase.Consolidate || groupOne.TargetId != -1)
             throw new InvalidOperationException("dynamic intelligence removal did not transition the group to consolidate");
 
+        PrototypeCombatUnitState serviceUnit = session.World.TeamA.Units.First(unit => unit.Alive && unit.ControlGroupId == 1);
+        serviceUnit.Health = 300;
+        serviceUnit.X = session.World.SharedCorridor[0].X;
+        serviceUnit.Y = session.World.SharedCorridor[0].Y;
+        serviceUnit.CorridorCursor = 0;
+        serviceUnit.HoldingPosition = true;
+        scheduler.RefreshAuthorization(session.World, 1, 1);
+        scheduler.SetVisibleTargets(1, new[]
+        {
+            new PrototypeBattleGroupTarget(51, targetWaypoint, 700, 900, 500, 700, 800, RuleIntelLevel.Confirmed)
+        });
+        int resupplyTick = session.World.Tick + 1;
+        while (!DeterministicUpdateBudget.ShouldRun(RuleUpdateLane.BattleGroupAI, resupplyTick, 17))
+            resupplyTick++;
+        while (session.World.Tick < resupplyTick - 1)
+            session.Step();
+        serviceUnit.X = session.World.SharedCorridor[0].X;
+        serviceUnit.Y = session.World.SharedCorridor[0].Y;
+        serviceUnit.HoldingPosition = false;
+        session.Step();
+        if (groupOne.Phase != PrototypeBattleGroupPhase.Resupply || !serviceUnit.HoldingPosition)
+            throw new InvalidOperationException("resupply group did not hold after reaching its service waypoint");
+
         return (AnnihilationPrototype.ComputeStateHash(session.World), scheduler.ComputeStateHash());
     }
 

@@ -182,8 +182,20 @@ namespace ModernRA.Rules
                 decision.Generation);
             if (!AIAuthorityRules.IsAllowed(authority, order))
                 return false;
-            if (decision.Phase == PrototypeBattleGroupPhase.Recon ||
+            if (decision.Phase == PrototypeBattleGroupPhase.Assemble ||
+                decision.Phase == PrototypeBattleGroupPhase.Recon ||
                 decision.Phase == PrototypeBattleGroupPhase.Consolidate)
+            {
+                return PrototypeControlGroupRules.TryApplyAIHolding(
+                    world,
+                    decision.PlayerId,
+                    decision.Generation,
+                    decision.GroupId);
+            }
+            if ((decision.Phase == PrototypeBattleGroupPhase.Resupply ||
+                decision.Phase == PrototypeBattleGroupPhase.Withdraw) &&
+                PrototypeControlGroupRules.IsGroupAtWaypoint(
+                    world, decision.PlayerId, decision.GroupId, decision.WaypointIndex))
             {
                 return PrototypeControlGroupRules.TryApplyAIHolding(
                     world,

@@ -43,6 +43,7 @@ internal static class AnnihilationGateChecks
         Check(verified.MovementSteps > 0, "produced units never moved");
         Check(verified.AvoidanceCandidateVisits > 0, "annihilation movement never queried local spatial avoidance");
         Check(verified.AvoidanceNeighborsResolved > 0, "annihilation movement never resolved nearby unit separation");
+        Check(verified.CombatCandidateVisits > 0, "annihilation combat never queried the shared spatial index");
         Check(verified.ShotsFired > 0 && verified.BuildingsDestroyed > 0, "combat loop did not destroy war infrastructure");
         Check(verified.TeamA.IndustrialMilli >= 0 && verified.TeamB.IndustrialMilli >= 0, "resource pool became negative");
 
@@ -108,6 +109,7 @@ internal static class AnnihilationGateChecks
             $"mined_a={verified.TeamA.MinedMilli / 1000.0:F3} mined_b={verified.TeamB.MinedMilli / 1000.0:F3} " +
             $"produced_a={verified.TeamA.UnitsProduced} produced_b={verified.TeamB.UnitsProduced} " +
             $"avoidance_candidates={verified.AvoidanceCandidateVisits} avoidance_neighbors={verified.AvoidanceNeighborsResolved} " +
+            $"combat_candidates={verified.CombatCandidateVisits} " +
             $"shots={verified.ShotsFired} buildings_destroyed={verified.BuildingsDestroyed} loser_buildings_remaining={AnnihilationPrototype.CountAliveBuildings(loser)} " +
             $"replay_checkpoints={replay.Checkpoints.Count} replay_final_hash={replay.FinalStateHash:X16} replay_file_bytes={replayBytes.Length} replay_file_sha256={replayFileSha256} replay_format=v3 migration_v1_v3=true");
     }

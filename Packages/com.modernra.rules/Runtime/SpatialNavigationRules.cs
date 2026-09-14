@@ -71,6 +71,24 @@ namespace ModernRA.Rules
             _count++;
         }
 
+        public bool Remove(in SpatialEntity entity)
+        {
+            int cellX = FloorDiv(entity.X, _cellSize);
+            int cellY = FloorDiv(entity.Y, _cellSize);
+            if (!_cells.TryGetValue(CellKey(cellX, cellY), out List<SpatialEntity>? bucket))
+                return false;
+
+            for (int i = 0; i < bucket.Count; i++)
+            {
+                if (bucket[i].EntityId != entity.EntityId)
+                    continue;
+                bucket.RemoveAt(i);
+                _count--;
+                return true;
+            }
+            return false;
+        }
+
         public bool FindNearestEnemy(int x, int y, int ownTeamId, int radius, out SpatialEntity nearest, out SpatialQueryStats stats)
         {
             if (radius < 0)

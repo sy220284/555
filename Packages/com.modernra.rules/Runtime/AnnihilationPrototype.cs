@@ -122,7 +122,9 @@ namespace ModernRA.Rules
     public sealed class AnnihilationPrototypeWorld
     {
         internal readonly DeterministicSpatialHash MovementSpatial = new DeterministicSpatialHash(64);
+        internal readonly DeterministicSpatialHash CombatSpatial = new DeterministicSpatialHash(256);
         internal readonly List<SpatialEntity> AvoidanceScratch = new List<SpatialEntity>(16);
+        internal readonly Dictionary<int, PrototypeCombatUnitState> UnitById = new Dictionary<int, PrototypeCombatUnitState>();
         public int Tick;
         public PrototypeAnnihilationTeamState TeamA = new PrototypeAnnihilationTeamState();
         public PrototypeAnnihilationTeamState TeamB = new PrototypeAnnihilationTeamState();
@@ -133,6 +135,7 @@ namespace ModernRA.Rules
         public int MovementSteps;
         public long AvoidanceCandidateVisits;
         public long AvoidanceNeighborsResolved;
+        public long CombatCandidateVisits;
         public int WinnerTeamId;
         public PrototypeDefeatReason DefeatReason;
         public int MaxLiveTanksPerTeam;
@@ -398,6 +401,7 @@ namespace ModernRA.Rules
         private static void StepTeamCombat(AnnihilationPrototypeWorld world, PrototypeAnnihilationTeamState attacker,
             PrototypeAnnihilationTeamState defender, bool forward, bool solveLocalAvoidance)
         {
+            RebuildCombatSpatial(world);
             for (int i = 0; i < attacker.Units.Count; i++)
             {
                 PrototypeCombatUnitState unit = attacker.Units[i];
@@ -406,7 +410,7 @@ namespace ModernRA.Rules
                 if (unit.WeaponCooldownTicks > 0)
                     unit.WeaponCooldownTicks--;
 
-                PrototypeCombatUnitState? targetUnit = FindNearestLiveUnitInRange(unit, defender.Units);
+                PrototypeCombatUnitState? targetUnit = FindNearestLiveUnitInRange(world, unit);
                 if (targetUnit != null)
                 {
                     if (unit.WeaponCooldownTicks == 0)
@@ -442,22 +446,36 @@ namespace ModernRA.Rules
             }
         }
 
-        private static PrototypeCombatUnitState? FindNearestLiveUnitInRange(PrototypeCombatUnitState source, List<PrototypeCombatUnitState> candidates)
+        private static void RebuildCombatSpatial(AnnihilationPrototypeWorld world)
         {
-            PrototypeCombatUnitState? best = null;
-            long bestDistance = long.MaxValue;
-            for (int i = 0; i < candidates.Count; i++)
+            world.CombatSpatial.Clear();
+            world.UnitById.Clear();
+            AddCombatUnits(world, world.TeamA);
+            AddCombatUnits(world, world.TeamB);
+        }
+
+        private static void AddCombatUnits(AnnihilationPrototypeWorld world, PrototypeAnnihilationTeamState team)
+        {
+            for (int i = 0; i < team.Units.Count; i++)
             {
-                PrototypeCombatUnitState candidate = candidates[i];
-                if (!candidate.Alive)
+                PrototypeCombatUnitState unit = team.Units[i];
+                if (!unit.Alive)
                     continue;
-                long distance = DistanceSq(source.X, source.Y, candidate.X, candidate.Y);
-                if (distance > WeaponRangeSq || distance >= bestDistance)
-                    continue;
-                best = candidate;
-                bestDistance = distance;
+                world.CombatSpatial.Insert(new SpatialEntity(unit.Id, unit.TeamId, unit.X, unit.Y));
+                world.UnitById.Add(unit.Id, unit);
             }
-            return best;
+        }
+
+        private static PrototypeCombatUnitState? FindNearestLiveUnitInRange(
+            AnnihilationPrototypeWorld world, PrototypeCombatUnitState source)
+        {
+            bool found = world.CombatSpatial.FindNearestEnemy(
+                source.X, source.Y, source.TeamId, WeaponRange,
+                out SpatialEntity nearest, out SpatialQueryStats stats);
+            world.CombatCandidateVisits += stats.CandidatesVisited;
+            if (!found || !world.UnitById.TryGetValue(nearest.EntityId, out PrototypeCombatUnitState? target) || !target.Alive)
+                return null;
+            return target;
         }
 
         private static PrototypeBuildingState? FindPriorityBuildingInRange(PrototypeCombatUnitState source, PrototypeAnnihilationTeamState defender)
@@ -499,6 +517,8 @@ namespace ModernRA.Rules
                 return;
             target.Health = 0;
             target.Alive = false;
+            if (!world.CombatSpatial.Remove(new SpatialEntity(target.Id, target.TeamId, target.X, target.Y)))
+                throw new InvalidOperationException($"destroyed unit {target.Id} was missing from combat spatial index");
             world.UnitsDestroyed++;
             AddAuthorityEvent(world, PrototypeAuthorityEventKind.UnitDestroyed,
                 sourceTeamId, targetTeamId, target.Id, 0);
@@ -645,6 +665,7 @@ namespace ModernRA.Rules
             hash = StateHash64.Add(hash, world.MovementSteps);
             hash = StateHash64.Add(hash, world.AvoidanceCandidateVisits);
             hash = StateHash64.Add(hash, world.AvoidanceNeighborsResolved);
+            hash = StateHash64.Add(hash, world.CombatCandidateVisits);
             HashTeam(ref hash, world.TeamA);
             HashTeam(ref hash, world.TeamB);
             return hash;

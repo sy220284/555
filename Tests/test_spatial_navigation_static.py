@@ -24,6 +24,12 @@ class SpatialNavigationStaticTests(unittest.TestCase):
         self.assertNotIn("new List", body)
         self.assertNotIn("Sort(", body)
 
+    def test_spatial_hash_supports_deterministic_unit_removal(self):
+        text = RULES.read_text(encoding="utf-8")
+        self.assertIn("public bool Remove(in SpatialEntity entity)", text)
+        self.assertIn("bucket.RemoveAt(i)", text)
+        self.assertIn("_count--", text)
+
     def test_route_cache_is_invalidated_by_topology_version(self):
         text = RULES.read_text(encoding="utf-8")
         self.assertIn("SetTopologyVersion", text)
@@ -46,6 +52,15 @@ class SpatialNavigationStaticTests(unittest.TestCase):
         self.assertIn("DeterministicLocalAvoidance.ApplyStep", rules)
         self.assertIn("AvoidanceCandidateVisits", gate)
         self.assertIn("AvoidanceNeighborsResolved", gate)
+
+    def test_annihilation_target_search_uses_shared_spatial_index(self):
+        rules = ANNIHILATION.read_text(encoding="utf-8")
+        gate = ANNIHILATION_GATE.read_text(encoding="utf-8")
+        self.assertIn("RebuildCombatSpatial(world)", rules)
+        self.assertIn("CombatSpatial.FindNearestEnemy", rules)
+        self.assertIn("CombatSpatial.Remove", rules)
+        self.assertNotIn("FindNearestLiveUnitInRange(unit, defender.Units)", rules)
+        self.assertIn("CombatCandidateVisits", gate)
 
 
 if __name__ == "__main__":

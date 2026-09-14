@@ -174,6 +174,12 @@ internal static class SpatialNavigationGateChecks
         Check(first.Adjustment.X == second.Adjustment.X && first.Adjustment.Y == second.Adjustment.Y,
             "local avoidance depends on spatial insertion order");
 
+        Check(forward.Remove(close), "spatial hash failed to remove an indexed unit");
+        LocalAvoidanceResult afterRemoval = DeterministicLocalAvoidance.Solve(forward, source, 120, 80, 20, scratch);
+        Check(afterRemoval.NeighborCount == 1 && forward.Count == 3,
+            "spatial hash removal left a stale local-avoidance candidate");
+        Check(!forward.Remove(close), "spatial hash removed the same unit twice");
+
         Int2 next = DeterministicLocalAvoidance.ApplyStep(new Int2(0, 0), new Int2(12, 0), first.Adjustment, 12);
         long stepSq = (long)next.X * next.X + (long)next.Y * next.Y;
         Check(stepSq <= 12L * 12L, "combined path and avoidance step exceeded movement budget");

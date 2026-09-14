@@ -65,6 +65,15 @@ class UnityRuleBridgeStaticTests(unittest.TestCase):
         self.assertIn("_orderedSelection.Sort()", text)
         self.assertNotIn("EntityQuery queueQuery = entityManager.CreateEntityQuery", text)
 
+    def test_graybox_markers_are_recycled_by_entity_kind(self):
+        text = (ROOT / "Packages/com.modernra.presentation/Runtime/GrayboxPlayableController.cs").read_text(encoding="utf-8")
+        self.assertIn("Stack<GameObject> _buildingMarkerPool", text)
+        self.assertIn("Stack<GameObject> _unitMarkerPool", text)
+        self.assertIn("RecycleMarker(marker, kind)", text)
+        self.assertIn("pool.Count > 0", text)
+        self.assertIn("marker.SetActive(false)", text)
+        self.assertNotIn("Destroy(marker);\n                _markers.Remove(id)", text)
+
     def test_map_bootstrap_materializes_all_major_graybox_categories(self):
         text = (SIM / "GrayRangeBootstrapSystem.cs").read_text(encoding="utf-8")
         for name in (

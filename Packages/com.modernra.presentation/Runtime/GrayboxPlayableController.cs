@@ -17,6 +17,9 @@ namespace ModernRA.Presentation
         private const float ZoomSpeed = 1400f;
 
         private readonly Dictionary<int, GameObject> _markers = new Dictionary<int, GameObject>();
+        private readonly Dictionary<int, byte> _markerKinds = new Dictionary<int, byte>();
+        private readonly Stack<GameObject> _buildingMarkerPool = new Stack<GameObject>();
+        private readonly Stack<GameObject> _unitMarkerPool = new Stack<GameObject>();
         private readonly HashSet<int> _seenIds = new HashSet<int>();
         private readonly List<int> _removeIds = new List<int>();
         private readonly HashSet<int> _selectedUnitIds = new HashSet<int>();
@@ -83,6 +86,9 @@ namespace ModernRA.Presentation
             foreach (GameObject marker in _markers.Values)
                 if (marker != null) Destroy(marker);
             _markers.Clear();
+            _markerKinds.Clear();
+            DestroyMarkerPool(_buildingMarkerPool);
+            DestroyMarkerPool(_unitMarkerPool);
             if (_ground != null) Destroy(_ground);
             DestroyMaterial(_teamOneMaterial);
             DestroyMaterial(_teamTwoMaterial);
@@ -160,6 +166,7 @@ namespace ModernRA.Presentation
                 {
                     marker = CreateMarker(ruleEntity);
                     _markers[ruleEntity.StableId] = marker;
+                    _markerKinds[ruleEntity.StableId] = ruleEntity.EntityKind;
                 }
 
                 float y = ruleEntity.EntityKind == 1 ? 60f : 22f;
@@ -178,15 +185,23 @@ namespace ModernRA.Presentation
             {
                 int id = _removeIds[i];
                 if (_markers.TryGetValue(id, out GameObject marker) && marker != null)
-                    Destroy(marker);
+                {
+                    byte kind = _markerKinds.TryGetValue(id, out byte storedKind) ? storedKind : (byte)2;
+                    RecycleMarker(marker, kind);
+                }
                 _markers.Remove(id);
+                _markerKinds.Remove(id);
                 _selectedUnitIds.Remove(id);
             }
         }
 
         private GameObject CreateMarker(AnnihilationRuleEntity ruleEntity)
         {
-            GameObject marker = GameObject.CreatePrimitive(ruleEntity.EntityKind == 1 ? PrimitiveType.Cube : PrimitiveType.Capsule);
+            Stack<GameObject> pool = ruleEntity.EntityKind == 1 ? _buildingMarkerPool : _unitMarkerPool;
+            GameObject marker = pool.Count > 0
+                ? pool.Pop()
+                : GameObject.CreatePrimitive(ruleEntity.EntityKind == 1 ? PrimitiveType.Cube : PrimitiveType.Capsule);
+            marker.SetActive(true);
             marker.name = $"Graybox-{ruleEntity.StableId}";
             Collider collider = marker.GetComponent<Collider>();
             if (collider != null) Destroy(collider);
@@ -194,6 +209,22 @@ namespace ModernRA.Presentation
                 ? new Vector3(180f, 120f, 180f)
                 : new Vector3(45f, 45f, 75f);
             return marker;
+        }
+
+        private void RecycleMarker(GameObject marker, byte entityKind)
+        {
+            marker.SetActive(false);
+            marker.name = entityKind == 1 ? "Graybox-Pooled-Building" : "Graybox-Pooled-Unit";
+            (entityKind == 1 ? _buildingMarkerPool : _unitMarkerPool).Push(marker);
+        }
+
+        private static void DestroyMarkerPool(Stack<GameObject> pool)
+        {
+            while (pool.Count > 0)
+            {
+                GameObject marker = pool.Pop();
+                if (marker != null) Destroy(marker);
+            }
         }
 
         private void HandleSelection(EntityManager entityManager)

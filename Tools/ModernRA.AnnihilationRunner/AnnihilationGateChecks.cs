@@ -63,7 +63,15 @@ internal static class AnnihilationGateChecks
         ulong emptyCommandHash = new DeterministicCommandTimeline(noCommands).ComputeCanonicalHash();
         PlayerCommandReplayDocument document = PlayerCommandReplayFile.Create(
             scenarioId, config, noCommands, emptyCommandHash, replay.WinnerTeamId,
-            replay.ResolvedTick, replay.FinalStateHash, checkpoints, replay.AuthorityEvents.ToArray());
+            replay.ResolvedTick, replay.FinalStateHash, checkpoints, replay.AuthorityEvents.ToArray(),
+            DateTimeOffset.UnixEpoch);
+        PlayerCommandReplayDocument repeatedDocument = PlayerCommandReplayFile.Create(
+            scenarioId, config, noCommands, emptyCommandHash, replay.WinnerTeamId,
+            replay.ResolvedTick, replay.FinalStateHash, checkpoints, replay.AuthorityEvents.ToArray(),
+            DateTimeOffset.UnixEpoch);
+        Check(PlayerCommandReplayFile.Serialize(document).AsSpan().SequenceEqual(
+                PlayerCommandReplayFile.Serialize(repeatedDocument)),
+            "equivalent annihilation replay creation is not byte-stable");
         string replayPath = Path.Combine(Path.GetTempPath(), "modernra-annihilation-replay.json");
         PlayerCommandReplayFile.Write(replayPath, document);
         byte[] replayBytes = File.ReadAllBytes(replayPath);

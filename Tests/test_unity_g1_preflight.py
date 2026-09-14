@@ -41,6 +41,17 @@ class UnityG1PreflightTests(unittest.TestCase):
             self.assertTrue(any("ProjectVersion editor" in error for error in errors))
             self.assertTrue(any("ProjectVersion revision" in error for error in errors))
 
+    def test_missing_assets_directory_is_reported(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / "ProjectSettings").mkdir(parents=True)
+            (root / "Packages").mkdir(parents=True)
+            errors, _, _ = MODULE.validate_project(root)
+            self.assertIn(
+                "Assets directory missing; Unity cannot open this checkout as a project",
+                errors,
+            )
+
     def test_authoritative_simulation_rejects_presentation_apis(self):
         sample = "using UnityEngine; public sealed class Bad : MonoBehaviour { Camera camera; Material mat; }"
         violations = MODULE.find_forbidden_simulation_api(sample)

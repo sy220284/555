@@ -21,6 +21,8 @@ class AnnihilationReplayFileStaticTests(unittest.TestCase):
         self.assertIn("unified replay file round-trip changed canonical content", text)
         self.assertIn("migration_v1_v3=true", text)
         self.assertIn("replay_file_sha256", text)
+        self.assertIn("equivalent annihilation replay creation is not byte-stable", text)
+        self.assertIn("DateTimeOffset.UnixEpoch", text)
 
     def test_replay_file_contains_no_gameplay_rules(self):
         text = REPLAY.read_text(encoding="utf-8")

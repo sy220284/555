@@ -149,7 +149,8 @@ internal static class PlayerCommandReplayFile
         int resolvedTick,
         ulong finalStateHash,
         PlayerCommandCheckpointRecord[] checkpoints,
-        PrototypeAuthorityEvent[] authorityEvents)
+        PrototypeAuthorityEvent[] authorityEvents,
+        DateTimeOffset timestampUtc)
     {
         if (string.IsNullOrWhiteSpace(scenarioId))
             throw new ArgumentException("scenario id is required", nameof(scenarioId));
@@ -168,7 +169,7 @@ internal static class PlayerCommandReplayFile
             GameVersion = GameVersion,
             ContentHash = GrayRangeGeneratedData.SourceMapSha256,
             MapId = scenarioId,
-            TimestampUtc = DateTimeOffset.UtcNow,
+            TimestampUtc = timestampUtc.ToUniversalTime(),
             DeterminismSeed = 0,
             ProtocolVersion = ProtocolVersion,
             ScenarioId = scenarioId,

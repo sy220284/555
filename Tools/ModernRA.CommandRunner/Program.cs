@@ -108,7 +108,22 @@ internal static class Program
             expected.ResolvedTick,
             expected.StateHash,
             checkpoints,
-            authorityEvents);
+            authorityEvents,
+            DateTimeOffset.UnixEpoch);
+        PlayerCommandReplayDocument repeatedDocument = PlayerCommandReplayFile.Create(
+            scenarioId,
+            config,
+            canonicalCommands,
+            canonical.ComputeCanonicalHash(),
+            expected.WinnerTeamId,
+            expected.ResolvedTick,
+            expected.StateHash,
+            checkpoints,
+            authorityEvents,
+            DateTimeOffset.UnixEpoch);
+        if (!PlayerCommandReplayFile.Serialize(document).AsSpan().SequenceEqual(
+                PlayerCommandReplayFile.Serialize(repeatedDocument)))
+            throw new InvalidOperationException("equivalent command replay creation is not byte-stable");
 
         string path = Path.Combine(Path.GetTempPath(), $"modernra-command-{Guid.NewGuid():N}.json");
         try

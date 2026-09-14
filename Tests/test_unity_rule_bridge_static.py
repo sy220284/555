@@ -54,6 +54,17 @@ class UnityRuleBridgeStaticTests(unittest.TestCase):
         self.assertNotIn("EntityManager.DestroyEntity(entity)", bridge)
         self.assertIn("ComponentType.ReadOnly<AnnihilationRuleActive>()", presentation)
 
+    def test_graybox_controls_support_box_selection_and_authoritative_groups(self):
+        text = (ROOT / "Packages/com.modernra.presentation/Runtime/GrayboxPlayableController.cs").read_text(encoding="utf-8")
+        self.assertIn("HashSet<int> _selectedUnitIds", text)
+        self.assertIn("ScreenRect(_selectionStart, end)", text)
+        self.assertIn("selection.Contains", text)
+        self.assertIn("PrototypeControlGroupPayload.EncodeUnitGroup", text)
+        self.assertIn("PrototypeControlGroupPayload.EncodeGroupWaypoint", text)
+        self.assertIn("PrototypePlayerCommandKind.HoldControlGroup", text)
+        self.assertIn("_orderedSelection.Sort()", text)
+        self.assertNotIn("EntityQuery queueQuery = entityManager.CreateEntityQuery", text)
+
     def test_map_bootstrap_materializes_all_major_graybox_categories(self):
         text = (SIM / "GrayRangeBootstrapSystem.cs").read_text(encoding="utf-8")
         for name in (

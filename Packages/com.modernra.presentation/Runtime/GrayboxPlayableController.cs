@@ -12,14 +12,20 @@ namespace ModernRA.Presentation
     {
         private const int LocalPlayerId = 1;
         private const float SelectionRadiusPixels = 30f;
+        private const float DragSelectionThresholdPixels = 8f;
         private const float PanSpeed = 1800f;
         private const float ZoomSpeed = 1400f;
 
         private readonly Dictionary<int, GameObject> _markers = new Dictionary<int, GameObject>();
         private readonly HashSet<int> _seenIds = new HashSet<int>();
         private readonly List<int> _removeIds = new List<int>();
+        private readonly HashSet<int> _selectedUnitIds = new HashSet<int>();
+        private readonly List<int> _orderedSelection = new List<int>();
+        private readonly Dictionary<int, HashSet<int>> _localControlGroups = new Dictionary<int, HashSet<int>>();
         private Camera _camera;
         private EntityQuery _ruleEntityQuery;
+        private EntityQuery _matchQuery;
+        private EntityQuery _commandQueueQuery;
         private bool _ruleQueryReady;
         private RuntimeMapBootstrapData _map;
         private Int2[] _corridor = Array.Empty<Int2>();
@@ -28,7 +34,9 @@ namespace ModernRA.Presentation
         private Material _teamTwoMaterial;
         private Material _selectedMaterial;
         private Material _groundMaterial;
-        private int _selectedUnitId;
+        private Vector2 _selectionStart;
+        private bool _selectionDragging;
+        private int _activeControlGroup;
         private int _nextSequence = 1;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -67,7 +75,11 @@ namespace ModernRA.Presentation
         private void OnDestroy()
         {
             if (_ruleQueryReady)
+            {
                 _ruleEntityQuery.Dispose();
+                _matchQuery.Dispose();
+                _commandQueueQuery.Dispose();
+            }
             foreach (GameObject marker in _markers.Values)
                 if (marker != null) Destroy(marker);
             _markers.Clear();
@@ -80,21 +92,28 @@ namespace ModernRA.Presentation
 
         private void OnGUI()
         {
-            GUI.Box(new Rect(12f, 12f, 390f, 94f), "ModernRA 灰盒控制");
-            GUI.Label(new Rect(24f, 38f, 360f, 20f), $"左键选择己方单位  |  右键下达路径节点命令  |  H坚守 / R恢复");
-            GUI.Label(new Rect(24f, 60f, 360f, 20f), $"WASD/方向键移动视角  |  滚轮缩放  |  当前选择：{(_selectedUnitId > 0 ? _selectedUnitId.ToString() : "无")}");
+            GUI.Box(new Rect(12f, 12f, 470f, 112f), "ModernRA 灰盒控制");
+            GUI.Label(new Rect(24f, 38f, 440f, 20f), "左键/框选单位  |  Shift追加 / Ctrl排除  |  右键移动  |  H坚守 / R恢复");
+            GUI.Label(new Rect(24f, 60f, 440f, 20f), "Ctrl+1—9建立编组  |  1—9选择编组  |  WASD移动视角  |  滚轮缩放");
+            GUI.Label(new Rect(24f, 82f, 440f, 20f), $"当前选择：{_selectedUnitIds.Count}  当前编组：{(_activeControlGroup > 0 ? _activeControlGroup.ToString() : "无")}");
+
+            if (_selectionDragging)
+            {
+                Vector2 current = Input.mousePosition;
+                Rect screenRect = ScreenRect(_selectionStart, current);
+                GUI.Box(new Rect(screenRect.xMin, Screen.height - screenRect.yMax, screenRect.width, screenRect.height), string.Empty);
+            }
 
             EntityManager entityManager;
             if (!TryGetEntityManager(out entityManager))
                 return;
 
-            EntityQuery matchQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<AnnihilationMatchState>());
-            if (!matchQuery.IsEmptyIgnoreFilter)
+            EnsureQueries(entityManager);
+            if (!_matchQuery.IsEmptyIgnoreFilter)
             {
-                AnnihilationMatchState state = matchQuery.GetSingleton<AnnihilationMatchState>();
-                GUI.Label(new Rect(24f, 82f, 360f, 20f), $"Tick {state.Tick}  我方单位 {state.TeamAAliveUnits}  敌方单位 {state.TeamBAliveUnits}  胜方 {state.WinnerTeamId}");
+                AnnihilationMatchState state = _matchQuery.GetSingleton<AnnihilationMatchState>();
+                GUI.Label(new Rect(24f, 104f, 440f, 20f), $"Tick {state.Tick}  我方单位 {state.TeamAAliveUnits}  敌方单位 {state.TeamBAliveUnits}  胜方 {state.WinnerTeamId}");
             }
-            matchQuery.Dispose();
         }
 
         private static bool TryGetEntityManager(out EntityManager entityManager)
@@ -118,6 +137,10 @@ namespace ModernRA.Presentation
                 ComponentType.ReadOnly<AnnihilationRuleActive>(),
                 ComponentType.ReadOnly<SimPosition>(),
                 ComponentType.ReadOnly<HealthState>());
+            _matchQuery = entityManager.CreateEntityQuery(ComponentType.ReadOnly<AnnihilationMatchState>());
+            _commandQueueQuery = entityManager.CreateEntityQuery(
+                ComponentType.ReadOnly<PlayerCommandQueueState>(),
+                ComponentType.ReadWrite<PlayerCommandRequest>());
             _ruleQueryReady = true;
         }
 
@@ -143,7 +166,7 @@ namespace ModernRA.Presentation
                 marker.transform.position = new Vector3(simPosition.Value.x, y, simPosition.Value.z);
                 Renderer renderer = marker.GetComponent<Renderer>();
                 if (renderer != null)
-                    renderer.sharedMaterial = ruleEntity.StableId == _selectedUnitId
+                    renderer.sharedMaterial = _selectedUnitIds.Contains(ruleEntity.StableId)
                         ? _selectedMaterial
                         : ruleEntity.TeamId == 1 ? _teamOneMaterial : _teamTwoMaterial;
             }
@@ -157,7 +180,7 @@ namespace ModernRA.Presentation
                 if (_markers.TryGetValue(id, out GameObject marker) && marker != null)
                     Destroy(marker);
                 _markers.Remove(id);
-                if (_selectedUnitId == id) _selectedUnitId = 0;
+                _selectedUnitIds.Remove(id);
             }
         }
 
@@ -175,13 +198,30 @@ namespace ModernRA.Presentation
 
         private void HandleSelection(EntityManager entityManager)
         {
-            if (_camera == null || !Input.GetMouseButtonDown(0))
+            if (_camera == null)
                 return;
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                _selectionStart = Input.mousePosition;
+                _selectionDragging = true;
+            }
+            if (!_selectionDragging || !Input.GetMouseButtonUp(0))
+                return;
+
+            Vector2 end = Input.mousePosition;
+            _selectionDragging = false;
+            bool append = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool exclude = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            if (!append && !exclude) _selectedUnitIds.Clear();
+            _activeControlGroup = 0;
+            Rect selection = ScreenRect(_selectionStart, end);
+            bool click = selection.width < DragSelectionThresholdPixels && selection.height < DragSelectionThresholdPixels;
 
             float bestDistanceSq = SelectionRadiusPixels * SelectionRadiusPixels;
             int selected = 0;
             using NativeArray<Entity> entities = _ruleEntityQuery.ToEntityArray(Allocator.Temp);
-            Vector3 mouse = Input.mousePosition;
+            Vector3 mouse = end;
             for (int i = 0; i < entities.Length; i++)
             {
                 Entity entity = entities[i];
@@ -192,6 +232,13 @@ namespace ModernRA.Presentation
                 Vector3 screen = _camera.WorldToScreenPoint(new Vector3(position.Value.x, 25f, position.Value.z));
                 if (screen.z <= 0f)
                     continue;
+                if (!click && selection.Contains(new Vector2(screen.x, screen.y)))
+                {
+                    if (exclude) _selectedUnitIds.Remove(ruleEntity.StableId);
+                    else _selectedUnitIds.Add(ruleEntity.StableId);
+                    continue;
+                }
+                if (!click) continue;
                 float dx = screen.x - mouse.x;
                 float dy = screen.y - mouse.y;
                 float distanceSq = dx * dx + dy * dy;
@@ -200,38 +247,96 @@ namespace ModernRA.Presentation
                 bestDistanceSq = distanceSq;
                 selected = ruleEntity.StableId;
             }
-            _selectedUnitId = selected;
+            if (selected > 0)
+            {
+                if (exclude) _selectedUnitIds.Remove(selected);
+                else _selectedUnitIds.Add(selected);
+            }
         }
 
         private void HandleUnitCommands(EntityManager entityManager)
         {
-            if (_selectedUnitId <= 0)
-                return;
+            HandleControlGroupKeys(entityManager);
+            if (_selectedUnitIds.Count == 0) return;
 
             if (Input.GetMouseButtonDown(1) && TryGetGroundPoint(out Vector3 point))
             {
                 int waypoint = FindNearestWaypoint(point);
-                int payload = PrototypeUnitWaypointPayload.Encode(_selectedUnitId, waypoint);
-                EnqueueCommand(entityManager, PrototypePlayerCommandKind.SetUnitWaypoint, payload);
+                IssueWaypoint(entityManager, waypoint);
             }
             if (Input.GetKeyDown(KeyCode.H))
-                EnqueueCommand(entityManager, PrototypePlayerCommandKind.HoldUnit, _selectedUnitId);
+                IssueHolding(entityManager, true);
             if (Input.GetKeyDown(KeyCode.R))
-                EnqueueCommand(entityManager, PrototypePlayerCommandKind.ResumeUnit, _selectedUnitId);
+                IssueHolding(entityManager, false);
+        }
+
+        private void HandleControlGroupKeys(EntityManager entityManager)
+        {
+            bool assign = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            for (int groupId = 1; groupId <= 9; groupId++)
+            {
+                if (!Input.GetKeyDown((KeyCode)((int)KeyCode.Alpha0 + groupId))) continue;
+                if (assign && _selectedUnitIds.Count > 0)
+                {
+                    var groupCopy = new HashSet<int>(_selectedUnitIds);
+                    _localControlGroups[groupId] = groupCopy;
+                    FillOrderedSelection(groupCopy);
+                    for (int i = 0; i < _orderedSelection.Count; i++)
+                        EnqueueCommand(entityManager, PrototypePlayerCommandKind.AssignUnitToControlGroup,
+                            PrototypeControlGroupPayload.EncodeUnitGroup(_orderedSelection[i], groupId));
+                    _activeControlGroup = groupId;
+                }
+                else if (_localControlGroups.TryGetValue(groupId, out HashSet<int> storedGroup))
+                {
+                    _selectedUnitIds.Clear();
+                    foreach (int unitId in storedGroup)
+                        if (_seenIds.Contains(unitId)) _selectedUnitIds.Add(unitId);
+                    _activeControlGroup = _selectedUnitIds.Count > 0 ? groupId : 0;
+                }
+                return;
+            }
+        }
+
+        private void IssueWaypoint(EntityManager entityManager, int waypoint)
+        {
+            if (_activeControlGroup > 0)
+            {
+                EnqueueCommand(entityManager, PrototypePlayerCommandKind.SetControlGroupWaypoint,
+                    PrototypeControlGroupPayload.EncodeGroupWaypoint(_activeControlGroup, waypoint));
+                return;
+            }
+            FillOrderedSelection(_selectedUnitIds);
+            for (int i = 0; i < _orderedSelection.Count; i++)
+                EnqueueCommand(entityManager, PrototypePlayerCommandKind.SetUnitWaypoint,
+                    PrototypeUnitWaypointPayload.Encode(_orderedSelection[i], waypoint));
+        }
+
+        private void IssueHolding(EntityManager entityManager, bool holding)
+        {
+            if (_activeControlGroup > 0)
+            {
+                EnqueueCommand(entityManager, holding ? PrototypePlayerCommandKind.HoldControlGroup : PrototypePlayerCommandKind.ResumeControlGroup,
+                    _activeControlGroup);
+                return;
+            }
+            FillOrderedSelection(_selectedUnitIds);
+            for (int i = 0; i < _orderedSelection.Count; i++)
+                EnqueueCommand(entityManager, holding ? PrototypePlayerCommandKind.HoldUnit : PrototypePlayerCommandKind.ResumeUnit,
+                    _orderedSelection[i]);
+        }
+
+        private void FillOrderedSelection(IEnumerable<int> source)
+        {
+            _orderedSelection.Clear();
+            _orderedSelection.AddRange(source);
+            _orderedSelection.Sort();
         }
 
         private void EnqueueCommand(EntityManager entityManager, PrototypePlayerCommandKind kind, int intValue)
         {
-            EntityQuery queueQuery = entityManager.CreateEntityQuery(
-                ComponentType.ReadOnly<PlayerCommandQueueState>(),
-                ComponentType.ReadWrite<PlayerCommandRequest>());
-            if (queueQuery.IsEmptyIgnoreFilter)
-            {
-                queueQuery.Dispose();
-                return;
-            }
+            if (_commandQueueQuery.IsEmptyIgnoreFilter) return;
 
-            Entity queueEntity = queueQuery.GetSingletonEntity();
+            Entity queueEntity = _commandQueueQuery.GetSingletonEntity();
             PlayerCommandQueueState state = entityManager.GetComponentData<PlayerCommandQueueState>(queueEntity);
             int sequence = Math.Max(_nextSequence, state.LastSequence + 1);
             _nextSequence = checked(sequence + 1);
@@ -243,7 +348,11 @@ namespace ModernRA.Presentation
                 Kind = (byte)kind,
                 IntValue = intValue
             });
-            queueQuery.Dispose();
+        }
+
+        private static Rect ScreenRect(Vector2 a, Vector2 b)
+        {
+            return Rect.MinMaxRect(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y));
         }
 
         private bool TryGetGroundPoint(out Vector3 point)

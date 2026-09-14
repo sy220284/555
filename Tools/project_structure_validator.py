@@ -58,9 +58,13 @@ def find_forbidden_simulation_api(text: str):
 
 def validate_project(root: pathlib.Path = ROOT):
     errors = []
+    assets_root = root / "Assets"
     packages_root = root / "Packages"
     manifest_path = packages_root / "manifest.json"
     project_version_path = root / "ProjectSettings" / "ProjectVersion.txt"
+
+    if not assets_root.is_dir():
+        errors.append("Assets directory missing; Unity cannot open this checkout as a project")
 
     if not project_version_path.exists():
         errors.append("ProjectSettings/ProjectVersion.txt missing")
